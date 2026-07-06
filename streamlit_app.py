@@ -17,7 +17,7 @@ st.markdown(
 )
 st.markdown("---")
 
-api_base = st.sidebar.text_input("API base URL", "https://shopify-rank-tracker.vercel.app/docs")
+api_base = st.sidebar.text_input("API base URL", "https://shopify-rank-tracker.vercel.app")
 
 st.sidebar.title("Tracker controls")
 st.sidebar.write(
