@@ -1,9 +1,16 @@
+import os
 import sys
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 
-LOG_DIR = Path("logs")
-LOG_DIR.mkdir(exist_ok=True)
+if os.getenv("VERCEL"):
+    LOG_DIR = Path("/tmp/logs")
+else:
+    LOG_DIR = Path("logs")
+
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -31,14 +38,12 @@ def get_logger(name: str) -> logging.Logger:
         LOG_DIR / "app.log",
         encoding="utf-8",
     )
-    
     file_handler.setFormatter(formatter)
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
 
     console_handler = logging.StreamHandler(sys.stdout)
-
     console_handler.setFormatter(formatter)
 
     logger.addHandler(file_handler)
