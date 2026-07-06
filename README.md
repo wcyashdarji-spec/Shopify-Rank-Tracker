@@ -1,153 +1,90 @@
-# Shopify Rank Tracker
+<h1 align="center">Shopify Rank Tracker</h1>
 
-A modern, scalable application built with **FastAPI** for monitoring and storing Shopify App Store keyword rankings. The project automates keyword searches, captures ranking positions, stores historical data in PostgreSQL, and provides a clean architecture designed for maintainability and future scalability.
+<p align="center">
+  A lightweight, FastAPI-based application for tracking <strong>Shopify App Store</strong> keyword rankings.
+  It automates keyword searches, captures ranking positions, stores historical data in PostgreSQL, and helps monitor app visibility over time.
+</p>
 
----
-
-## Overview
-
-Shopify Rank Tracker helps monitor the visibility of Shopify applications across multiple keywords by performing automated searches in the Shopify App Store. The application records ranking history, captures screenshots for verification, and maintains historical records that can be used for reporting and trend analysis.
-
-Designed with a layered architecture, the project separates business logic, data access, browser automation, and configuration, making it easy to extend and maintain.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-Latest-009688.svg" alt="FastAPI">
+  <img src="https://img.shields.io/badge/uv-Package_Manager-purple.svg" alt="uv">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+</p>
 
 ---
 
 ## Features
 
-* Automated Shopify App Store rank tracking
-* Multi-keyword tracking for multiple applications
-* Historical ranking storage
-* PostgreSQL database integration
-* Screenshot capture for ranking verification
-* Playwright-powered browser automation
-* Modular service-oriented architecture
-* Comprehensive logging
-* Environment-based configuration
-* Easily extensible codebase
+- 🚀 Automated Shopify App Store keyword tracking
+- 📊 Historical ranking storage
+- 🔍 Multi-keyword support
+- 🗄️ PostgreSQL integration
+- 📸 Screenshot capture for verification
+- 🎭 Playwright-powered browser automation
+- 🏗️ Clean layered architecture
+- ⚙️ Environment-based configuration
+- 📝 Comprehensive logging
 
 ---
 
-# Project Structure
+## Getting Started
 
-```text
-app/
-├── api/
-│   └── tracker.py
-├── constants/
-│   └── shopify.py
-├── core/
-│   ├── config.py
-│   ├── database.py
-│   └── logger.py
-├── models/
-│   └── ranking.py
-├── repositories/
-│   └── ranking_repository.py
-├── schemas/
-│   ├── request.py
-│   └── response.py
-├── services/
-│   ├── browser.py
-│   ├── pagination_service.py
-│   ├── ranking_service.py
-│   ├── search_service.py
-│   └── tracker_service.py
-├── utils/
-│   ├── screenshot.py
-│   └── url_utils.py
-└── main.py
+Follow these steps to set up the project locally.
+
+### Prerequisites
+
+Make sure the following are installed:
+
+- Python 3.12 or later
+- PostgreSQL
+- uv
+- Playwright (Chromium)
+
+Install **uv** if you don't already have it:
+
+```bash
+pip install uv
 ```
 
 ---
 
-# Architecture
+## Installation
 
-The application follows a clean layered architecture.
-
-### API Layer
-
-Handles incoming requests and delegates processing to the service layer.
-
-### Service Layer
-
-Contains the application's business logic, browser automation, keyword search, ranking detection, and workflow orchestration.
-
-### Repository Layer
-
-Responsible for all database interactions and persistence logic.
-
-### Model Layer
-
-Defines SQLAlchemy ORM models representing the database schema.
-
-### Utility Layer
-
-Contains reusable helper functions such as URL processing and screenshot management.
-
-### Core Layer
-
-Manages configuration, database initialization, application settings, and logging.
-
----
-
-# Technology Stack
-
-* **Python 3.8+**
-* **FastAPI**
-* **PostgreSQL**
-* **SQLAlchemy**
-* **Playwright**
-* **Pydantic**
-* **Uvicorn**
-
----
-
-# Prerequisites
-
-Before running the project, ensure the following are installed:
-
-* Python 3.8 or later
-* PostgreSQL 12 or later
-* Playwright Chromium browser
-
----
-
-# Installation
-
-## Clone the Repository
+### Clone the Repository
 
 ```bash
 git clone <repository-url>
-cd rank-tracker
+cd shopify-rank-tracker
 ```
 
-## Create a Virtual Environment
+### Create a Virtual Environment
 
 ```bash
-python -m venv venv
+uv venv
 ```
 
-### Windows
+Activate the virtual environment.
+
+**Windows**
 
 ```bash
-venv\Scripts\activate
+.venv\Scripts\activate
 ```
 
-### macOS / Linux
+**macOS / Linux**
 
 ```bash
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
----
-
-## Install Dependencies
+### Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
-Install Playwright browser:
+### Install Playwright Browser
 
 ```bash
 playwright install chromium
@@ -155,11 +92,19 @@ playwright install chromium
 
 ---
 
-# Environment Configuration
+## Running the Application
+
+Start the FastAPI development server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+---
+
+## Configuration
 
 Create a `.env` file in the project root.
-
-Example:
 
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/rank_tracker
@@ -172,102 +117,60 @@ SCREENSHOT_FOLDER=screenshots
 
 ---
 
-# Database Setup
+## Project Structure
 
-Create a PostgreSQL database and update the `DATABASE_URL` accordingly.
-
-The application automatically initializes the required database tables during startup.
-
----
-
-# Running the Application
-
-Start the development server:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-The application will be available locally once the server starts successfully.
-
----
-
-# Database Schema
-
-The application stores data across three primary entities:
-
-### Apps
-
-Stores tracked Shopify applications.
-
-### Keywords
-
-Stores all tracked search keywords.
-
-### Ranking History
-
-Stores daily ranking results, page information, screenshot references, and timestamps.
-
-This structure enables long-term historical analysis without duplicating application or keyword information.
-
----
-
-# Logging
-
-Application logs are written both to the console and log files.
-
-Typical log information includes:
-
-* Application startup
-* Browser automation
-* Search progress
-* Ranking detection
-* Database operations
-* Errors and exceptions
-
----
-
-# Future Improvements
-
-* Scheduled tracking using APScheduler
-* Redis caching
-* Alembic database migrations
-* Interactive analytics dashboard
-* CSV and Excel export
-* Email notifications
-* Performance optimizations
-* Docker support
-* Comprehensive test coverage
-
----
-
-# Troubleshooting
-
-### Database Connection Issues
-
-* Verify PostgreSQL is running.
-* Confirm the `DATABASE_URL` is correct.
-* Ensure the target database exists.
-
-### Missing Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### Playwright Issues
-
-```bash
-playwright install chromium
-```
-
-### Port Already in Use
-
-Run the application on a different port.
-
-```bash
-uvicorn app.main:app --reload --port 8001
+```text
+app/
+├── api/
+├── constants/
+├── core/
+├── models/
+├── repositories/
+├── schemas/
+├── services/
+├── utils/
+└── main.py
 ```
 
 ---
 
+## Architecture
+
+The application follows a clean layered architecture.
+
+- **API Layer** – Handles incoming requests
+- **Service Layer** – Contains business logic and browser automation
+- **Repository Layer** – Manages database operations
+- **Model Layer** – Defines SQLAlchemy models
+- **Utility Layer** – Provides reusable helper functions
+- **Core Layer** – Handles configuration, logging, and database initialization
+
+---
+
+## Technology Stack
+
+- Python 3.12+
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Playwright
+- Pydantic
+- Uvicorn
+- uv
+- Pandas
+- OpenPyXL
+
+---
+
+## Logging
+
+The application logs important events, including:
+
+- Application startup
+- Browser automation
+- Keyword search progress
+- Ranking detection
+- Database operations
+- Error handling
+
+---
