@@ -142,7 +142,7 @@ with st.expander("Manage keywords for an existing app", expanded=True):
                         )
                         if resp.status_code == 200:
                             st.success(f"Removed keyword '{keyword_name}' from app.")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error(f"Failed to remove keyword: {resp.status_code} {resp.text}")
                     except requests.RequestException as exc:
@@ -178,7 +178,7 @@ with st.expander("Manage keywords for an existing app", expanded=True):
                     )
                     if resp.status_code == 200:
                         st.success("Keywords added successfully.")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(f"Failed to add keywords: {resp.status_code} {resp.text}")
                 except requests.RequestException as exc:
