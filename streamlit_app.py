@@ -1,8 +1,11 @@
+import os
 import requests
 import pandas as pd
 import altair as alt
 from datetime import date
 import streamlit as st
+from dotenv import load_dotenv
+load_dotenv()
 
 st.set_page_config(
     page_title="Rank Tracker Dashboard",
@@ -17,7 +20,13 @@ st.markdown(
 )
 st.markdown("---")
 
-api_base = st.sidebar.text_input("API base URL", "https://shopify-rank-tracker.vercel.app")
+api_base = os.getenv("API_BASE_URL")
+
+st.sidebar.text_input(
+    "API base URL",
+    value=api_base,
+    disabled=True,
+)
 
 st.sidebar.title("Tracker controls")
 st.sidebar.write(
@@ -211,10 +220,12 @@ if selected_app_label:
             label = f"{k} ({idx})"
             kw_options[label] = {"id": idx, "name": k}
 
+    keyword_labels = list(kw_options.keys())
+
     selected_kw_labels = st.multiselect(
         "Select keyword(s)",
         options=list(kw_options.keys()),
-        default=[],
+        default=keyword_labels[:5],
         key="selected_keywords",
     )
 
