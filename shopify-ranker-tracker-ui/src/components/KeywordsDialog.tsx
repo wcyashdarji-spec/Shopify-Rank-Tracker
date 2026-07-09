@@ -3,7 +3,7 @@ import { useState } from "react";
 
 // Material UI
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField, Typography } from "@mui/material";
-import { Add as AddIcon, Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon } from "@mui/icons-material";
 
 // Types
 import type { Keyword } from "../api";

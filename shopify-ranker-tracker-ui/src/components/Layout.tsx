@@ -1,5 +1,5 @@
 // React
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 
 // Material UI
 import { Box, IconButton, Tooltip } from "@mui/material";

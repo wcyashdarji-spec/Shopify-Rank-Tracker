@@ -36,10 +36,10 @@ function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
   return d;
 }
 
-function buildAreaPath(pts: Array<{ x: number; y: number }>, bottomY: number): string {
-  if (pts.length === 0) return "";
-  return `${buildSmoothPath(pts)} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
-}
+// function buildAreaPath(pts: Array<{ x: number; y: number }>, bottomY: number): string {
+//   if (pts.length === 0) return "";
+//   return `${buildSmoothPath(pts)} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
+// }
 
 const RANGE_OPTIONS = [
   { label: "7D", days: 7 },
@@ -59,7 +59,7 @@ const LINE_COLORS = [
 export default function RankChart({
   historyData,
   selectedKeywords,
-  onToggleKeyword,
+  // onToggleKeyword,
   daysRange,
   onRangeChange,
   keywords,

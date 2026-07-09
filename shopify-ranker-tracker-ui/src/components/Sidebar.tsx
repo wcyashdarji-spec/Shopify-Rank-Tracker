@@ -93,9 +93,9 @@ export default function Sidebar({
   const [newKeywordsText, setNewKeywordsText] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [appToDelete, setAppToDelete] = useState<App | null>(null);
-  const [historyExpanded, setHistoryExpanded] = useState(false);
-  const [lastSyncs, setLastSyncs] = useState<AppLastSync[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyExpanded,] = useState(false);
+  const [, setLastSyncs] = useState<AppLastSync[]>([]);
+  const [, setLoadingHistory] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
 
   useEffect(() => {
