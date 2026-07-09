@@ -341,3 +341,72 @@ class RankingRepository:
             logger.exception(f"Failed to retrieve latest rankings: {str(e)}")
             raise
 
+    @staticmethod
+    def delete_app(db: Session, app: App) -> None:
+        """
+        Delete an app from the database.
+
+        Args:
+            db: Database session.
+            app: App instance.
+        """
+        try:
+            db.delete(app)
+            db.commit()
+            logger.info("Deleted app '%s'", app.name)
+
+        except Exception as e:
+            db.rollback()
+            logger.exception(
+                f"Failed to delete app '{getattr(app, 'name', None)}': {str(e)}"
+            )
+            raise
+    
+    
+    @staticmethod
+    def get_apps_last_sync(db: Session) -> List[App]:
+        """
+        Retrieve all applications with their last synchronization timestamp.
+
+        Args:
+            db (Session): Database session.
+
+        Returns:
+            List[App]: List of applications ordered by name.
+
+        Raises:
+            Exception: If the application records cannot be retrieved.
+        """
+        try:
+            return (
+                db.query(App)
+                .order_by(App.name.asc())
+                .all()
+            )
+        except Exception as e:
+            logger.exception(f"Failed to retrieve app last sync details: {str(e)}")
+            raise
+
+
+    @staticmethod
+    def update_last_synced(db: Session, app: App) -> None:
+        """
+        Update the last synchronization timestamp for an application.
+
+        Args:
+            db (Session): Database session.
+            app (App): Application to update.
+
+        Raises:
+            Exception: If the update operation fails.
+        """
+        try:
+            app.last_synced_at = datetime.utcnow()
+            db.commit()
+            db.refresh(app)
+        except Exception as e:
+            db.rollback()
+            logger.exception(
+                f"Failed to update last sync for app '{app.name}': {str(e)}"
+            )
+            raise

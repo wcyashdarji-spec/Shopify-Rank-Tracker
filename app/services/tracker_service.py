@@ -112,7 +112,7 @@ class TrackerService:
                             )
                             try:
                                 RankingRepository.add_keyword_to_app(self.db, db_app, db_keyword)
-                            except Exception:
+                            except Exception as e:
                                 logger.exception(f"Failed to associate keyword '{keyword}' with app '{app_name}': {str(e)}")
                             RankingRepository.save_ranking(
                                 self.db,
@@ -137,6 +137,9 @@ class TrackerService:
                         )
                         time.sleep(2)
 
+                    if self.db and db_app:
+                        RankingRepository.update_last_synced(self.db, db_app)
+                        
                 return results
 
         except Exception as e:

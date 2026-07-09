@@ -380,3 +380,83 @@ def run_saved_apps(db: Session = Depends(get_db)):
         logger.exception("Failed to run saved apps tracker: %s", str(e))
         raise HTTPException(status_code=500, detail="Failed to run saved apps tracker")
 
+
+@router.delete("/apps/{app_id}")
+def delete_app(
+    app_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete an application and all of its associated rankings and keyword mappings.
+
+    Args:
+        app_id: App ID.
+        db: Database session.
+
+    Returns:
+        Confirmation message.
+    """
+    try:
+        app = RankingRepository.get_app_by_id(db, app_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="App not found")
+
+        RankingRepository.delete_app(db, app)
+
+        return {
+            "message": "Application deleted successfully",
+            "app": {
+                "id": app.id,
+                "name": app.name,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to delete app_id={app_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete application")
+    
+
+@router.get("/apps/last-sync")
+def get_apps_last_sync(db: Session = Depends(get_db)):
+    """
+    Retrieve the last synchronization details for all tracked applications.
+
+    Returns a list of applications, including their ID, name, URL, and the
+    timestamp of their most recent synchronization.
+
+    Args:
+        db (Session): Database session.
+
+    Returns:
+        dict: A response containing a list of application sync details.
+
+    Raises:
+        HTTPException: If the application sync details cannot be retrieved.
+    """
+    try:
+        apps = RankingRepository.get_apps_last_sync(db)
+
+        return {
+            "apps": [
+                {
+                    "id": app.id,
+                    "name": app.name,
+                    "url": app.url,
+                    "last_synced_at": (
+                        app.last_synced_at.isoformat()
+                        if app.last_synced_at
+                        else None
+                    ),
+                }
+                for app in apps
+            ]
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to retrieve app last sync details: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve app last sync details"
+        )

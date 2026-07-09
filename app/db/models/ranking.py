@@ -20,7 +20,8 @@ class App(Base):
     name = Column(String(255), nullable=False, index=True)
     url = Column(String(500), nullable=False, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
+    last_synced_at = Column(DateTime, nullable=True)
+    
     rankings = relationship("RankingHistory", back_populates="app", cascade="all, delete-orphan")
     keywords = relationship(
         "Keyword",
