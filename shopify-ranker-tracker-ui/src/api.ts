@@ -98,7 +98,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Get all apps
   async getApps(): Promise<{ apps: App[] }> {
-    return request<{ apps: App[] }>("/tracker/apps");
+    return request<{ apps: App[] }>("/apps/apps");
   },
 
   // Submit and run tracker for new app
@@ -124,7 +124,7 @@ export const api = {
     keywords: string[]
   ): Promise<{ app: any; keywords: Keyword[]; added: Keyword[] }> {
     return request<{ app: any; keywords: Keyword[]; added: Keyword[] }>(
-      `/tracker/apps/${appId}/keywords`,
+      `/keywords/apps/${appId}/keywords`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,7 +135,7 @@ export const api = {
 
   // Remove keyword association
   async removeKeyword(appId: number, keywordId: number): Promise<any> {
-    return request<any>(`/tracker/apps/${appId}/keywords/${keywordId}`, {
+    return request<any>(`/keywords/apps/${appId}/keywords/${keywordId}`, {
       method: "DELETE",
     });
   },
@@ -157,7 +157,7 @@ export const api = {
   },
   
   async deleteApp(appId: number): Promise<{ message: string }> {
-    return request<{ message: string }>(`/tracker/apps/${appId}`, {
+    return request<{ message: string }>(`/apps/apps/${appId}`, {
       method: "DELETE",
     });
   },

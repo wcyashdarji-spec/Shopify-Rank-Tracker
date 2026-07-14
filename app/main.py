@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.tracker import router
+from app.api.router import api_router
 
 app = FastAPI(
     title="Shopify Rank Tracker API",
@@ -20,7 +20,7 @@ app.add_middleware(
 def root():
     return {"message": "Welcome to Shopify Rank Tracker API"}
 
-app.include_router(router)
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
