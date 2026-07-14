@@ -61,14 +61,22 @@ class TrackerService:
                     for keyword in app.keywords:
                         logger.info("Searching keyword: '%s'", keyword)
 
-                        self.search.search_keyword(page, keyword)
+                        try:
+                            self.search.search_keyword(page, keyword)
+                        except Exception as e:
+                            logger.exception(
+                                "Skipping keyword '%s'",
+                                keyword,
+                            )
+                            continue
 
                         overall_rank = 1
+                        current_page = 1
                         found = False
                         screenshot_path = None
 
                         for current_page in range(1, MAX_PAGES + 1):
-                            rank, status, _ = self.rank.find_app(
+                            rank, status, _, results_per_page = self.rank.find_app(
                                 page=page,
                                 keyword=keyword,
                                 app_name=app_name,
@@ -96,8 +104,9 @@ class TrackerService:
 
                             if not self.pagination.next_page(page):
                                 break
-
-                            overall_rank += 24
+                            
+                            current_page += 1
+                            overall_rank += results_per_page
 
                         if not found:
                             logger.warning(

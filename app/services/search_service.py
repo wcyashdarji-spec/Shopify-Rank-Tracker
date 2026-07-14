@@ -26,8 +26,7 @@ class SearchService:
 
             logger.info("Searching Shopify App Store for keyword: '%s'", keyword)
 
-            page.goto(url, wait_until="networkidle")
-
+            page.goto(url, wait_until="networkidle", timeout=30000)
         except Exception as e:
             logger.exception(f"Failed to search for keyword '{keyword}': {str(e)}")
             raise

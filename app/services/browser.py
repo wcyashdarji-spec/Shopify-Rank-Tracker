@@ -26,6 +26,11 @@ class BrowserManager:
             self.browser = self.playwright.chromium.launch(headless=self.headless)
             self.page = self.browser.new_page()
 
+
+            self.page.set_default_timeout(60000)
+
+            self.page.set_default_navigation_timeout(60000)
+
             logger.info("Browser started successfully.")
             return self.page
 

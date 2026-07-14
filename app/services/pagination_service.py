@@ -27,17 +27,17 @@ class PaginationService:
 
             next_link = next_btn.first
             try:
-                next_link.scroll_into_view_if_needed(timeout=5000)
-                next_link.click(timeout=15000)
+                next_link.scroll_into_view_if_needed(timeout=12000)
+                next_link.click(timeout=30000)
             except Exception as click_exc:
                 logger.warning("Next button click failed, trying direct navigation: %s", click_exc)
                 href = next_link.get_attribute("href")
                 if not href:
                     logger.warning("Next button has no href attribute.")
                     return False
-                page.goto(href, timeout=15000)
+                page.goto(href, timeout=30000)
 
-            page.wait_for_load_state("networkidle", timeout=15000)
+            page.wait_for_load_state("networkidle", timeout=30000)
             logger.info("Navigated to the next search results page.")
             return True
 

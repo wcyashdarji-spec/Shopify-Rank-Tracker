@@ -13,7 +13,7 @@ class RankingService:
     @staticmethod
     def find_app(
         page: Page, keyword: str, app_name: str, app_url: str
-    ) -> Tuple[Optional[int], bool, Optional[object]]:
+    ) -> Tuple[Optional[int], bool, Optional[object], int] :
         """
         Search the current Shopify App Store results page for the configured app.
 
@@ -54,9 +54,17 @@ class RankingService:
                 full_url = normalize_url(full_url)
                 parsed = urlparse(full_url)
 
+
+                excluded_apps = {
+                    "https://apps.shopify.com/sitemap",
+                }
+
                 if not is_app_url(parsed.path, parsed.netloc):
                     continue
 
+                if full_url in excluded_apps:
+                    continue
+                
                 if full_url in unique_urls:
                     continue
 
@@ -82,15 +90,15 @@ class RankingService:
 
                 if full_url == target_url:
                     logger.info("Application found at rank %s.", rank)
-                    return rank, True, link
+                    return rank, True, link, len(unique_urls)
 
                 if text.lower() == app_name.lower():
                     logger.info("Application found at rank %s.", rank)
-                    return rank, True, link
+                    return rank, True, link, len(unique_urls)
 
                 rank += 1
 
-            return None, False, None
+            return None, False, None, len(unique_urls)
 
         except Exception as e:
             logger.exception(f"Failed to find app '{app_name}' for keyword '{keyword}': {str(e)}")

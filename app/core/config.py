@@ -5,7 +5,7 @@ load_dotenv()
 
 HEADLESS = False
 
-MAX_PAGES = 5
+MAX_PAGES = 10
 
 SCREENSHOT_FOLDER = "screenshots"
 
