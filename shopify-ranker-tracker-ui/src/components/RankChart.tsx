@@ -1,5 +1,5 @@
 ﻿// React
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 
 // Material UI
 import { Box, Button, CircularProgress, Paper, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
@@ -18,28 +18,67 @@ interface RankChartProps {
   onManageKeywords: () => void;
 }
 
-
 // Smooth bezier curve path
 function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
-  if (pts.length === 0) return "";
-  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  if (n === 2) {
+    return `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} L ${pts[1].x.toFixed(2)} ${pts[1].y.toFixed(2)}`;
+  }
+
+  const dx: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const ddx = pts[i + 1].x - pts[i].x;
+    const ddy = pts[i + 1].y - pts[i].y;
+    dx.push(ddx);
+    slope.push(ddx !== 0 ? ddy / ddx : 0);
+  }
+
+  const m: number[] = new Array(n).fill(0);
+  m[0] = slope[0];
+  m[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (slope[i - 1] === 0 || slope[i] === 0 || slope[i - 1] * slope[i] < 0) {
+      m[i] = 0;
+    } else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      m[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]);
+    }
+  }
+
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+    const a = m[i] / slope[i];
+    const b = m[i + 1] / slope[i];
+    const s = a * a + b * b;
+    if (s > 9) {
+      const tRescale = 3 / Math.sqrt(s);
+      m[i] = tRescale * a * slope[i];
+      m[i + 1] = tRescale * b * slope[i];
+    }
+  }
+
   let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const p0 = pts[i - 1];
-    const p1 = pts[i];
-    const tension = 0.35;
-    const dx = p1.x - p0.x;
-    const cp1x = p0.x + dx * tension;
-    const cp2x = p1.x - dx * tension;
-    d += ` C ${cp1x.toFixed(2)} ${p0.y.toFixed(2)}, ${cp2x.toFixed(2)} ${p1.y.toFixed(2)}, ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const h = dx[i];
+    const cp1x = p0.x + h / 3;
+    const cp1y = p0.y + (m[i] * h) / 3;
+    const cp2x = p1.x - h / 3;
+    const cp2y = p1.y - (m[i + 1] * h) / 3;
+    d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
   }
   return d;
 }
 
-// function buildAreaPath(pts: Array<{ x: number; y: number }>, bottomY: number): string {
-//   if (pts.length === 0) return "";
-//   return `${buildSmoothPath(pts)} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
-// }
 
 const RANGE_OPTIONS = [
   { label: "7D", days: 7 },
@@ -48,8 +87,6 @@ const RANGE_OPTIONS = [
   { label: "1Y", days: 365 },
   { label: "All", days: 9999 },
 ];
-
-
 
 const LINE_COLORS = [
   "#f59e0b", "#14b8a6", "#ca8a04", "#3b82f6",
@@ -75,13 +112,18 @@ export default function RankChart({
     color: string;
   } | null>(null);
   const [hiddenKeywords, setHiddenKeywords] = useState<number[]>([]);
+
+  const [zoomDomain, setZoomDomain] = useState<{ min: number; max: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const panStart = useRef<{ x: number; min: number; max: number } | null>(null);
+
   const toggleHiddenKeyword = (id: number) => {
-      setHiddenKeywords((prev) =>
-        prev.includes(id)
-          ? prev.filter((k) => k !== id)
-          : [...prev, id]
-      );
-    };
+    setHiddenKeywords((prev) =>
+      prev.includes(id) ? prev.filter((k) => k !== id) : [...prev, id]
+    );
+  };
+
   const W = 900;
   const H = 260;
   const PAD = { top: 24, right: 20, bottom: 40, left: 52 };
@@ -99,25 +141,21 @@ export default function RankChart({
   const series = useMemo(() => {
     if (!historyData || historyData.length === 0) return [];
     return historyData
-        .filter((kh) =>
-          selectedKeywords.includes(kh.keyword.id)
-        )
-        .map((kh) => {
+      .filter((kh) => selectedKeywords.includes(kh.keyword.id))
+      .map((kh) => {
         const sorted = [...kh.history]
           .filter((r) => r.rank !== null)
           .sort((a, b) => new Date(a.tracked_date).getTime() - new Date(b.tracked_date).getTime());
         return { keyword: kh.keyword, records: sorted, colorIdx: kwColorIndex[kh.keyword.id] ?? 0 };
       })
       .filter((s) => s.records.length > 0);
-  }, [historyData, selectedKeywords, hiddenKeywords, kwColorIndex]);
+  }, [historyData, selectedKeywords, kwColorIndex]);
 
-  // Compute axis domain
-  const { minDate, maxDate, minRank, maxRank, yTicks, xTicks } = useMemo(() => {
+  const { minDate, maxDate, minRank, maxRank, yTicks } = useMemo(() => {
     let minDate = Infinity;
     let maxDate = -Infinity;
     let minRank = Infinity;
     let maxRank = -Infinity;
-
     series.forEach((s) =>
       s.records.forEach((r) => {
         const t = new Date(r.tracked_date).getTime();
@@ -127,32 +165,37 @@ export default function RankChart({
         if (r.rank! > maxRank) maxRank = r.rank!;
       })
     );
-
-    if (!isFinite(minDate)) return { minDate: 0, maxDate: 1, minRank: 1, maxRank: 100, yTicks: [], xTicks: [] };
-
+    if (!isFinite(minDate)) {
+      return { minDate: 0, maxDate: 1, minRank: 1, maxRank: 100, yTicks: [] as number[] };
+    }
     const rankPad = Math.max(2, Math.ceil((maxRank - minRank) * 0.2));
     const rMin = Math.max(1, minRank - rankPad);
     const rMax = maxRank + rankPad;
-
-    // Y ticks — evenly spaced, nice values
     const yStep = Math.ceil((rMax - rMin) / 5);
     const yTicksArr: number[] = [];
     for (let v = rMin; v <= rMax; v += yStep) yTicksArr.push(v);
-
-    // X ticks — pick ~6 evenly spaced dates
-    const totalMs = maxDate - minDate;
-    const xCount = Math.min(6, series[0]?.records.length ?? 1);
-    const xStep = xCount > 1 ? totalMs / (xCount - 1) : 0;
-    const xTicksArr: number[] = Array.from({ length: xCount }, (_, i) => minDate + i * xStep);
-
-    return { minDate, maxDate, minRank: rMin, maxRank: rMax, yTicks: yTicksArr, xTicks: xTicksArr };
+    return { minDate, maxDate, minRank: rMin, maxRank: rMax, yTicks: yTicksArr };
   }, [series]);
 
-  function toX(timestamp: number) {
-    const range = maxDate - minDate || 1;
-    return PAD.left + ((timestamp - minDate) / range) * chartW;
-  }
+  useEffect(() => {
+    setZoomDomain(null);
+  }, [daysRange, historyData]);
 
+  const displayMinDate = zoomDomain ? zoomDomain.min : minDate;
+  const displayMaxDate = zoomDomain ? zoomDomain.max : maxDate;
+
+  const xTicks = useMemo(() => {
+    if (!isFinite(displayMinDate) || !isFinite(displayMaxDate)) return [];
+    const totalMs = displayMaxDate - displayMinDate;
+    const xCount = Math.min(6, series[0]?.records.length ?? 1);
+    const xStep = xCount > 1 ? totalMs / (xCount - 1) : 0;
+    return Array.from({ length: xCount }, (_, i) => displayMinDate + i * xStep);
+  }, [displayMinDate, displayMaxDate, series]);
+
+  function toX(timestamp: number) {
+    const range = displayMaxDate - displayMinDate || 1;
+    return PAD.left + ((timestamp - displayMinDate) / range) * chartW;
+  }
   function toY(rank: number) {
     const range = maxRank - minRank || 1;
     // Inverted: lower rank = higher on chart
@@ -162,8 +205,77 @@ export default function RankChart({
   const bottomY = PAD.top + chartH;
   const formatDate = (ts: number) =>
     new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
   const isEmpty = series.length === 0;
+
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    function handleWheel(e: WheelEvent) {
+      if (isEmpty) return;
+      e.preventDefault();
+      const rect = svgEl!.getBoundingClientRect();
+      const cursorXRatio = (e.clientX - rect.left) / rect.width;
+      const svgX = cursorXRatio * W;
+
+      const curMin = zoomDomain ? zoomDomain.min : minDate;
+      const curMax = zoomDomain ? zoomDomain.max : maxDate;
+      const curRange = curMax - curMin || 1;
+
+      const t = curMin + ((svgX - PAD.left) / chartW) * curRange;
+
+      const zoomFactor = e.deltaY < 0 ? 0.85 : 1 / 0.85;
+      let newRange = curRange * zoomFactor;
+
+      const fullRange = maxDate - minDate || 1;
+      const minAllowedRange = fullRange * 0.02;
+      newRange = Math.min(fullRange, Math.max(minAllowedRange, newRange));
+
+      const ratio = (t - curMin) / curRange;
+      let newMin = t - ratio * newRange;
+      let newMax = newMin + newRange;
+
+      if (newMin < minDate) { newMin = minDate; newMax = newMin + newRange; }
+      if (newMax > maxDate) { newMax = maxDate; newMin = newMax - newRange; }
+
+      if (newRange >= fullRange - 1) {
+        setZoomDomain(null);
+      } else {
+        setZoomDomain({ min: newMin, max: newMax });
+      }
+    }
+
+    svgEl.addEventListener("wheel", handleWheel, { passive: false });
+    return () => svgEl.removeEventListener("wheel", handleWheel);
+  }, [zoomDomain, minDate, maxDate, chartW, isEmpty]);
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    if (!zoomDomain) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, min: zoomDomain.min, max: zoomDomain.max };
+    (e.target as Element).setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!isPanning || !panStart.current || !svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const dxPixels = e.clientX - panStart.current.x;
+    const dxRatio = dxPixels / rect.width;
+    const range = panStart.current.max - panStart.current.min;
+    const dt = -dxRatio * (W / chartW) * range;
+
+    let newMin = panStart.current.min + dt;
+    let newMax = panStart.current.max + dt;
+    if (newMin < minDate) { newMin = minDate; newMax = newMin + range; }
+    if (newMax > maxDate) { newMax = maxDate; newMin = newMax - range; }
+
+    setZoomDomain({ min: newMin, max: newMax });
+  }
+
+  function handlePointerUp() {
+    setIsPanning(false);
+    panStart.current = null;
+  }
 
   return (
     <Paper
@@ -181,62 +293,46 @@ export default function RankChart({
           <Typography sx={{ fontWeight: 600, fontSize: 15, color: "#111827", mb: 0.5 }}>
             Keyword position changes
           </Typography>
-          {/* Search terms label + chips */}
-          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 1 }}>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: "#6b7280", mr: 0.5 }}>
-              Search terms
-            </Typography>
-            {keywords.map((kw, i) => {
-              const isSelected = selectedKeywords.includes(kw.id);
-              const chipColor = getChipColor(i);
-              return (
-                <Box
-                  key={kw.id}
-                  onClick={() => onToggleKeyword(kw.id)}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    px: 1,
-                    py: 0.4,
-                    borderRadius: "6px",
-                    border: `1px solid ${chipColor.border}`,
-                    bgcolor: isSelected ? chipColor.bg : "#f9fafb",
-                    color: isSelected ? chipColor.color : "#9ca3af",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    transition: "all 0.15s",
-                    "&:hover": { bgcolor: chipColor.bg, color: chipColor.color },
-                  }}
-                >
-                  {kw.name}
-                </Box>
-              );
-            })}
-          </Box> */}
           <Typography sx={{ fontSize: 11.5, color: "#9ca3af", mt: 0.75 }}>
-            You can view up to 10 search terms at a time.
+            You can view up to 10 search terms at a time. Scroll to zoom, drag to pan.
           </Typography>
         </Box>
-
-        {/* Right side: Manage link + range toggle */}
+        {/* Right side: Manage link + range toggle + reset zoom */}
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1.5 }}>
-          <Button
-            size="small"
-            onClick={onManageKeywords}
-            sx={{
-              textTransform: "none",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#f97316",
-              p: 0,
-              minWidth: 0,
-              "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
-            }}
-          >
-            Manage keywords Delete and Add
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            {zoomDomain && (
+              <Button
+                size="small"
+                onClick={() => setZoomDomain(null)}
+                sx={{
+                  textTransform: "none",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  p: 0,
+                  minWidth: 0,
+                  "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
+                }}
+              >
+                Reset zoom
+              </Button>
+            )}
+            <Button
+              size="small"
+              onClick={onManageKeywords}
+              sx={{
+                textTransform: "none",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#f97316",
+                p: 0,
+                minWidth: 0,
+                "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
+              }}
+            >
+              Manage keywords Delete and Add
+            </Button>
+          </Box>
           <ToggleButtonGroup
             value={daysRange}
             exclusive
@@ -278,7 +374,6 @@ export default function RankChart({
             <CircularProgress size={24} sx={{ color: "#6366f1" }} />
           </Box>
         )}
-
         {isEmpty && !isLoadingHistory ? (
           <Box sx={{ height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Typography sx={{ color: "#9ca3af", fontSize: 13 }}>
@@ -288,10 +383,22 @@ export default function RankChart({
         ) : (
           <Box sx={{ overflowX: "auto" }}>
             <svg
+              ref={svgRef}
               viewBox={`0 0 ${W} ${H}`}
               width="100%"
-              style={{ display: "block" }}
+              style={{ display: "block", touchAction: "none", cursor: zoomDomain ? (isPanning ? "grabbing" : "grab") : "default" }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
             >
+              {/* Clip path for the plot area — keeps lines/dots from bleeding into axis labels when zoomed */}
+              <defs>
+                <clipPath id="plotAreaClip">
+                  <rect x={PAD.left} y={PAD.top} width={chartW} height={chartH} />
+                </clipPath>
+              </defs>
+
               {/* Y grid lines + labels */}
               {yTicks.map((tick) => {
                 const y = toY(tick);
@@ -301,10 +408,7 @@ export default function RankChart({
                       x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
                       stroke="#f3f4f6" strokeWidth={1} strokeDasharray="4 3"
                     />
-                    <text
-                      x={PAD.left - 8} y={y + 4}
-                      textAnchor="end" fontSize={10} fill="#9ca3af"
-                    >
+                    <text x={PAD.left - 8} y={y + 4} textAnchor="end" fontSize={10} fill="#9ca3af">
                       {tick}
                     </text>
                   </g>
@@ -329,77 +433,79 @@ export default function RankChart({
                 Search term position
               </text>
 
-
-              {/* Lines */}
-              {series
+              {/* Lines — clipped to plot area */}
+              <g clipPath="url(#plotAreaClip)">
+                {series
                   .filter((s) => !hiddenKeywords.includes(s.keyword.id))
                   .map((s) => {
-                const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
-                const pts = s.records.map((r) => ({
-                  x: toX(new Date(r.tracked_date).getTime()),
-                  y: toY(r.rank!),
-                }));
-                return (
-                  <path
-                    key={`line-${s.keyword.id}`}
-                    d={buildSmoothPath(pts)}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                );
-              })}
+                    const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
+                    const pts = s.records.map((r) => ({
+                      x: toX(new Date(r.tracked_date).getTime()),
+                      y: toY(r.rank!),
+                    }));
+                    return (
+                      <path
+                        key={`line-${s.keyword.id}`}
+                        d={buildSmoothPath(pts)}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    );
+                  })}
+              </g>
 
-              {/* Dot markers at data points */}
-              {/* Hover crosshair */}
+              {/* Hover crosshair — clipped to plot area */}
               {hovered && (
-                <line
-                  x1={hovered.x} y1={PAD.top} x2={hovered.x} y2={bottomY}
-                  stroke="#d1d5db" strokeWidth={1} strokeDasharray="3 3"
-                />
+                <g clipPath="url(#plotAreaClip)">
+                  <line
+                    x1={hovered.x} y1={PAD.top} x2={hovered.x} y2={bottomY}
+                    stroke="#d1d5db" strokeWidth={1} strokeDasharray="3 3"
+                  />
+                </g>
               )}
 
-              {/* Dot markers at data points (with larger invisible hit area) */}
-              {series
-                .filter((s) => !hiddenKeywords.includes(s.keyword.id))
-                .map((s) => {
-                const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
-                return s.records.map((r) => {
-                  const cx = toX(new Date(r.tracked_date).getTime());
-                  const cy = toY(r.rank!);
-                  return (
-                    <g key={`dot-${s.keyword.id}-${r.id}`}>
-                      {/* visible dot */}
-                      <circle
-                        cx={cx} cy={cy} r={3}
-                        fill="#fff" stroke={color} strokeWidth={1.5}
-                        pointerEvents="none"
-                      />
-                      {/* invisible larger hit target */}
-                      <circle
-                        cx={cx} cy={cy} r={8}
-                        fill="transparent"
-                        style={{ cursor: "pointer" }}
-                        onMouseEnter={() =>
-                          setHovered({
-                            x: cx,
-                            y: cy,
-                            date: new Date(r.tracked_date).getTime(),
-                            keyword: s.keyword.name,
-                            rank: r.rank!,
-                            color,
-                          })
-                        }
-                        onMouseLeave={() => setHovered(null)}
-                      />
-                    </g>
-                  );
-                });
-              })}
+              {/* Dot markers at data points — clipped to plot area */}
+              <g clipPath="url(#plotAreaClip)">
+                {series
+                  .filter((s) => !hiddenKeywords.includes(s.keyword.id))
+                  .map((s) => {
+                    const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
+                    return s.records.map((r) => {
+                      const cx = toX(new Date(r.tracked_date).getTime());
+                      const cy = toY(r.rank!);
+                      return (
+                        <g key={`dot-${s.keyword.id}-${r.id}`}>
+                          <circle
+                            cx={cx} cy={cy} r={3}
+                            fill="#fff" stroke={color} strokeWidth={1.5}
+                            pointerEvents="none"
+                          />
+                          <circle
+                            cx={cx} cy={cy} r={8}
+                            fill="transparent"
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={() =>
+                              setHovered({
+                                x: cx,
+                                y: cy,
+                                date: new Date(r.tracked_date).getTime(),
+                                keyword: s.keyword.name,
+                                rank: r.rank!,
+                                color,
+                              })
+                            }
+                            onMouseLeave={() => setHovered(null)}
+                          />
+                        </g>
+                      );
+                    });
+                  })}
+              </g>
 
-              {/* Tooltip */}
+              {/* Tooltip — NOT clipped, so it can render even near the edge */}
               {hovered && (() => {
                 const maxLabelLen = 22;
                 const label =
@@ -407,15 +513,11 @@ export default function RankChart({
                     ? hovered.keyword.slice(0, maxLabelLen - 1) + "…"
                     : hovered.keyword;
                 const dateLine = `${formatDate(hovered.date)} · Rank #${hovered.rank}`;
-
-                // rough width estimate: ~6.2px per character at fontSize 11, plus padding
                 const estWidth = Math.max(label.length * 6.4, dateLine.length * 5.6) + 20;
                 const tw = Math.min(Math.max(estWidth, 100), 220);
                 const th = 46;
-
                 const tx = hovered.x + tw + 12 > W ? hovered.x - tw - 10 : hovered.x + 10;
                 const ty = Math.max(PAD.top, Math.min(hovered.y - th / 2, bottomY - th));
-
                 return (
                   <g pointerEvents="none">
                     <circle cx={hovered.x} cy={hovered.y} r={5} fill={hovered.color} stroke="#fff" strokeWidth={2} />
@@ -444,34 +546,25 @@ export default function RankChart({
                 key={s.keyword.id}
                 onClick={() => toggleHiddenKeyword(s.keyword.id)}
                 sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.75,
-                      cursor: "pointer",
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      opacity: hiddenKeywords.includes(s.keyword.id) ? 0.35 : 1,
-                      textDecoration: hiddenKeywords.includes(s.keyword.id)
-                        ? "line-through"
-                        : "none",
-                      transition: "all .15s",
-
-                      "&:hover": {
-                          bgcolor: "#f5f5f5",
-                      },
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  cursor: "pointer",
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  opacity: hiddenKeywords.includes(s.keyword.id) ? 0.35 : 1,
+                  textDecoration: hiddenKeywords.includes(s.keyword.id) ? "line-through" : "none",
+                  transition: "all .15s",
+                  "&:hover": { bgcolor: "#f5f5f5" },
                 }}
               >
                 <Box sx={{ width: 24, height: 2, bgcolor: color, borderRadius: 1 }} />
                 <Typography
                   sx={{
                     fontSize: 11.5,
-                    color: hiddenKeywords.includes(s.keyword.id)
-                      ? "#9ca3af"
-                      : "#6b7280",
-                    textDecoration: hiddenKeywords.includes(s.keyword.id)
-                      ? "line-through"
-                      : "none",
+                    color: hiddenKeywords.includes(s.keyword.id) ? "#9ca3af" : "#6b7280",
+                    textDecoration: hiddenKeywords.includes(s.keyword.id) ? "line-through" : "none",
                   }}
                 >
                   {s.keyword.name}
@@ -484,4 +577,3 @@ export default function RankChart({
     </Paper>
   );
 }
-
