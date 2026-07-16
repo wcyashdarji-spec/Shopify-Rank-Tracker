@@ -22,7 +22,7 @@ interface HistoryLogProps {
 
 export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogProps) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(8);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState("");
 
   const filtered = tableRows.filter((r) =>
@@ -162,7 +162,7 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
         rowsPerPage={rowsPerPage}
         onPageChange={(_, p) => setPage(p)}
         onRowsPerPageChange={(e) => { setRowsPerPage(+e.target.value); setPage(0); }}
-        rowsPerPageOptions={[8, 20, 50]}
+        rowsPerPageOptions={[10, 20, 50]}
         sx={{
           borderTop: "1px solid #f3f4f6",
           "& .MuiTablePagination-toolbar": { fontSize: 13 },

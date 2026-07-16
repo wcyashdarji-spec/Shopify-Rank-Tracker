@@ -1,4 +1,4 @@
-﻿// React
+// React
 import { useEffect, useRef, useState } from "react";
 
 // Material UI
@@ -113,8 +113,8 @@ export default function App() {
       if (newApp) setSelectedApp(newApp);
     } catch (err: any) {
       clearInterval(interval);
-      setScrapingLogs((prev) => [...prev, `[ERROR] ${err.message || err}`]);
-      showToast(err.message || "Scraper failed", "error");
+      setScrapingLogs((prev) => [...prev, `[ERROR] ${err?.message || String(err)}`]);
+      showToast(err?.message || "Scraper failed", "error");
     } finally {
       setTimeout(() => {
         setIsScraping(false);
@@ -133,7 +133,7 @@ export default function App() {
         setSelectedApp(updated.apps.length > 0 ? updated.apps[0] : null);
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to delete application", "error");
+      showToast(err?.message || "Failed to delete application", "error");
     }
   };
 
@@ -153,13 +153,17 @@ export default function App() {
     try {
       const res = await api.runSavedApps();
       clearInterval(interval);
-      setScrapingLogs((prev) => [...prev, "[Done] Run finished!", `[Done] ${res.message}`]);
+      setScrapingLogs((prev) => [
+        ...prev,
+        "[Done] Run finished!",
+        `[Done] ${res?.message || "Saved apps tracking completed."}`
+      ]);
       showToast("All apps re-scraped!", "success");
       await fetchApps();
     } catch (err: any) {
       clearInterval(interval);
-      setScrapingLogs((prev) => [...prev, `[ERROR] ${err.message}`]);
-      showToast(err.message || "Run failed", "error");
+      setScrapingLogs((prev) => [...prev, `[ERROR] ${err?.message || String(err)}`]);
+      showToast(err?.message || "Run failed", "error");
     } finally {
       setTimeout(() => {
         setIsScraping(false);

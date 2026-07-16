@@ -89,7 +89,7 @@ export default function Dashboard({
       if (app) onUpdateSelectedApp(app);
       await onRefreshApps();
     } catch (err: any) {
-      showToast(err.message || "Failed to add keywords", "error");
+      showToast(err?.message || "Failed to add keywords", "error");
     } finally {
       setIsAddingKeywords(false);
     }
@@ -108,7 +108,7 @@ export default function Dashboard({
       }
       await onRefreshApps();
     } catch (err: any) {
-      showToast(err.message || "Failed to remove keyword", "error");
+      showToast(err?.message || "Failed to remove keyword", "error");
     }
   };
 
