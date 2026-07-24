@@ -12,7 +12,7 @@ class RankingRepository:
     """Repository for managing ranking data in the database."""
 
     @staticmethod
-    def get_or_create_app(db: Session, name: str, url: str) -> App:
+    def get_or_create_app(db: Session, name: str, url: str, user_id: Optional[int] = None) -> App:
         """
         Get existing app or create a new one.
 
@@ -20,26 +20,30 @@ class RankingRepository:
             db: Database session.
             name: App name.
             url: App URL.
+            user_id: User ID.
 
         Returns:
             App object.
         """
         try:
-            app = db.query(App).filter(App.url == url).first()
+            query = db.query(App).filter(App.url == url)
+            if user_id is not None:
+                query = query.filter(App.user_id == user_id)
+            app = query.first()
             if app:
                 return app
 
-            app = App(name=name, url=url)
+            app = App(name=name, url=url, user_id=user_id)
             db.add(app)
             db.commit()
             db.refresh(app)
 
-            logger.info("Created new app: %s", name)
+            logger.info("Created new app: %s for user: %s", name, user_id)
             return app
 
         except Exception as e:
             db.rollback()
-            logger.exception(f"Failed to get or create app: {name} with URL: {url} {str(e)}")
+            logger.exception(f"Failed to get or create app: {name} with URL: {url} for user: {user_id} {str(e)}")
             raise
 
     @staticmethod
@@ -213,21 +217,25 @@ class RankingRepository:
             raise
 
     @staticmethod
-    def get_app_by_id(db: Session, app_id: int) -> Optional[App]:
+    def get_app_by_id(db: Session, app_id: int, user_id: Optional[int] = None) -> Optional[App]:
         """
         Get app by ID.
 
         Args:
             db: Database session.
             app_id: App ID.
+            user_id: User ID.
 
         Returns:
             App object or None.
         """
         try:
-            return db.query(App).filter(App.id == app_id).first()
+            query = db.query(App).filter(App.id == app_id)
+            if user_id is not None:
+                query = query.filter(App.user_id == user_id)
+            return query.first()
         except Exception as e:
-            logger.exception(f"Failed to get app by ID: {app_id} {str(e)}")
+            logger.exception(f"Failed to get app by ID: {app_id} for user: {user_id} {str(e)}")
             raise
 
     @staticmethod
@@ -295,18 +303,22 @@ class RankingRepository:
             raise
 
     @staticmethod
-    def get_all_apps(db: Session) -> List[App]:
+    def get_all_apps(db: Session, user_id: Optional[int] = None) -> List[App]:
         """
-        Get all apps from database.
+        Get all primary apps from database.
 
         Args:
             db: Database session.
+            user_id: Optional User ID to filter by.
 
         Returns:
             List of App objects.
         """
         try:
-            return db.query(App).all()
+            query = db.query(App).filter(App.is_competitor == False)
+            if user_id is not None:
+                query = query.filter(App.user_id == user_id)
+            return query.all()
         except Exception as e:
             logger.exception(f"Failed to retrieve all apps: {str(e)}")
             raise
@@ -315,6 +327,7 @@ class RankingRepository:
     def get_latest_rankings(
         db: Session,
         app_id: Optional[int] = None,
+        user_id: Optional[int] = None,
     ) -> List[RankingHistory]:
         """
         Get the latest ranking for each app-keyword combination (today).
@@ -322,6 +335,7 @@ class RankingRepository:
         Args:
             db: Database session.
             app_id: Optional app ID to filter by.
+            user_id: Optional user ID to filter by.
 
         Returns:
             List of latest RankingHistory objects.
@@ -334,6 +348,9 @@ class RankingRepository:
 
             if app_id:
                 query = query.filter(RankingHistory.app_id == app_id)
+
+            if user_id is not None:
+                query = query.join(App).filter(App.user_id == user_id)
 
             return query.order_by(RankingHistory.tracked_date.desc()).all()
 
@@ -364,12 +381,13 @@ class RankingRepository:
     
     
     @staticmethod
-    def get_apps_last_sync(db: Session) -> List[App]:
+    def get_apps_last_sync(db: Session, user_id: Optional[int] = None) -> List[App]:
         """
         Retrieve all applications with their last synchronization timestamp.
 
         Args:
             db (Session): Database session.
+            user_id: Optional User ID to filter by.
 
         Returns:
             List[App]: List of applications ordered by name.
@@ -378,9 +396,11 @@ class RankingRepository:
             Exception: If the application records cannot be retrieved.
         """
         try:
+            query = db.query(App).filter(App.is_competitor == False)
+            if user_id is not None:
+                query = query.filter(App.user_id == user_id)
             return (
-                db.query(App)
-                .order_by(App.name.asc())
+                query.order_by(App.name.asc())
                 .all()
             )
         except Exception as e:
@@ -410,3 +430,81 @@ class RankingRepository:
                 f"Failed to update last sync for app '{app.name}': {str(e)}"
             )
             raise
+
+    @staticmethod
+    def add_competitor_to_app(db: Session, app: App, name: str, url: str) -> App:
+        """
+        Create or associate a competitor with a primary application.
+
+        This method checks whether a competitor application with the given
+        URL already exists for the current user. If it does not exist, a new
+        competitor record is created. The competitor is then linked to the
+        specified primary application if the relationship does not already
+        exist.
+
+        Raises:
+            Exception:
+                Propagates any database errors encountered while creating or
+                linking the competitor.
+        """
+        try:
+            competitor = db.query(App).filter(
+                App.url == url,
+                App.user_id == app.user_id,
+                App.is_competitor == True
+            ).first()
+
+            if not competitor:
+                competitor = App(name=name, url=url, user_id=app.user_id, is_competitor=True)
+                db.add(competitor)
+                db.commit()
+                db.refresh(competitor)
+                logger.info("Created new competitor app: %s", name)
+
+            db.refresh(app)
+            if competitor not in app.competitors:
+                app.competitors.append(competitor)
+                db.commit()
+                db.refresh(app)
+                logger.info("Linked competitor '%s' to primary app '%s'", name, app.name)
+
+            return competitor
+
+        except Exception as e:
+            db.rollback()
+            logger.exception(f"Failed to add competitor {name} to app {app.name}: {str(e)}")
+            raise
+
+    @staticmethod
+    def remove_competitor_from_app(db: Session, app: App, competitor: App) -> None:
+        """
+        Remove the association between a competitor and a primary application.
+
+        This method unlinks the specified competitor from the primary
+        application. If the competitor is no longer associated with any
+        other primary applications after the relationship is removed, the
+        competitor record is permanently deleted from the database.
+
+        Raises:
+            Exception:
+                Propagates any database errors encountered while removing
+                the competitor or deleting orphaned records.
+        """
+        try:
+            db.refresh(app)
+            if competitor in app.competitors:
+                app.competitors.remove(competitor)
+                db.commit()
+                db.refresh(competitor)
+                
+                if len(competitor.parent_apps) == 0:
+                    db.delete(competitor)
+                    db.commit()
+                    logger.info("Deleted orphaned competitor app '%s'", competitor.name)
+                else:
+                    logger.info("Unlinked competitor '%s' from primary app '%s'", competitor.name, app.name)
+        except Exception as e:
+            db.rollback()
+            logger.exception(f"Failed to remove competitor {competitor.name} from app {app.name}: {str(e)}")
+            raise
+

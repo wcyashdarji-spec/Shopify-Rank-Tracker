@@ -34,7 +34,7 @@ interface LayoutProps {
   /** Toggles the sidebar open/closed */
   onToggleSidebar: () => void;
   children: ReactNode;
-  
+  onLogout?: () => void;
 }
 
 const SIDEBAR_WIDTH = 240;
@@ -58,6 +58,7 @@ export default function Layout({
   sidebarCollapsed,
   onToggleSidebar,
   children,
+  onLogout,
 }: LayoutProps) {
   return (
     <Box sx={{ display: "flex", height: "100vh", overflow: "hidden", bgcolor: "background.default" }}>
@@ -85,6 +86,7 @@ export default function Layout({
             onSaveSettings={onSaveSettings}
             currentPage={currentPage}
             onNavigate={onNavigate}
+            onLogout={onLogout}
           />
         </Box>
       </Box>

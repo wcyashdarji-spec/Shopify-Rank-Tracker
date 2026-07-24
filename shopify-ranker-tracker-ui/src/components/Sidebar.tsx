@@ -1,4 +1,4 @@
-﻿// React
+// React
 import { useEffect, useState } from "react";
 
 // Material UI
@@ -37,6 +37,7 @@ import {
   Refresh as RefreshIcon,
   Search as SearchIcon,
   Settings as SettingsIcon,
+  Logout as LogoutIcon,
 } from "@mui/icons-material";
 
 // API
@@ -56,6 +57,7 @@ interface SidebarProps {
   onDeleteApp: (appId: number) => void;
   currentPage: "dashboard" | "history";
   onNavigate: (page: "dashboard" | "history") => void;
+  onLogout?: () => void;
 }
 
 // Color palette for app avatars
@@ -82,6 +84,7 @@ export default function Sidebar({
   onDeleteApp,
   currentPage,
   onNavigate,
+  onLogout,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
   const [appsExpanded, setAppsExpanded] = useState(true);
@@ -192,9 +195,14 @@ export default function Sidebar({
           Rank Tracker
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton size="small" onClick={() => setSettingsOpen(true)} sx={{ color: "#9ca3af", "&:hover": { color: "#374151" } }}>
+        <IconButton size="small" onClick={() => setSettingsOpen(true)} sx={{ color: "#9ca3af", "&:hover": { color: "#374151" } }} title="API Settings">
           <SettingsIcon sx={{ fontSize: 16 }} />
         </IconButton>
+        {onLogout && (
+          <IconButton size="small" onClick={onLogout} sx={{ color: "#9ca3af", "&:hover": { color: "#ef4444" } }} title="Logout">
+            <LogoutIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
       </Box>
 
       {/* Search */}

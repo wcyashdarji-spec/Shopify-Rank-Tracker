@@ -14,3 +14,18 @@ class TrackerRequest(BaseModel):
 
 class AppKeywordUpdateRequest(BaseModel):
     keywords: List[str]
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class CompetitorCreateRequest(BaseModel):
+    name: str
+    url: HttpUrl

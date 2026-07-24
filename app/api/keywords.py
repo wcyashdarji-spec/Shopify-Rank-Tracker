@@ -2,7 +2,9 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.db import get_db
+from app.db.models.user import User
 from app.core.logger import get_logger
+from app.api.auth_deps import get_current_user
 from app.schemas.request import AppKeywordUpdateRequest
 from app.db.repositories.ranking_repository import RankingRepository
 
@@ -19,6 +21,7 @@ def add_keywords_to_app(
     app_id: int,
     request: AppKeywordUpdateRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Add one or more keywords to an existing app.
@@ -27,12 +30,13 @@ def add_keywords_to_app(
         app_id: App ID.
         request: Keywords payload.
         db: Database session.
+        current_user: Authenticated user.
 
     Returns:
         App object with updated keywords.
     """
     try:
-        app = RankingRepository.get_app_by_id(db, app_id)
+        app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
             raise HTTPException(status_code=404, detail="App not found")
 
@@ -54,7 +58,7 @@ def add_keywords_to_app(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Failed to add keywords to app_id={app_id}: {str(e)}")
+        logger.exception(f"Failed to add keywords to app_id={app_id} for user={current_user.email}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to add keywords to app")
 
 
@@ -63,6 +67,7 @@ def remove_keyword_from_app(
     app_id: int,
     keyword_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Remove a keyword association from an existing app.
@@ -71,12 +76,13 @@ def remove_keyword_from_app(
         app_id: App ID.
         keyword_id: Keyword ID.
         db: Database session.
+        current_user: Authenticated user.
 
     Returns:
         Confirmation message.
     """
     try:
-        app = RankingRepository.get_app_by_id(db, app_id)
+        app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
             raise HTTPException(status_code=404, detail="App not found")
 
@@ -94,7 +100,7 @@ def remove_keyword_from_app(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Failed to remove keyword_id={keyword_id} from app_id={app_id}: {str(e)}")
+        logger.exception(f"Failed to remove keyword_id={keyword_id} from app_id={app_id} for user={current_user.email}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to remove keyword from app")
 
 

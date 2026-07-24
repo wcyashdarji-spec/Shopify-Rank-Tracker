@@ -8,13 +8,14 @@ import { Refresh as RefreshIcon } from "@mui/icons-material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
-import { api, getApiBaseUrl, setApiBaseUrl, type App as AppType } from "./api";
+import { api, getApiBaseUrl, setApiBaseUrl, getToken, logout, type App as AppType } from "./api";
 
 // Components
 import Dashboard from "./components/DashBoard";
 import HistoryPage from "./components/HistoryPage";
 import Layout from "./components/Layout";
 import PageHeader from "./components/PageHeader";
+import LoginRegister from "./components/LoginRegister";
 
 const theme = createTheme({
   palette: {
@@ -25,6 +26,7 @@ const theme = createTheme({
 });
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
   const [page, setPage] = useState<"dashboard" | "history">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -48,15 +50,29 @@ export default function App() {
       setApps(response.apps || []);
       if (selectFirst && response.apps?.length > 0) setSelectedApp(response.apps[0]);
     } catch (err: any) {
-      showToast(err?.message || "Failed to load apps", "error");
+      if (err?.message?.includes("Invalid or expired authentication token") || err?.message?.includes("credentials")) {
+        handleLogout();
+      } else {
+        showToast(err?.message || "Failed to load apps", "error");
+      }
     } finally {
       setIsLoadingApps(false);
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    setIsAuthenticated(false);
+    setApps([]);
+    setSelectedApp(null);
+    showToast("Logged out successfully", "info");
+  };
+
   useEffect(() => {
-    fetchApps(true);
-  }, []);
+    if (isAuthenticated) {
+      fetchApps(true);
+    }
+  }, [isAuthenticated]);
 
   const handleAppSelect = (app: AppType) => {
     setSelectedApp(app);
@@ -227,42 +243,45 @@ export default function App() {
         title="History Log"
         subtitle="See when each tracked app was last checked for keyword rankings."
       />
-    );
-
-  return (
+    );  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Layout
-        apps={apps}
-        selectedApp={selectedApp}
-        onSelectApp={handleAppSelect}
-        onRunAllSaved={handleRunAllSaved}
-        onTrackApp={handleTrackApp}
-        onDeleteApp={handleDeleteApp}
-        isScraping={isScraping}
-        scrapingLogs={scrapingLogs}
-        logsConsoleRef={logsConsoleRef}
-        isLoadingApps={isLoadingApps}
-        apiUrl={apiUrl}
-        onSaveSettings={handleSaveSettings}
-        currentPage={page}
-        onNavigate={setPage}
-        headerContent={headerContent}
-        sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
-      >
-        {page === "dashboard" ? (
-          <Dashboard
-            selectedApp={selectedApp}
-            apiUrl={apiUrl}
-            onRefreshApps={fetchApps}
-            onUpdateSelectedApp={setSelectedApp}
-            showToast={showToast}
-          />
-        ) : (
-          <HistoryPage />
-        )}
-      </Layout>
+      {!isAuthenticated ? (
+        <LoginRegister onLoginSuccess={() => setIsAuthenticated(true)} />
+      ) : (
+        <Layout
+          apps={apps}
+          selectedApp={selectedApp}
+          onSelectApp={handleAppSelect}
+          onRunAllSaved={handleRunAllSaved}
+          onTrackApp={handleTrackApp}
+          onDeleteApp={handleDeleteApp}
+          isScraping={isScraping}
+          scrapingLogs={scrapingLogs}
+          logsConsoleRef={logsConsoleRef}
+          isLoadingApps={isLoadingApps}
+          apiUrl={apiUrl}
+          onSaveSettings={handleSaveSettings}
+          currentPage={page}
+          onNavigate={setPage}
+          headerContent={headerContent}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          onLogout={handleLogout}
+        >
+          {page === "dashboard" ? (
+            <Dashboard
+              selectedApp={selectedApp}
+              apiUrl={apiUrl}
+              onRefreshApps={fetchApps}
+              onUpdateSelectedApp={setSelectedApp}
+              showToast={showToast}
+            />
+          ) : (
+            <HistoryPage />
+          )}
+        </Layout>
+      )}
 
       <Snackbar
         open={!!toast}

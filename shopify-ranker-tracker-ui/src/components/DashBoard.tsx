@@ -14,6 +14,7 @@ import KeywordsDialog from "./KeywordsDialog";
 import MetricCards from "./MetricCards";
 import RankChart from "./RankChart";
 import ScreenshotDialog from "./ScreenshotDialog";
+import CompetitorManager from "./CompetitorManager";
 
 interface DashboardProps {
   selectedApp: App | null;
@@ -43,29 +44,31 @@ export default function Dashboard({
     setSelectedKeywords([]);
   }, [selectedApp?.id]);
 
-  useEffect(() => {
-    if (!selectedApp) {
-      setHistoryData([]);
-      return;
-    }
-    const load = async () => {
-      setIsLoadingHistory(true);
-      try {
-        const kwIds = selectedApp.keywords.map((k) => k.id);
-        if (kwIds.length === 0) {
-          setHistoryData([]);
-          return;
-        }
-        const data = await api.getHistory(selectedApp.id, kwIds, daysRange);
-        setHistoryData(data.keywords || []);
-        setSelectedKeywords((prev) => (prev.length === 0 ? kwIds : prev));
-      } catch (err: any) {
-        showToast(err?.message || "Failed to load history", "error");
-      } finally {
-        setIsLoadingHistory(false);
+  const fetchHistory = async () => {
+    if (!selectedApp) return;
+    setIsLoadingHistory(true);
+    try {
+      const kwIds = selectedApp.keywords.map((k) => k.id);
+      if (kwIds.length === 0) {
+        setHistoryData([]);
+        return;
       }
-    };
-    load();
+      const data = await api.getHistory(selectedApp.id, kwIds, daysRange);
+      setHistoryData(data.keywords || []);
+      setSelectedKeywords((prev) => (prev.length === 0 ? kwIds : prev));
+    } catch (err: any) {
+      showToast(err?.message || "Failed to load history", "error");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedApp) {
+      fetchHistory();
+    } else {
+      setHistoryData([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedApp, daysRange]);
 
@@ -144,15 +147,58 @@ export default function Dashboard({
   }, [historyData, selectedKeywords]);
 
   const tableRows = useMemo(() => {
-    const rows: { id: number; keyword: string; rank: number | null; page: number | null; found: boolean; screenshot_path: string | null; tracked_date: string }[] = [];
+    const rows: {
+      id: number;
+      appName: string;
+      isCompetitor: boolean;
+      keyword: string;
+      rank: number | null;
+      page: number | null;
+      found: boolean;
+      screenshot_path: string | null;
+      tracked_date: string;
+    }[] = [];
+
     historyData.forEach((kh) => {
       if (!selectedKeywords.includes(kh.keyword.id)) return;
+      
+      // Primary app rankings
       kh.history.forEach((r) =>
-        rows.push({ id: r.id, keyword: kh.keyword.name, rank: r.rank, page: r.page, found: r.found, screenshot_path: r.screenshot_path, tracked_date: r.tracked_date })
+        rows.push({
+          id: r.id,
+          appName: selectedApp?.name || "",
+          isCompetitor: false,
+          keyword: kh.keyword.name,
+          rank: r.rank,
+          page: r.page,
+          found: r.found,
+          screenshot_path: r.screenshot_path,
+          tracked_date: r.tracked_date,
+        })
       );
+
+      // Competitor app rankings
+      if (kh.competitors) {
+        kh.competitors.forEach((comp) => {
+          comp.history.forEach((r) => {
+            rows.push({
+              id: r.id,
+              appName: comp.name,
+              isCompetitor: true,
+              keyword: kh.keyword.name,
+              rank: r.rank,
+              page: r.page,
+              found: r.found,
+              screenshot_path: null,
+              tracked_date: r.tracked_date,
+            });
+          });
+        });
+      }
     });
+
     return rows.sort((a, b) => new Date(b.tracked_date).getTime() - new Date(a.tracked_date).getTime());
-  }, [historyData, selectedKeywords]);
+  }, [historyData, selectedKeywords, selectedApp]);
 
   const daysLabel = daysRange === 9999 ? "All time" : `Last ${daysRange} days`;
 
@@ -204,6 +250,12 @@ export default function Dashboard({
             keywords={selectedApp.keywords}
             isLoadingHistory={isLoadingHistory}
             onManageKeywords={() => setKeywordsDialogOpen(true)}
+          />
+
+          <CompetitorManager
+            appId={selectedApp.id}
+            onRefresh={fetchHistory}
+            showToast={showToast}
           />
 
           <HistoryLog
