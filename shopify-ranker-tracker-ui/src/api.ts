@@ -139,6 +139,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     } catch {
       errorText = await response.text();
     }
+    
+    if (response.status === 401 && !path.includes("/auth/login")) {
+      logout();
+      window.dispatchEvent(
+        new CustomEvent("unauthorized-token-expiration", { detail: errorText })
+      );
+    }
+
     throw new Error(errorText || `API error: ${response.status} ${response.statusText}`);
   }
 

@@ -40,8 +40,14 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
   const logsConsoleRef = useRef<HTMLDivElement>(null);
 
-  const showToast = (message: string, severity: "success" | "error" | "info" = "info") =>
-    setToast({ message, severity });
+  const showToast = (message: string, severity: "success" | "error" | "info" = "info") => {
+    setToast((prev) => {
+      if (prev && prev.message === message && prev.severity === severity) {
+        return prev;
+      }
+      return { message, severity };
+    });
+  };
 
   const fetchApps = async (selectFirst = false) => {
     setIsLoadingApps(true);
@@ -50,11 +56,14 @@ export default function App() {
       setApps(response.apps || []);
       if (selectFirst && response.apps?.length > 0) setSelectedApp(response.apps[0]);
     } catch (err: any) {
-      if (err?.message?.includes("Invalid or expired authentication token") || err?.message?.includes("credentials")) {
-        handleLogout();
-      } else {
-        showToast(err?.message || "Failed to load apps", "error");
+      if (
+        err?.message?.includes("expired") ||
+        err?.message?.includes("token") ||
+        err?.message?.includes("credentials")
+      ) {
+        return;
       }
+      showToast(err?.message || "Failed to load apps", "error");
     } finally {
       setIsLoadingApps(false);
     }
@@ -67,6 +76,27 @@ export default function App() {
     setSelectedApp(null);
     showToast("Logged out successfully", "info");
   };
+
+  const handleSessionExpired = (message: string) => {
+    logout();
+    setIsAuthenticated(false);
+    setApps([]);
+    setSelectedApp(null);
+    showToast(message, "error");
+  };
+
+  useEffect(() => {
+    const handleUnauthorized = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const message = customEvent.detail || "Session expired. Please log in again.";
+      handleSessionExpired(message);
+    };
+
+    window.addEventListener("unauthorized-token-expiration", handleUnauthorized);
+    return () => {
+      window.removeEventListener("unauthorized-token-expiration", handleUnauthorized);
+    };
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {

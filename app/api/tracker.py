@@ -135,4 +135,61 @@ def get_apps_last_sync(
             status_code=500,
             detail="Failed to retrieve app last sync details"
         )
-    
+
+
+@router.post("/run/cron")
+def run_cron_saved_apps(db: Session = Depends(get_db)):
+    """
+    Execute the scheduled ranking tracker for all saved applications.
+
+    This endpoint is intended for automated cron jobs. It retrieves all
+    tracked applications from the database, groups them by user, and
+    processes each user's applications independently. Ranking results
+    are generated and stored for every application and keyword before a
+    consolidated response is returned.
+
+    Raises:
+        HTTPException:
+            - 500: If an unexpected error occurs while executing the
+              scheduled tracking process.
+    """
+    try:
+        from app.db.models.ranking import App
+        all_apps = db.query(App).all()
+        if not all_apps:
+            return {"message": "No saved apps found to track.", "results": []}
+
+        from collections import defaultdict
+        user_apps = defaultdict(list)
+        for app in all_apps:
+            if app.user_id:
+                user_apps[app.user_id].append(app)
+
+        all_results = []
+
+        for user_id, apps in user_apps.items():
+            apps_payload = []
+            for app in apps:
+                keywords = [k.name for k in app.keywords]
+                if keywords:
+                    apps_payload.append(
+                        AppRequest(name=app.name, url=app.url, keywords=keywords)
+                    )
+
+            if apps_payload:
+                logger.info(f"Running cron tracking for user_id={user_id} with {len(apps_payload)} apps")
+                service = TrackerService(db=db, user_id=user_id)
+                results = service.run(apps_payload)
+                all_results.extend(results)
+
+        return {
+            "message": "Global cron tracking run completed successfully.",
+            "results": all_results,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to run global cron tracking: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to run global cron tracking"
+        )
+

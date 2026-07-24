@@ -1,3 +1,4 @@
+import jwt
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -23,13 +24,21 @@ def get_current_user(
         The authenticated User model instance.
     """
     token = credentials.credentials
-    user_id = decode_access_token(token)
-    if not user_id:
+    try:
+        user_id = decode_access_token(token)
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired credentials",
+            detail="Token has expired as well session expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(
@@ -37,3 +46,4 @@ def get_current_user(
             detail="User not found",
         )
     return user
+

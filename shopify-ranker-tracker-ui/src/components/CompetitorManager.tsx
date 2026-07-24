@@ -188,7 +188,7 @@ export default function CompetitorManager({
                 secondary={comp.url}
                 slotProps={{
                   primary: { sx: { fontSize: 13, fontWeight: 500, color: "#111827" } },
-                  secondary: { sx: { fontSize: 11.5, color: "#6b7280", noWrap: true } },
+                  secondary: { sx: { fontSize: 11.5, color: "#6b7280"} },
                 }}
               />
             </ListItem>

@@ -3,12 +3,15 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from typing import Union, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ALGORITHM = os.getenv("JWT_ALGORITHM")
 
-SECRET_KEY = os.getenv("JWT_SECRET")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 def hash_password(password: str) -> str:
     """Hash password using PBKDF2-SHA256 with a unique salt."""
@@ -36,10 +39,8 @@ def create_access_token(subject: Union[str, Any], expires_delta: timedelta = Non
     to_encode = {"exp": expire, "sub": str(subject)}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def decode_access_token(token: str) -> Union[str, None]:
-    """Decode JWT token and return the user ID (subject), or None if invalid."""
-    try:
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded_token["sub"]
-    except jwt.PyJWTError:
-        return None
+def decode_access_token(token: str) -> str:
+    """Decode JWT token and return the user ID (subject), or raise jwt.PyJWTError if invalid."""
+    decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return decoded_token["sub"]
+
