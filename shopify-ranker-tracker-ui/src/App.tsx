@@ -8,7 +8,7 @@ import { Refresh as RefreshIcon } from "@mui/icons-material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
-import { api, getApiBaseUrl, setApiBaseUrl, getToken, logout, type App as AppType } from "./api";
+import { api, getApiBaseUrl, getToken, logout, type App as AppType } from "./api";
 
 // Components
 import Dashboard from "./components/DashBoard";
@@ -16,6 +16,7 @@ import HistoryPage from "./components/HistoryPage";
 import Layout from "./components/Layout";
 import PageHeader from "./components/PageHeader";
 import LoginRegister from "./components/LoginRegister";
+import ProfilePage from "./components/ProfilePage";
 
 const theme = createTheme({
   palette: {
@@ -27,13 +28,14 @@ const theme = createTheme({
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
-  const [page, setPage] = useState<"dashboard" | "history">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "history" | "settings">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [invitations, setInvitations] = useState<any[]>([]);
 
   // ─── Shared state (needed by Sidebar on every page) ───────────────────────
   const [apps, setApps] = useState<AppType[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppType | null>(null);
-  const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
+  const [apiUrl] = useState(getApiBaseUrl());
   const [isLoadingApps, setIsLoadingApps] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [scrapingLogs, setScrapingLogs] = useState<string[]>([]);
@@ -69,6 +71,36 @@ export default function App() {
     }
   };
 
+  const fetchInvitations = async () => {
+    try {
+      const res = await api.getPendingInvitations();
+      setInvitations(res.invitations || []);
+    } catch (err) {
+      console.error("Failed to fetch pending invitations", err);
+    }
+  };
+
+  const handleAcceptInvitation = async (inviteId: number) => {
+    try {
+      const res = await api.acceptInvitation(inviteId);
+      showToast(res.message, "success");
+      await fetchApps();
+      await fetchInvitations();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to accept invitation", "error");
+    }
+  };
+
+  const handleDeclineInvitation = async (inviteId: number) => {
+    try {
+      const res = await api.declineInvitation(inviteId);
+      showToast(res.message, "info");
+      await fetchInvitations();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to decline invitation", "error");
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setIsAuthenticated(false);
@@ -101,6 +133,7 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchApps(true);
+      fetchInvitations();
     }
   }, [isAuthenticated]);
 
@@ -109,12 +142,12 @@ export default function App() {
     setPage("dashboard");
   };
 
-  const handleSaveSettings = (url: string) => {
-    setApiBaseUrl(url);
-    setApiUrl(url);
-    showToast(`API set to ${url}`, "success");
-    fetchApps(true);
-  };
+  // const handleSaveSettings = (url: string) => {
+  //   setApiBaseUrl(url);
+  //   setApiUrl(url);
+  //   showToast(`API set to ${url}`, "success");
+  //   fetchApps(true);
+  // };
 
   const startFakeScraperLogs = (appName: string, keywords: string[]) => {
     let index = 0;
@@ -268,10 +301,15 @@ export default function App() {
             </Box>
           }
       />
-    ) : (
+    ) : page === "history" ? (
       <PageHeader
         title="History Log"
         subtitle="See when each tracked app was last checked for keyword rankings."
+      />
+    ) : (
+      <PageHeader
+        title="Profile Settings"
+        subtitle="Manage your user profile details."
       />
     );  return (
     <ThemeProvider theme={theme}>
@@ -290,8 +328,6 @@ export default function App() {
           scrapingLogs={scrapingLogs}
           logsConsoleRef={logsConsoleRef}
           isLoadingApps={isLoadingApps}
-          apiUrl={apiUrl}
-          onSaveSettings={handleSaveSettings}
           currentPage={page}
           onNavigate={setPage}
           headerContent={headerContent}
@@ -307,8 +343,16 @@ export default function App() {
               onUpdateSelectedApp={setSelectedApp}
               showToast={showToast}
             />
-          ) : (
+          ) : page === "history" ? (
             <HistoryPage />
+          ) : (
+            <ProfilePage
+              apps={apps}
+              invitations={invitations}
+              onAcceptInvitation={handleAcceptInvitation}
+              onDeclineInvitation={handleDeclineInvitation}
+              showToast={showToast}
+            />
           )}
         </Layout>
       )}

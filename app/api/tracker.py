@@ -155,7 +155,7 @@ def run_cron_saved_apps(db: Session = Depends(get_db)):
     """
     try:
         from app.db.models.ranking import App
-        all_apps = db.query(App).all()
+        all_apps = db.query(App).filter(App.is_deleted == False, App.is_competitor == False).all()
         if not all_apps:
             return {"message": "No saved apps found to track.", "results": []}
 

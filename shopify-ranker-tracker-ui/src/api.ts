@@ -7,6 +7,7 @@ export interface Keyword {
 
 export interface App {
   id: number;
+  user_id?: number;
   name: string;
   url: string;
   created_at: string;
@@ -263,5 +264,56 @@ export const api = {
     return request<any>(`/apps/${appId}/competitors/${competitorId}`, {
       method: "DELETE",
     });
-  },  
+  },
+
+  // Get logged in user details
+  async getMe(): Promise<{ id: number; email: string; created_at: string | null }> {
+    return request<{ id: number; email: string; created_at: string | null }>("/auth/me");
+  },
+
+  // Update user profile details
+  async updateMe(email?: string, password?: string): Promise<{ message: string; user: { id: number; email: string } }> {
+    const body: any = {};
+    if (email) body.email = email;
+    if (password) body.password = password;
+
+    return request<{ message: string; user: { id: number; email: string } }>("/auth/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
+
+  // Invite a collaborator to access an app by email
+  async inviteCollaborator(appId: number, email: string): Promise<{ message: string; invitation: any }> {
+    return request<{ message: string; invitation: any }>(`/collaborators/apps/${appId}/invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  // Get pending invitations for logged-in user
+  async getPendingInvitations(): Promise<{ invitations: any[] }> {
+    return request<{ invitations: any[] }>("/collaborators/invitations/pending");
+  },
+
+  // Accept a collaborator invitation
+  async acceptInvitation(inviteId: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/collaborators/invitations/${inviteId}/accept`, {
+      method: "POST",
+    });
+  },
+
+  // Decline a collaborator invitation
+  async declineInvitation(inviteId: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/collaborators/invitations/${inviteId}/decline`, {
+      method: "POST",
+    });
+  },
+
+  // Get collaborators and pending invitations for an app
+  async getAppCollaborators(appId: number): Promise<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }> {
+    return request<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }>(`/collaborators/apps/${appId}/collaborators`);
+  },
 };

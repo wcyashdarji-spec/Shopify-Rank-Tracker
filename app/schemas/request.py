@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, HttpUrl
 
 
@@ -29,3 +29,14 @@ class UserLogin(BaseModel):
 class CompetitorCreateRequest(BaseModel):
     name: str
     url: HttpUrl
+
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    password: Optional[str] = None
+
+
+class InviteCollaboratorRequest(BaseModel):
+    email: str
+
+

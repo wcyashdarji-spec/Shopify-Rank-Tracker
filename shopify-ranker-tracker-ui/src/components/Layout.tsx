@@ -23,10 +23,8 @@ interface LayoutProps {
   scrapingLogs: string[];
   logsConsoleRef: React.RefObject<HTMLDivElement | null>;
   isLoadingApps: boolean;
-  apiUrl: string;
-  onSaveSettings: (url: string) => void;
-  currentPage: "dashboard" | "history";
-  onNavigate: (page: "dashboard" | "history") => void;
+  currentPage: "dashboard" | "history" | "settings";
+  onNavigate: (page: "dashboard" | "history" | "settings") => void;
   /** Optional top bar content rendered per-page (title, action buttons, etc.) */
   headerContent?: ReactNode;
   /** Whether the sidebar is currently hidden */
@@ -50,8 +48,6 @@ export default function Layout({
   scrapingLogs,
   logsConsoleRef,
   isLoadingApps,
-  apiUrl,
-  onSaveSettings,
   currentPage,
   onNavigate,
   headerContent,
@@ -82,8 +78,6 @@ export default function Layout({
             onDeleteApp={onDeleteApp}
             isScraping={isScraping}
             isLoadingApps={isLoadingApps}
-            apiUrl={apiUrl}
-            onSaveSettings={onSaveSettings}
             currentPage={currentPage}
             onNavigate={onNavigate}
             onLogout={onLogout}

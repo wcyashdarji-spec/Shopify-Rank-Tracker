@@ -13,3 +13,4 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     apps = relationship("App", back_populates="user", cascade="all, delete-orphan")
+    shared_apps = relationship("App", secondary="app_collaborators", back_populates="collaborators")

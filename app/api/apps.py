@@ -38,6 +38,7 @@ def get_all_apps(
             "apps": [
                 {
                     "id": app.id,
+                    "user_id": app.user_id,
                     "name": app.name,
                     "url": app.url,
                     "created_at": app.created_at.isoformat(),

@@ -33,7 +33,6 @@ import {
   ExpandMore as ExpandMoreIcon,
   History as HistoryIcon,
   Home as HomeIcon,
-  Language as LanguageIcon,
   Refresh as RefreshIcon,
   Search as SearchIcon,
   Settings as SettingsIcon,
@@ -52,11 +51,9 @@ interface SidebarProps {
   onTrackApp: (name: string, url: string, keywords: string[]) => void;
   isScraping: boolean;
   isLoadingApps: boolean;
-  apiUrl: string;
-  onSaveSettings: (url: string) => void;
   onDeleteApp: (appId: number) => void;
-  currentPage: "dashboard" | "history";
-  onNavigate: (page: "dashboard" | "history") => void;
+  currentPage: "dashboard" | "history" | "settings";
+  onNavigate: (page: "dashboard" | "history" | "settings") => void;
   onLogout?: () => void;
 }
 
@@ -79,8 +76,6 @@ export default function Sidebar({
   onTrackApp,
   isScraping,
   isLoadingApps,
-  apiUrl,
-  onSaveSettings,
   onDeleteApp,
   currentPage,
   onNavigate,
@@ -89,8 +84,6 @@ export default function Sidebar({
   const [search, setSearch] = useState("");
   const [appsExpanded, setAppsExpanded] = useState(true);
   const [trackDialogOpen, setTrackDialogOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [newApiUrl, setNewApiUrl] = useState(apiUrl);
   const [newAppName, setNewAppName] = useState("");
   const [newAppUrl, setNewAppUrl] = useState("");
   const [newKeywordsText, setNewKeywordsText] = useState("");
@@ -195,9 +188,6 @@ export default function Sidebar({
           Rank Tracker
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton size="small" onClick={() => setSettingsOpen(true)} sx={{ color: "#9ca3af", "&:hover": { color: "#374151" } }} title="API Settings">
-          <SettingsIcon sx={{ fontSize: 16 }} />
-        </IconButton>
         {onLogout && (
           <IconButton size="small" onClick={onLogout} sx={{ color: "#9ca3af", "&:hover": { color: "#ef4444" } }} title="Logout">
             <LogoutIcon sx={{ fontSize: 16 }} />
@@ -302,6 +292,25 @@ export default function Sidebar({
                     },
                   }}
                   primary="History Log"
+                />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+                  sx={navItemSx(currentPage === "settings")}
+                  onClick={() => onNavigate("settings")}
+              >
+                <ListItemIcon sx={{ minWidth: 28 }}>
+                  <SettingsIcon sx={{ fontSize: 16 }} />
+                </ListItemIcon>
+
+                <ListItemText
+                  slotProps={{
+                    primary: {
+                      sx: { fontSize: 13 },
+                    },
+                  }}
+                  primary="Profile Settings"
                 />
             </ListItemButton>
           </ListItem>
@@ -464,25 +473,7 @@ export default function Sidebar({
         </DialogActions>
       </Dialog>
 
-      {/* Settings Dialog */}
-      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="xs" fullWidth
-        slotProps={{ paper: { sx: { borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 20px 60px rgba(0,0,0,0.12)" } } }}>
-        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 15 , }}>API Settings</Typography>
-          <IconButton size="small" onClick={() => setSettingsOpen(false)}><CloseIcon sx={{ fontSize: 18 }} /></IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <TextField size="small" label="Backend URL" fullWidth value={newApiUrl} onChange={(e) => setNewApiUrl(e.target.value)} sx={{ marginTop: 2 }}
-            slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start"  ><LanguageIcon sx={{ fontSize: 16}} /></InputAdornment> } }} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setSettingsOpen(false)} size="small" sx={{ color: "#6b7280", textTransform: "none" }}>Cancel</Button>
-          <Button variant="contained" size="small" onClick={() => { onSaveSettings(newApiUrl); setSettingsOpen(false); }}
-            sx={{ bgcolor: "#111827", borderRadius: "8px", textTransform: "none", fontWeight: 600, "&:hover": { bgcolor: "#1f2937" } }}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+
       <Dialog
           open={deleteDialogOpen}
           onClose={handleCancelDelete}

@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
-from app.schemas.request import UserCreate, UserLogin
+from app.api.auth_deps import get_current_user
+from app.schemas.request import UserCreate, UserLogin, UserUpdate
 from app.core.security import hash_password, verify_password, create_access_token
 
 logger = get_logger(__name__)
@@ -93,10 +94,17 @@ def login(request: UserLogin, db: Session = Depends(get_db)):
         password = request.password
         
         user = db.query(User).filter(User.email == email).first()
-        if not user or not verify_password(password, user.hashed_password):
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        if not verify_password(password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
@@ -120,4 +128,77 @@ def login(request: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to authenticate user"
+        )
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """
+    Retrieve the authenticated user's profile information.
+
+    This endpoint returns the basic details of the currently logged-in
+    user, including their unique identifier, email address, and account
+    creation timestamp. Authentication is required to access this
+    endpoint.
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+    }
+
+
+@router.put("/me")
+def update_me(
+    request: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Update the authenticated user's profile information.
+
+    This endpoint allows the current user to update their email address
+    and/or password. The email is validated for uniqueness before being
+    saved, and any new password is securely hashed before updating the
+    user record.
+
+    Raises:
+        HTTPException:
+            - 400: If the provided email is already registered.
+            - 500: If an unexpected error occurs while updating the profile.
+    """
+    try:
+        if request.email:
+            new_email = request.email.strip().lower()
+            if new_email != current_user.email:
+                existing_user = db.query(User).filter(User.email == new_email).first()
+                if existing_user:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Email is already registered"
+                    )
+                current_user.email = new_email
+
+        if request.password:
+            current_user.hashed_password = hash_password(request.password)
+
+        db.commit()
+        db.refresh(current_user)
+
+        logger.info(f"Updated user details for user: {current_user.email}")
+        return {
+            "message": "Profile updated successfully",
+            "user": {
+                "id": current_user.id,
+                "email": current_user.email
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Failed to update profile: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile"
         )
