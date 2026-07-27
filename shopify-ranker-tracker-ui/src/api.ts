@@ -88,7 +88,7 @@ export interface AppLastSync {
 
 // Manage API base URL in localStorage
 const STORAGE_KEY = "shopify_tracker_api_url";
-const DEFAULT_API_URL = "http://127.0.0.1:8004";
+const DEFAULT_API_URL = "https://aitools.webcontrive.com/app";
 const TOKEN_KEY = "shopify_tracker_token";
 
 export function getApiBaseUrl(): string {
