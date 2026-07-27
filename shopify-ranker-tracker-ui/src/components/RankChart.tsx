@@ -1,4 +1,4 @@
-﻿// React
+// React
 import { useMemo, useRef, useState, useEffect } from "react";
 
 // Material UI
@@ -111,16 +111,16 @@ export default function RankChart({
     rank: number;
     color: string;
   } | null>(null);
-  const [hiddenKeywords, setHiddenKeywords] = useState<number[]>([]);
+  const [hiddenLabels, setHiddenLabels] = useState<string[]>([]);
 
   const [zoomDomain, setZoomDomain] = useState<{ min: number; max: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const panStart = useRef<{ x: number; min: number; max: number } | null>(null);
 
-  const toggleHiddenKeyword = (id: number) => {
-    setHiddenKeywords((prev) =>
-      prev.includes(id) ? prev.filter((k) => k !== id) : [...prev, id]
+  const toggleHiddenLabel = (label: string) => {
+    setHiddenLabels((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
     );
   };
 
@@ -137,18 +137,58 @@ export default function RankChart({
     return m;
   }, [keywords]);
 
-  // Build chart series
+  // Build chart series (including competitors)
   const series = useMemo(() => {
     if (!historyData || historyData.length === 0) return [];
-    return historyData
+    const sList: Array<{
+      keywordId: number;
+      label: string;
+      records: any[];
+      colorIdx: number;
+      isCompetitor: boolean;
+      compName?: string;
+    }> = [];
+
+    historyData
       .filter((kh) => selectedKeywords.includes(kh.keyword.id))
-      .map((kh) => {
-        const sorted = [...kh.history]
+      .forEach((kh) => {
+        // Main App Line
+        const primarySorted = [...kh.history]
           .filter((r) => r.rank !== null)
           .sort((a, b) => new Date(a.tracked_date).getTime() - new Date(b.tracked_date).getTime());
-        return { keyword: kh.keyword, records: sorted, colorIdx: kwColorIndex[kh.keyword.id] ?? 0 };
-      })
-      .filter((s) => s.records.length > 0);
+        
+        if (primarySorted.length > 0) {
+          sList.push({
+            keywordId: kh.keyword.id,
+            label: kh.keyword.name,
+            records: primarySorted,
+            colorIdx: kwColorIndex[kh.keyword.id] ?? 0,
+            isCompetitor: false,
+          });
+        }
+
+        // Competitor Lines
+        if (kh.competitors) {
+          kh.competitors.forEach((comp, compIdx) => {
+            const compSorted = [...comp.history]
+              .filter((r) => r.rank !== null)
+              .sort((a, b) => new Date(a.tracked_date).getTime() - new Date(b.tracked_date).getTime());
+            
+            if (compSorted.length > 0) {
+              sList.push({
+                keywordId: kh.keyword.id,
+                label: `${kh.keyword.name} (Comp: ${comp.name})`,
+                records: compSorted,
+                colorIdx: (kwColorIndex[kh.keyword.id] + compIdx + 1) % LINE_COLORS.length,
+                isCompetitor: true,
+                compName: comp.name,
+              });
+            }
+          });
+        }
+      });
+
+    return sList;
   }, [historyData, selectedKeywords, kwColorIndex]);
 
   const { minDate, maxDate, minRank, maxRank, yTicks } = useMemo(() => {
@@ -436,7 +476,7 @@ export default function RankChart({
               {/* Lines — clipped to plot area */}
               <g clipPath="url(#plotAreaClip)">
                 {series
-                  .filter((s) => !hiddenKeywords.includes(s.keyword.id))
+                  .filter((s) => !hiddenLabels.includes(s.label))
                   .map((s) => {
                     const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
                     const pts = s.records.map((r) => ({
@@ -445,11 +485,12 @@ export default function RankChart({
                     }));
                     return (
                       <path
-                        key={`line-${s.keyword.id}`}
+                        key={`line-${s.label}`}
                         d={buildSmoothPath(pts)}
                         fill="none"
                         stroke={color}
                         strokeWidth={2}
+                        strokeDasharray={s.isCompetitor ? "4 3" : undefined}
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -470,14 +511,14 @@ export default function RankChart({
               {/* Dot markers at data points — clipped to plot area */}
               <g clipPath="url(#plotAreaClip)">
                 {series
-                  .filter((s) => !hiddenKeywords.includes(s.keyword.id))
+                  .filter((s) => !hiddenLabels.includes(s.label))
                   .map((s) => {
                     const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
                     return s.records.map((r) => {
                       const cx = toX(new Date(r.tracked_date).getTime());
                       const cy = toY(r.rank!);
                       return (
-                        <g key={`dot-${s.keyword.id}-${r.id}`}>
+                        <g key={`dot-${s.label}-${r.id}`}>
                           <circle
                             cx={cx} cy={cy} r={3}
                             fill="#fff" stroke={color} strokeWidth={1.5}
@@ -492,7 +533,7 @@ export default function RankChart({
                                 x: cx,
                                 y: cy,
                                 date: new Date(r.tracked_date).getTime(),
-                                keyword: s.keyword.name,
+                                keyword: s.label,
                                 rank: r.rank!,
                                 color,
                               })
@@ -541,10 +582,11 @@ export default function RankChart({
         <Box sx={{ px: 3, pb: 2, display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
           {series.map((s) => {
             const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
+            const isHidden = hiddenLabels.includes(s.label);
             return (
               <Box
-                key={s.keyword.id}
-                onClick={() => toggleHiddenKeyword(s.keyword.id)}
+                key={s.label}
+                onClick={() => toggleHiddenLabel(s.label)}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -553,21 +595,29 @@ export default function RankChart({
                   px: 1,
                   py: 0.5,
                   borderRadius: 1,
-                  opacity: hiddenKeywords.includes(s.keyword.id) ? 0.35 : 1,
-                  textDecoration: hiddenKeywords.includes(s.keyword.id) ? "line-through" : "none",
+                  opacity: isHidden ? 0.35 : 1,
+                  textDecoration: isHidden ? "line-through" : "none",
                   transition: "all .15s",
                   "&:hover": { bgcolor: "#f5f5f5" },
                 }}
               >
-                <Box sx={{ width: 24, height: 2, bgcolor: color, borderRadius: 1 }} />
+                <Box
+                  sx={{
+                    width: 24,
+                    height: s.isCompetitor ? 0 : 2,
+                    bgcolor: s.isCompetitor ? "transparent" : color,
+                    borderBottom: s.isCompetitor ? `2.5px dashed ${color}` : "none",
+                    borderRadius: 1
+                  }}
+                />
                 <Typography
                   sx={{
                     fontSize: 11.5,
-                    color: hiddenKeywords.includes(s.keyword.id) ? "#9ca3af" : "#6b7280",
-                    textDecoration: hiddenKeywords.includes(s.keyword.id) ? "line-through" : "none",
+                    color: isHidden ? "#9ca3af" : "#6b7280",
+                    textDecoration: isHidden ? "line-through" : "none",
                   }}
                 >
-                  {s.keyword.name}
+                  {s.label}
                 </Typography>
               </Box>
             );

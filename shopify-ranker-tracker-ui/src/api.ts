@@ -7,6 +7,7 @@ export interface Keyword {
 
 export interface App {
   id: number;
+  user_id?: number;
   name: string;
   url: string;
   created_at: string;
@@ -23,6 +24,28 @@ export interface HistoryRecord {
   tracked_date: string;
 }
 
+export interface Competitor {
+  id: number;
+  name: string;
+  url: string;
+  created_at: string;
+  history_count: number;
+}
+
+export interface CompetitorHistory {
+  id: number;
+  name: string;
+  url: string;
+  history: HistoryRecord[];
+  averages: {
+    "7_days": number | null;
+    "30_days": number | null;
+    "3_months": number | null;
+    "6_months": number | null;
+    "12_months": number | null;
+  };
+}
+
 export interface KeywordHistory {
   keyword: Keyword;
   history: HistoryRecord[];
@@ -33,6 +56,7 @@ export interface KeywordHistory {
     "6_months": number | null;
     "12_months": number | null;
   };
+  competitors?: CompetitorHistory[];
 }
 
 export interface AppHistoryResponse {
@@ -64,7 +88,8 @@ export interface AppLastSync {
 
 // Manage API base URL in localStorage
 const STORAGE_KEY = "shopify_tracker_api_url";
-const DEFAULT_API_URL = "https://aitools.webcontrive.com/app";
+const DEFAULT_API_URL = "http://127.0.0.1:8004";
+const TOKEN_KEY = "shopify_tracker_token";
 
 export function getApiBaseUrl(): string {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -76,10 +101,36 @@ export function setApiBaseUrl(url: string): void {
   localStorage.setItem(STORAGE_KEY, url.trim().replace(/\/$/, ""));
 }
 
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function logout(): void {
+  setToken(null);
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}${path}`;
-  const response = await fetch(url, options);
+  
+  const headers = new Headers(options?.headers);
+  const token = getToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
   if (!response.ok) {
     let errorText = "";
@@ -89,6 +140,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     } catch {
       errorText = await response.text();
     }
+    
+    if (response.status === 401 && !path.includes("/auth/login")) {
+      logout();
+      window.dispatchEvent(
+        new CustomEvent("unauthorized-token-expiration", { detail: errorText })
+      );
+    }
+
     throw new Error(errorText || `API error: ${response.status} ${response.statusText}`);
   }
 
@@ -96,6 +155,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Register a new account
+  async register(email: string, password: string): Promise<{ message: string; user: { id: number; email: string } }> {
+    return request<{ message: string; user: { id: number; email: string } }>("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  // Log into existing account
+  async login(email: string, password: string): Promise<{ access_token: string; token_type: string; user: { id: number; email: string } }> {
+    const res = await request<{ access_token: string; token_type: string; user: { id: number; email: string } }>("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(res.access_token);
+    return res;
+  },
+
   // Get all apps
   async getApps(): Promise<{ apps: App[] }> {
     return request<{ apps: App[] }>("/apps/apps");
@@ -165,5 +244,76 @@ export const api = {
   async getAppsLastSync(): Promise<{ apps: AppLastSync[] }> {
     return request<{ apps: AppLastSync[] }>("/tracker/apps/last-sync");
   },
-  
+
+  // Get competitors for an app
+  async getCompetitors(appId: number): Promise<{ competitors: Competitor[] }> {
+    return request<{ competitors: Competitor[] }>(`/apps/${appId}/competitors`);
+  },
+
+  // Add competitor to an app
+  async addCompetitor(appId: number, name: string, url: string): Promise<{ competitor: Competitor }> {
+    return request<{ competitor: Competitor }>(`/apps/${appId}/competitors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, url }),
+    });
+  },
+
+  // Remove competitor from an app
+  async removeCompetitor(appId: number, competitorId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/competitors/${competitorId}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Get logged in user details
+  async getMe(): Promise<{ id: number; email: string; created_at: string | null }> {
+    return request<{ id: number; email: string; created_at: string | null }>("/auth/me");
+  },
+
+  // Update user profile details
+  async updateMe(email?: string, password?: string): Promise<{ message: string; user: { id: number; email: string } }> {
+    const body: any = {};
+    if (email) body.email = email;
+    if (password) body.password = password;
+
+    return request<{ message: string; user: { id: number; email: string } }>("/auth/me", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
+
+  // Invite a collaborator to access an app by email
+  async inviteCollaborator(appId: number, email: string): Promise<{ message: string; invitation: any }> {
+    return request<{ message: string; invitation: any }>(`/collaborators/apps/${appId}/invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  // Get pending invitations for logged-in user
+  async getPendingInvitations(): Promise<{ invitations: any[] }> {
+    return request<{ invitations: any[] }>("/collaborators/invitations/pending");
+  },
+
+  // Accept a collaborator invitation
+  async acceptInvitation(inviteId: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/collaborators/invitations/${inviteId}/accept`, {
+      method: "POST",
+    });
+  },
+
+  // Decline a collaborator invitation
+  async declineInvitation(inviteId: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/collaborators/invitations/${inviteId}/decline`, {
+      method: "POST",
+    });
+  },
+
+  // Get collaborators and pending invitations for an app
+  async getAppCollaborators(appId: number): Promise<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }> {
+    return request<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }>(`/collaborators/apps/${appId}/collaborators`);
+  },
 };

@@ -8,13 +8,15 @@ import { Refresh as RefreshIcon } from "@mui/icons-material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
-import { api, getApiBaseUrl, setApiBaseUrl, type App as AppType } from "./api";
+import { api, getApiBaseUrl, getToken, logout, type App as AppType } from "./api";
 
 // Components
 import Dashboard from "./components/DashBoard";
 import HistoryPage from "./components/HistoryPage";
 import Layout from "./components/Layout";
 import PageHeader from "./components/PageHeader";
+import LoginRegister from "./components/LoginRegister";
+import ProfilePage from "./components/ProfilePage";
 
 const theme = createTheme({
   palette: {
@@ -25,21 +27,29 @@ const theme = createTheme({
 });
 
 export default function App() {
-  const [page, setPage] = useState<"dashboard" | "history">("dashboard");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
+  const [page, setPage] = useState<"dashboard" | "history" | "settings">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [invitations, setInvitations] = useState<any[]>([]);
 
   // ─── Shared state (needed by Sidebar on every page) ───────────────────────
   const [apps, setApps] = useState<AppType[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppType | null>(null);
-  const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
+  const [apiUrl] = useState(getApiBaseUrl());
   const [isLoadingApps, setIsLoadingApps] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
   const [scrapingLogs, setScrapingLogs] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
   const logsConsoleRef = useRef<HTMLDivElement>(null);
 
-  const showToast = (message: string, severity: "success" | "error" | "info" = "info") =>
-    setToast({ message, severity });
+  const showToast = (message: string, severity: "success" | "error" | "info" = "info") => {
+    setToast((prev) => {
+      if (prev && prev.message === message && prev.severity === severity) {
+        return prev;
+      }
+      return { message, severity };
+    });
+  };
 
   const fetchApps = async (selectFirst = false) => {
     setIsLoadingApps(true);
@@ -48,27 +58,96 @@ export default function App() {
       setApps(response.apps || []);
       if (selectFirst && response.apps?.length > 0) setSelectedApp(response.apps[0]);
     } catch (err: any) {
+      if (
+        err?.message?.includes("expired") ||
+        err?.message?.includes("token") ||
+        err?.message?.includes("credentials")
+      ) {
+        return;
+      }
       showToast(err?.message || "Failed to load apps", "error");
     } finally {
       setIsLoadingApps(false);
     }
   };
 
+  const fetchInvitations = async () => {
+    try {
+      const res = await api.getPendingInvitations();
+      setInvitations(res.invitations || []);
+    } catch (err) {
+      console.error("Failed to fetch pending invitations", err);
+    }
+  };
+
+  const handleAcceptInvitation = async (inviteId: number) => {
+    try {
+      const res = await api.acceptInvitation(inviteId);
+      showToast(res.message, "success");
+      await fetchApps();
+      await fetchInvitations();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to accept invitation", "error");
+    }
+  };
+
+  const handleDeclineInvitation = async (inviteId: number) => {
+    try {
+      const res = await api.declineInvitation(inviteId);
+      showToast(res.message, "info");
+      await fetchInvitations();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to decline invitation", "error");
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsAuthenticated(false);
+    setApps([]);
+    setSelectedApp(null);
+    showToast("Logged out successfully", "info");
+  };
+
+  const handleSessionExpired = (message: string) => {
+    logout();
+    setIsAuthenticated(false);
+    setApps([]);
+    setSelectedApp(null);
+    showToast(message, "error");
+  };
+
   useEffect(() => {
-    fetchApps(true);
+    const handleUnauthorized = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const message = customEvent.detail || "Session expired. Please log in again.";
+      handleSessionExpired(message);
+    };
+
+    window.addEventListener("unauthorized-token-expiration", handleUnauthorized);
+    return () => {
+      window.removeEventListener("unauthorized-token-expiration", handleUnauthorized);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchApps(true);
+      fetchInvitations();
+    }
+  }, [isAuthenticated]);
 
   const handleAppSelect = (app: AppType) => {
     setSelectedApp(app);
     setPage("dashboard");
   };
 
-  const handleSaveSettings = (url: string) => {
-    setApiBaseUrl(url);
-    setApiUrl(url);
-    showToast(`API set to ${url}`, "success");
-    fetchApps(true);
-  };
+  // const handleSaveSettings = (url: string) => {
+  //   setApiBaseUrl(url);
+  //   setApiUrl(url);
+  //   showToast(`API set to ${url}`, "success");
+  //   fetchApps(true);
+  // };
 
   const startFakeScraperLogs = (appName: string, keywords: string[]) => {
     let index = 0;
@@ -222,47 +301,61 @@ export default function App() {
             </Box>
           }
       />
-    ) : (
+    ) : page === "history" ? (
       <PageHeader
         title="History Log"
         subtitle="See when each tracked app was last checked for keyword rankings."
       />
-    );
-
-  return (
+    ) : (
+      <PageHeader
+        title="Profile Settings"
+        subtitle="Manage your user profile details."
+      />
+    );  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Layout
-        apps={apps}
-        selectedApp={selectedApp}
-        onSelectApp={handleAppSelect}
-        onRunAllSaved={handleRunAllSaved}
-        onTrackApp={handleTrackApp}
-        onDeleteApp={handleDeleteApp}
-        isScraping={isScraping}
-        scrapingLogs={scrapingLogs}
-        logsConsoleRef={logsConsoleRef}
-        isLoadingApps={isLoadingApps}
-        apiUrl={apiUrl}
-        onSaveSettings={handleSaveSettings}
-        currentPage={page}
-        onNavigate={setPage}
-        headerContent={headerContent}
-        sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
-      >
-        {page === "dashboard" ? (
-          <Dashboard
-            selectedApp={selectedApp}
-            apiUrl={apiUrl}
-            onRefreshApps={fetchApps}
-            onUpdateSelectedApp={setSelectedApp}
-            showToast={showToast}
-          />
-        ) : (
-          <HistoryPage />
-        )}
-      </Layout>
+      {!isAuthenticated ? (
+        <LoginRegister onLoginSuccess={() => setIsAuthenticated(true)} />
+      ) : (
+        <Layout
+          apps={apps}
+          selectedApp={selectedApp}
+          onSelectApp={handleAppSelect}
+          onRunAllSaved={handleRunAllSaved}
+          onTrackApp={handleTrackApp}
+          onDeleteApp={handleDeleteApp}
+          isScraping={isScraping}
+          scrapingLogs={scrapingLogs}
+          logsConsoleRef={logsConsoleRef}
+          isLoadingApps={isLoadingApps}
+          currentPage={page}
+          onNavigate={setPage}
+          headerContent={headerContent}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          onLogout={handleLogout}
+        >
+          {page === "dashboard" ? (
+            <Dashboard
+              selectedApp={selectedApp}
+              apiUrl={apiUrl}
+              onRefreshApps={fetchApps}
+              onUpdateSelectedApp={setSelectedApp}
+              showToast={showToast}
+            />
+          ) : page === "history" ? (
+            <HistoryPage />
+          ) : (
+            <ProfilePage
+              apps={apps}
+              invitations={invitations}
+              onAcceptInvitation={handleAcceptInvitation}
+              onDeclineInvitation={handleDeclineInvitation}
+              showToast={showToast}
+            />
+          )}
+        </Layout>
+      )}
 
       <Snackbar
         open={!!toast}

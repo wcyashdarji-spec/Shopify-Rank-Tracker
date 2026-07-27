@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.db import init_db, engine
 from app.core.logger import get_logger
 from app.db.models.ranking import Base 
+from app.db.models import User, App, Keyword, RankingHistory
 
 logger = get_logger(__name__)
 
@@ -41,7 +42,7 @@ def main():
             result = conn.execute(inspector_sql)
             tables = [row[0] for row in result.fetchall()]
 
-        expected_tables = {"apps", "keywords", "ranking_history"}
+        expected_tables = {"apps", "keywords", "ranking_history", "users"}
         created_tables = set(tables)
 
         if expected_tables.issubset(created_tables):

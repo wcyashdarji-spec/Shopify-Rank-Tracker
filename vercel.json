@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/tracker/run/saved",
-      "schedule": "0 3 * * *"
-    }
-  ]
-}

@@ -1,4 +1,4 @@
-﻿// React
+// React
 import { useState } from "react";
 
 // Material UI
@@ -7,6 +7,8 @@ import { Image as ImageIcon, Search as SearchIcon } from "@mui/icons-material";
 
 interface TableRowData {
   id: number;
+  appName: string;
+  isCompetitor: boolean;
   keyword: string;
   rank: number | null;
   page: number | null;
@@ -82,6 +84,7 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
         <Table size="small" sx={{ minWidth: 550 }}>
           <TableHead>
             <TableRow sx={{ "& th": { bgcolor: "#f9fafb", borderColor: "#f3f4f6" } }}>
+              <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>App</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Keyword</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Rank</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Page</TableCell>
@@ -93,7 +96,7 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
           <TableBody>
             {paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: "#9ca3af", fontSize: 13 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: "#9ca3af", fontSize: 13 }}>
                   {tableRows.length === 0 ? "No history recorded yet." : "No results match your filter."}
                 </TableCell>
               </TableRow>
@@ -108,6 +111,25 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
                   }}
                 >
                   <TableCell sx={{ fontSize: 13, color: "#111827", fontWeight: 500 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{row.appName}</Typography>
+                      {row.isCompetitor && (
+                        <Chip
+                          size="small"
+                          label="Competitor"
+                          sx={{
+                            height: 18,
+                            fontSize: 9.5,
+                            fontWeight: 600,
+                            bgcolor: "#f3f4f6",
+                            color: "#6b7280",
+                            border: "1px solid #e5e7eb",
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13, color: "#4b5563" }}>
                     {row.keyword}
                   </TableCell>
                   <TableCell sx={{ fontSize: 13, color: row.rank ? "#111827" : "#9ca3af" }}>

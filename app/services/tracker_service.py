@@ -9,6 +9,7 @@ from app.services.search_service import SearchService
 from app.services.ranking_service import RankingService
 from app.services.pagination_service import PaginationService
 from app.db.repositories.ranking_repository import RankingRepository
+from app.utils.url_utils import normalize_url
 
 logger = get_logger(__name__)
 
@@ -16,17 +17,19 @@ logger = get_logger(__name__)
 class TrackerService:
     """Main orchestrator service for the rank tracking workflow."""
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Optional[Session] = None, user_id: Optional[int] = None):
         """
         Initialize the tracker service with dependencies.
         
         Args:
             db: Optional database session for saving results.
+            user_id: Optional user ID tracking is scoped to.
         """
         self.search = SearchService()
         self.rank = RankingService()
         self.pagination = PaginationService()
         self.db = db
+        self.user_id = user_id
 
     def run(self, apps):
         """
@@ -53,10 +56,21 @@ class TrackerService:
                     logger.info("Tracking App: %s", app_name)
 
                     db_app = None
+                    competitors = []
                     if self.db:
                         db_app = RankingRepository.get_or_create_app(
-                            self.db, app_name, app_url
+                            self.db, app_name, app_url, self.user_id
                         )
+                        if db_app:
+                            competitors = db_app.competitors
+
+                    targets = []
+                    if db_app:
+                        targets.append({"db_obj": db_app, "name": db_app.name, "url": db_app.url, "is_competitor": False})
+                        for comp in competitors:
+                            targets.append({"db_obj": comp, "name": comp.name, "url": comp.url, "is_competitor": True})
+                    else:
+                        targets.append({"db_obj": None, "name": app_name, "url": app_url, "is_competitor": False})
 
                     for keyword in app.keywords:
                         logger.info("Searching keyword: '%s'", keyword)
@@ -70,80 +84,103 @@ class TrackerService:
                             )
                             continue
 
-                        overall_rank = 1
+                        results_map = {
+                            normalize_url(t["url"]): {
+                                "target": t,
+                                "found": False,
+                                "rank": None,
+                                "page": None
+                            } for t in targets
+                        }
+
+                        apps_seen_count = 0
                         current_page = 1
-                        found = False
-                        screenshot_path = None
 
                         for current_page in range(1, MAX_PAGES + 1):
-                            rank, status, _, results_per_page = self.rank.find_app(
-                                page=page,
-                                keyword=keyword,
-                                app_name=app_name,
-                                app_url=app_url,
-                            )
+                            page_apps = self.rank.get_page_apps(page, keyword)
+                            results_per_page = len(page_apps)
 
-                            if status:
-                                overall_rank += (rank - 1)
+                            for idx, p_app in enumerate(page_apps):
+                                current_rank = apps_seen_count + idx + 1
+                                p_url_normalized = normalize_url(p_app["url"])
 
-                                logger.info(
-                                    "Application found at overall rank %s (Page %s).",
-                                    overall_rank,
-                                    current_page,
-                                )
+                                for target_url_norm, res_data in results_map.items():
+                                    if res_data["found"]:
+                                        continue
 
-                                # screenshot_path = ScreenshotUtil.save(page, app_name, keyword)
+                                    if p_url_normalized == target_url_norm or p_app["name"].lower() == res_data["target"]["name"].lower():
+                                        res_data["found"] = True
+                                        res_data["rank"] = current_rank
+                                        res_data["page"] = current_page
+                                        logger.info(
+                                            "Application '%s' found at overall rank %s (Page %s).",
+                                            res_data["target"]["name"],
+                                            current_rank,
+                                            current_page,
+                                        )
 
-                                found = True
+                            if all(r["found"] for r in results_map.values()):
+                                logger.info("All target apps found. Stopping search pagination early.")
                                 break
 
                             logger.info(
-                                "Application not found on page %s.",
+                                "Completed scanning page %s. Apps found: %s/%s",
                                 current_page,
+                                sum(1 for r in results_map.values() if r["found"]),
+                                len(results_map)
                             )
 
                             if not self.pagination.next_page(page):
                                 break
                             
+                            apps_seen_count += results_per_page
                             current_page += 1
-                            overall_rank += results_per_page
 
-                        if not found:
-                            logger.warning(
-                                "Application '%s' not found for keyword '%s'.",
-                                app_name,
-                                keyword,
+                        for res_data in results_map.values():
+                            target = res_data["target"]
+                            found = res_data["found"]
+                            rank_val = res_data["rank"]
+                            page_val = res_data["page"]
+
+                            if not found:
+                                logger.warning(
+                                    "Application '%s' not found for keyword '%s'.",
+                                    target["name"],
+                                    keyword,
+                                )
+
+                            if self.db and target["db_obj"]:
+                                db_keyword = RankingRepository.get_or_create_keyword(
+                                    self.db, keyword
+                                )
+                                try:
+                                    RankingRepository.add_keyword_to_app(self.db, target["db_obj"], db_keyword)
+                                except Exception as e:
+                                    logger.exception(f"Failed to associate keyword '{keyword}' with app '{target['name']}': {str(e)}")
+                                
+                                RankingRepository.save_ranking(
+                                    self.db,
+                                    app_id=target["db_obj"].id,
+                                    keyword_id=db_keyword.id,
+                                    rank=rank_val,
+                                    page=page_val,
+                                    found=found,
+                                    screenshot_path=None,
+                                )
+
+                            results.append(
+                                {
+                                    "app_name": target["name"],
+                                    "app_url": target["url"],
+                                    "keyword": keyword,
+                                    "rank": rank_val,
+                                    "page": page_val,
+                                    "found": found,
+                                    "screenshot": None,
+                                    "is_competitor": target["is_competitor"]
+                                }
                             )
 
-                        if self.db and db_app:
-                            db_keyword = RankingRepository.get_or_create_keyword(
-                                self.db, keyword
-                            )
-                            try:
-                                RankingRepository.add_keyword_to_app(self.db, db_app, db_keyword)
-                            except Exception as e:
-                                logger.exception(f"Failed to associate keyword '{keyword}' with app '{app_name}': {str(e)}")
-                            RankingRepository.save_ranking(
-                                self.db,
-                                app_id=db_app.id,
-                                keyword_id=db_keyword.id,
-                                rank=overall_rank if found else None,
-                                page=current_page if found else None,
-                                found=found,
-                                screenshot_path=str(screenshot_path) if screenshot_path else None,
-                            )
-
-                        results.append(
-                            {
-                                "app_name": app_name,
-                                "app_url": app_url,
-                                "keyword": keyword,
-                                "rank": overall_rank if found else None,
-                                "page": current_page if found else None,
-                                "found": found,
-                                "screenshot": str(screenshot_path) if screenshot_path else None,
-                            }
-                        )
                         time.sleep(2)
 
                     if self.db and db_app:
