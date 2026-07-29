@@ -39,6 +39,8 @@ class App(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_synced_at = Column(DateTime, nullable=True)
     audit_data = Column(String, nullable=True)
+    audit_last_synced_at = Column(DateTime, nullable=True)
+    audit_run_count = Column(Integer, default=0, nullable=True)
     
     __table_args__ = (
         UniqueConstraint("user_id", "url", name="uix_user_app"),

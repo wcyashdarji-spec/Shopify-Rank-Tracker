@@ -44,6 +44,7 @@ def get_all_apps(
                     "created_at": app.created_at.isoformat(),
                     "history_count": len(app.rankings),
                     "keywords": [{"id": k.id, "name": k.name} for k in app.keywords],
+                    "audit_last_synced_at": app.audit_last_synced_at.isoformat() if app.audit_last_synced_at else None,
                 }
                 for app in apps
             ]
@@ -328,15 +329,43 @@ def get_listing_audit(
         if not app:
             raise HTTPException(status_code=404, detail="App not found")
 
-        if not app.audit_data:
-            return {"status": "not_run"}
+        from datetime import datetime
+        from app.core.config import DAILY_AUDIT_LIMIT
 
-        import json
-        try:
-            return json.loads(app.audit_data)
-        except Exception as e:
-            logger.error(f"Failed to parse database audit data for app {app.id}: {e}")
-            return {"status": "not_run"}
+        app_limit = DAILY_AUDIT_LIMIT
+
+        today_utc = datetime.utcnow().date()
+        last_sync_date = app.audit_last_synced_at.date() if app.audit_last_synced_at else None
+        
+        if last_sync_date == today_utc:
+            todays_audits_count = app.audit_run_count or 0
+        else:
+            todays_audits_count = 0
+            if app.audit_run_count != 0:
+                app.audit_run_count = 0
+                db.commit()
+
+        if app_limit is not None:
+            remaining_audits = max(0, app_limit - todays_audits_count)
+        else:
+            remaining_audits = None
+
+        if not app.audit_data:
+            audit_result = {"status": "not_run"}
+        else:
+            import json
+            try:
+                audit_result = json.loads(app.audit_data)
+            except Exception as e:
+                logger.error(f"Failed to parse database audit data for app {app.id}: {e}")
+                audit_result = {"status": "not_run"}
+
+        audit_result["audit_last_synced_at"] = app.audit_last_synced_at.isoformat() if app.audit_last_synced_at else None
+        audit_result["daily_audit_limit"] = app_limit
+        audit_result["todays_audits_count"] = todays_audits_count
+        audit_result["remaining_audits"] = remaining_audits
+
+        return audit_result
     except HTTPException:
         raise
     except Exception as e:
@@ -367,9 +396,39 @@ def run_listing_audit(
         if not app:
             raise HTTPException(status_code=404, detail="App not found")
 
+        from datetime import datetime
+        from app.core.config import DAILY_AUDIT_LIMIT
+
+        app_limit = DAILY_AUDIT_LIMIT
+
+        today_utc = datetime.utcnow().date()
+        last_sync_date = app.audit_last_synced_at.date() if app.audit_last_synced_at else None
+        
+        if last_sync_date == today_utc:
+            todays_audits_count = app.audit_run_count or 0
+        else:
+            todays_audits_count = 0
+            if app.audit_run_count != 0:
+                app.audit_run_count = 0
+                db.commit()
+
+        if app_limit is not None and todays_audits_count >= app_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily re-audit limit of {app_limit} runs reached for this application. Please try again tomorrow."
+            )
+
         from app.services.audit_service import AuditService
         
         audit_result = AuditService.run_and_save_audit(db, app.id, app.name, app.url)
+
+        db.refresh(app)
+        
+        last_sync_date_new = app.audit_last_synced_at.date() if app.audit_last_synced_at else None
+        if last_sync_date_new == today_utc:
+            updated_todays_audits = app.audit_run_count or 0
+        else:
+            updated_todays_audits = 0
         
         for competitor in app.competitors:
             try:
@@ -378,6 +437,11 @@ def run_listing_audit(
             except Exception as e:
                 logger.error(f"Failed to run listing audit for competitor {competitor.name}: {e}")
                 
+        audit_result["audit_last_synced_at"] = app.audit_last_synced_at.isoformat() if app.audit_last_synced_at else None
+        audit_result["daily_audit_limit"] = app_limit
+        audit_result["todays_audits_count"] = updated_todays_audits
+        audit_result["remaining_audits"] = max(0, app_limit - updated_todays_audits) if app_limit is not None else None
+
         return audit_result
     except HTTPException:
         raise

@@ -124,6 +124,11 @@ def get_apps_last_sync(
                         if app.last_synced_at
                         else None
                     ),
+                    "audit_last_synced_at": (
+                        app.audit_last_synced_at.isoformat()
+                        if app.audit_last_synced_at
+                        else None
+                    ),
                 }
                 for app in apps
             ]

@@ -1,5 +1,6 @@
 import re
 import json
+from datetime import datetime
 from urllib.parse import urlsplit
 from sqlalchemy.orm import Session
 
@@ -107,6 +108,15 @@ class AuditService:
                 app = db.query(App).filter(App.id == app_id).first()
                 if app:
                     app.audit_data = json.dumps(audit_data, ensure_ascii=False)
+                    
+                    today_utc = datetime.utcnow().date()
+                    last_sync_date = app.audit_last_synced_at.date() if app.audit_last_synced_at else None
+                    if last_sync_date == today_utc:
+                        app.audit_run_count = (app.audit_run_count or 0) + 1
+                    else:
+                        app.audit_run_count = 1
+                        
+                    app.audit_last_synced_at = datetime.utcnow()
                     db.commit()
                     logger.info(f"Saved listing audit to database for app {app_id} ({app_name}).")
                 else:

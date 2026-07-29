@@ -13,6 +13,7 @@ export interface App {
   created_at: string;
   history_count: number;
   keywords: Keyword[];
+  audit_last_synced_at?: string | null;
 }
 
 export interface HistoryRecord {
@@ -84,6 +85,7 @@ export interface AppLastSync {
   name: string;
   url: string;
   last_synced_at: string | null;
+  audit_last_synced_at?: string | null;
 }
 
 // Manage API base URL in localStorage
@@ -119,7 +121,9 @@ export function logout(): void {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}${path}`;
+  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${cleanBaseUrl}${cleanPath}`;
   
   const headers = new Headers(options?.headers);
   const token = getToken();

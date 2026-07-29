@@ -12,7 +12,9 @@ import {
   LinearProgress,
   Select,
   MenuItem,
-  FormControl
+  FormControl,
+  Chip,
+  Alert
 } from "@mui/material";
 import {
   CheckCircle as CheckCircleIcon,
@@ -105,6 +107,8 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
   }
 
   if (!auditData || auditData.status === "not_run") {
+    const isLimitReached = auditData?.remaining_audits === 0 && auditData?.daily_audit_limit;
+
     return (
       <Box sx={{ p: 4, bgcolor: "#f9fafb", minHeight: "100vh", fontFamily: "'Inter', sans-serif" }}>
         {/* Header welcome */}
@@ -118,26 +122,39 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
           <Button 
             variant="contained" 
             onClick={handleReRunAudit} 
+            disabled={loading || isLimitReached}
             startIcon={<RefreshIcon />}
             sx={{ 
-              bgcolor: "#006e52", 
+              bgcolor: isLimitReached ? "#9ca3af" : "#006e52", 
               textTransform: "none",
               borderRadius: "10px",
               px: 4,
               py: 1.75,
               fontSize: 14.5,
               fontWeight: 600,
-              boxShadow: "0 4px 14px rgba(0, 110, 82, 0.2)",
+              boxShadow: isLimitReached ? "none" : "0 4px 14px rgba(0, 110, 82, 0.2)",
               transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
               "&:hover": { 
-                bgcolor: "#005a44",
-                transform: "translateY(-1px)",
-                boxShadow: "0 6px 20px rgba(0, 110, 82, 0.3)"
+                bgcolor: isLimitReached ? "#9ca3af" : "#005a44",
+                transform: isLimitReached ? "none" : "translateY(-1px)",
+                boxShadow: isLimitReached ? "none" : "0 6px 20px rgba(0, 110, 82, 0.3)"
               } 
             }}
           >
             Start Optimization Audit
           </Button>
+          
+          {isLimitReached ? (
+            <Alert severity="warning" sx={{ mt: 3, maxWidth: 480, mx: "auto", borderRadius: "8px", textAlign: "left" }}>
+              Daily re-audit limit of <strong>{auditData.daily_audit_limit}</strong> audits reached for this application. Please try again tomorrow.
+            </Alert>
+          ) : (
+            auditData?.daily_audit_limit && (
+              <Typography variant="body2" sx={{ color: "#6b7280", mt: 2, fontSize: 13 }}>
+                Daily limit remaining: <strong>{auditData.remaining_audits}</strong> of <strong>{auditData.daily_audit_limit}</strong> audits left today.
+              </Typography>
+            )
+          )}
         </Box>
 
         {/* Feature Grid */}
@@ -299,21 +316,54 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
           <Button
             variant="contained"
             onClick={handleReRunAudit}
-            disabled={loading}
+            disabled={loading || auditData?.remaining_audits === 0}
             startIcon={loading ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <RefreshIcon />}
             sx={{
-              bgcolor: "#006e52",
+              bgcolor: auditData?.remaining_audits === 0 ? "#9ca3af" : "#006e52",
               color: "#ffffff",
               textTransform: "none",
               fontWeight: 500,
               borderRadius: "8px",
-              "&:hover": { bgcolor: "#005a44" }
+              "&:hover": { bgcolor: auditData?.remaining_audits === 0 ? "#9ca3af" : "#005a44" }
             }}
           >
             {loading ? "Auditing..." : "Re-run Audit"}
           </Button>
         </Box>
       </Box>
+
+      {/* Sync Status & Limits Bar */}
+      {auditData && auditData.status !== "not_run" && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", mb: 3, "@media print": { display: "none" } }}>
+          {auditData.audit_last_synced_at && (
+            <Chip
+              label={`Last synced: ${new Date(auditData.audit_last_synced_at).toLocaleString()}`}
+              size="small"
+              variant="outlined"
+              sx={{ color: "#374151", borderColor: "#e5e7eb", bgcolor: "#ffffff", fontWeight: 500, px: 0.5 }}
+            />
+          )}
+          {auditData.daily_audit_limit !== null && auditData.daily_audit_limit !== undefined && (
+            <Chip
+              label={
+                auditData.remaining_audits === 0 
+                  ? `Daily Limit Reached (0 of ${auditData.daily_audit_limit} left)` 
+                  : `Daily Audits: ${auditData.remaining_audits} of ${auditData.daily_audit_limit} left today`
+              }
+              color={auditData.remaining_audits === 0 ? "error" : auditData.remaining_audits === 1 ? "warning" : "success"}
+              size="small"
+              sx={{ fontWeight: 600, px: 0.5 }}
+            />
+          )}
+        </Box>
+      )}
+
+      {/* Limit Exceeded Alert */}
+      {auditData?.remaining_audits === 0 && auditData?.daily_audit_limit && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: "12px", border: "1px solid #ffeeba" }}>
+          You have reached your daily optimization limit of <strong>{auditData.daily_audit_limit}</strong> audits for this application. Re-run button is disabled and will reset tomorrow.
+        </Alert>
+      )}
 
       {/* Header Info Displayed Only on Print */}
       <Box sx={{ display: "none", "@media print": { display: "block", mb: 4 } }}>
