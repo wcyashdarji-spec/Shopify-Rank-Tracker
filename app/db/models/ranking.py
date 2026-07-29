@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, UniqueConstraint, Float
 from app.db import Base
 
 app_keywords = Table(
@@ -38,6 +38,7 @@ class App(Base):
     is_deleted = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_synced_at = Column(DateTime, nullable=True)
+    audit_data = Column(String, nullable=True)
     
     __table_args__ = (
         UniqueConstraint("user_id", "url", name="uix_user_app"),
@@ -120,7 +121,7 @@ class AppInvitation(Base):
     app_id = Column(Integer, ForeignKey("apps.id", ondelete="CASCADE"), nullable=False, index=True)
     inviter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     email = Column(String(255), nullable=False, index=True)
-    status = Column(String(50), default="pending", nullable=False)  # pending, accepted, declined
+    status = Column(String(50), default="pending", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     app = relationship("App")
@@ -128,5 +129,24 @@ class AppInvitation(Base):
 
     def __repr__(self):
         return f"<AppInvitation(id={self.id}, app_id={self.app_id}, email={self.email})>"
+
+
+class AppAuditHistory(Base):
+    """Model for storing daily or run-by-run app listing audit history."""
+
+    __tablename__ = "app_audit_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    app_id = Column(Integer, ForeignKey("apps.id", ondelete="CASCADE"), nullable=False, index=True)
+    overall_score = Column(Integer, nullable=False)
+    reviews_text = Column(String(255), nullable=True)
+    rating_val = Column(Float, nullable=True)
+    scraped_data = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    app = relationship("App", backref="audit_histories")
+
+    def __repr__(self):
+        return f"<AppAuditHistory(app_id={self.app_id}, score={self.overall_score}, created_at={self.created_at})>"
 
 

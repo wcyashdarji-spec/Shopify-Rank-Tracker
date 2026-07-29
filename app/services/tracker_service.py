@@ -130,11 +130,14 @@ class TrackerService:
                                 len(results_map)
                             )
 
+                            if current_page == MAX_PAGES:
+                                break
+                            
                             if not self.pagination.next_page(page):
                                 break
                             
                             apps_seen_count += results_per_page
-                            current_page += 1
+                            # current_page += 1
 
                         for res_data in results_map.values():
                             target = res_data["target"]

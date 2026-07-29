@@ -88,7 +88,7 @@ export interface AppLastSync {
 
 // Manage API base URL in localStorage
 const STORAGE_KEY = "shopify_tracker_api_url";
-const DEFAULT_API_URL = "https://aitools.webcontrive.com/app";
+const DEFAULT_API_URL = import.meta.env.VITE_API_URL;
 const TOKEN_KEY = "shopify_tracker_token";
 
 export function getApiBaseUrl(): string {
@@ -102,14 +102,14 @@ export function setApiBaseUrl(url: string): void {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token: string | null): void {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_KEY, token);
   } else {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   }
 }
 
@@ -246,8 +246,8 @@ export const api = {
   },
 
   // Get competitors for an app
-  async getCompetitors(appId: number): Promise<{ competitors: Competitor[] }> {
-    return request<{ competitors: Competitor[] }>(`/apps/${appId}/competitors`);
+  async getCompetitors(appId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/competitors`);
   },
 
   // Add competitor to an app
@@ -315,5 +315,27 @@ export const api = {
   // Get collaborators and pending invitations for an app
   async getAppCollaborators(appId: number): Promise<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }> {
     return request<{ owner: string | null; collaborators: string[]; pending_invitations: string[] }>(`/collaborators/apps/${appId}/collaborators`);
+  },
+
+  // Get listing audit data for an app
+  async getListingAudit(appId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/listing-audit`);
+  },
+
+  // Force re-run listing audit for an app
+  async runListingAudit(appId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/listing-audit`, {
+      method: "POST",
+    });
+  },
+
+  // Get competitors day-over-day activity changes
+  async getCompetitorsActivity(appId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/competitors-activity`);
+  },
+
+  // Get head-to-head comparison stats
+  async getHeadToHead(appId: number, competitorId: number): Promise<any> {
+    return request<any>(`/apps/${appId}/head-to-head/${competitorId}`);
   },
 };

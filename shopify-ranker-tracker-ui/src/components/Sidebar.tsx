@@ -37,6 +37,7 @@ import {
   Search as SearchIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  People as PeopleIcon,
 } from "@mui/icons-material";
 
 // API
@@ -52,8 +53,8 @@ interface SidebarProps {
   isScraping: boolean;
   isLoadingApps: boolean;
   onDeleteApp: (appId: number) => void;
-  currentPage: "dashboard" | "history" | "settings";
-  onNavigate: (page: "dashboard" | "history" | "settings") => void;
+  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
+  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors") => void;
   onLogout?: () => void;
 }
 
@@ -238,6 +239,32 @@ export default function Sidebar({
               <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }} primary="Home" />
             </ListItemButton>
           </ListItem>
+          {selectedApp && (
+            <>
+              <ListItem disablePadding>
+                <ListItemButton
+                  sx={navItemSx(currentPage === "optimizer")}
+                  onClick={() => onNavigate("optimizer")}
+                >
+                  <ListItemIcon sx={{ minWidth: 28 }}>
+                    <BarChartIcon sx={{ fontSize: 16, color: "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }} primary="Listing Optimizer" />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton
+                  sx={navItemSx(currentPage === "competitors")}
+                  onClick={() => onNavigate("competitors")}
+                >
+                  <ListItemIcon sx={{ minWidth: 28 }}>
+                    <PeopleIcon sx={{ fontSize: 16, color: "inherit" }} />
+                  </ListItemIcon>
+                  <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }} primary="Competitors" />
+                </ListItemButton>
+              </ListItem>
+            </>
+          )}
           <ListItem disablePadding>
             <ListItemButton
               sx={navItemSx(reportsOpen || currentPage === "dashboard")}
@@ -256,7 +283,7 @@ export default function Sidebar({
               {apps.map((app) => (
                 <ListItem key={app.id} disablePadding>
                   <ListItemButton
-                    sx={{ ...navItemSx(selectedApp?.id === app.id && currentPage === "dashboard"), pl: 5 }}
+                    sx={{ ...navItemSx(selectedApp?.id === app.id && (currentPage === "dashboard" || currentPage === "optimizer")), pl: 5 }}
                     onClick={() => {
                       onSelectApp(app);
                       onNavigate("dashboard");

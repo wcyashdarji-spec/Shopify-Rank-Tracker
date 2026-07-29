@@ -18,6 +18,9 @@ dependencies = [
     "streamlit",
     "requests",
     "pyjwt",
+    "pydantic-ai>=2.18.0",
+    "logfire>=4.39.0",
+    "pydantic-ai-slim[google]>=2.18.0",
 ]
 
 [build-system]

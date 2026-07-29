@@ -17,6 +17,8 @@ import Layout from "./components/Layout";
 import PageHeader from "./components/PageHeader";
 import LoginRegister from "./components/LoginRegister";
 import ProfilePage from "./components/ProfilePage";
+import ListingOptimizer from "./components/ListingOptimizer";
+import CompetitorsPage from "./components/CompetitorsPage";
 
 const theme = createTheme({
   palette: {
@@ -28,7 +30,7 @@ const theme = createTheme({
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
-  const [page, setPage] = useState<"dashboard" | "history" | "settings">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "history" | "settings" | "optimizer" | "competitors">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [invitations, setInvitations] = useState<any[]>([]);
 
@@ -306,6 +308,10 @@ export default function App() {
         title="History Log"
         subtitle="See when each tracked app was last checked for keyword rankings."
       />
+    ) : page === "optimizer" ? (
+      null
+    ) : page === "competitors" ? (
+      null
     ) : (
       <PageHeader
         title="Profile Settings"
@@ -345,6 +351,20 @@ export default function App() {
             />
           ) : page === "history" ? (
             <HistoryPage />
+          ) : page === "optimizer" && selectedApp ? (
+            <ListingOptimizer
+              apps={apps}
+              selectedApp={selectedApp}
+              onSelectApp={setSelectedApp}
+              showToast={showToast}
+            />
+          ) : page === "competitors" && selectedApp ? (
+            <CompetitorsPage
+              apps={apps}
+              selectedApp={selectedApp}
+              onSelectApp={setSelectedApp}
+              showToast={showToast}
+            />
           ) : (
             <ProfilePage
               apps={apps}

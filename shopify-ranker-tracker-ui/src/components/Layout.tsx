@@ -23,13 +23,10 @@ interface LayoutProps {
   scrapingLogs: string[];
   logsConsoleRef: React.RefObject<HTMLDivElement | null>;
   isLoadingApps: boolean;
-  currentPage: "dashboard" | "history" | "settings";
-  onNavigate: (page: "dashboard" | "history" | "settings") => void;
-  /** Optional top bar content rendered per-page (title, action buttons, etc.) */
+  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
+  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors") => void;
   headerContent?: ReactNode;
-  /** Whether the sidebar is currently hidden */
   sidebarCollapsed: boolean;
-  /** Toggles the sidebar open/closed */
   onToggleSidebar: () => void;
   children: ReactNode;
   onLogout?: () => void;

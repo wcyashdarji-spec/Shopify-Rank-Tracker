@@ -38,6 +38,29 @@ export default function Dashboard({
   const [isAddingKeywords, setIsAddingKeywords] = useState(false);
   const [viewScreenshotPath, setViewScreenshotPath] = useState<string | null>(null);
   const [keywordsDialogOpen, setKeywordsDialogOpen] = useState(false);
+  const [listingScore, setListingScore] = useState<number | null>(null);
+
+  const fetchListingScore = async () => {
+    if (!selectedApp) return;
+    try {
+      const audit = await api.getListingAudit(selectedApp.id);
+      if (audit && typeof audit.overall_score === "number") {
+        setListingScore(audit.overall_score);
+      } else {
+        setListingScore(null);
+      }
+    } catch (err) {
+      setListingScore(null);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedApp) {
+      fetchListingScore();
+    } else {
+      setListingScore(null);
+    }
+  }, [selectedApp]);
 
   // Reset selected keywords whenever the app changes
   useEffect(() => {
@@ -239,6 +262,7 @@ export default function Dashboard({
             currentAvgRank={dashboardStats.currentAvgRank}
             successRate={dashboardStats.successRate}
             topPositions={dashboardStats.topPositions}
+            listingScore={listingScore}
           />
 
           <RankChart
