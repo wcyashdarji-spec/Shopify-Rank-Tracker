@@ -1,6 +1,8 @@
+import os
+
 import jwt
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Header, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.db import get_db
@@ -8,6 +10,8 @@ from app.db.models.user import User
 from app.core.security import decode_access_token
 
 security = HTTPBearer()
+
+CRON_SECRET = os.getenv("CRON_SECRET_KEY")
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -47,3 +51,16 @@ def get_current_user(
         )
     return user
 
+
+def verify_cron_key(x_cron_key: str = Header(...)):
+    """
+    Validate the X-Cron-Key header against the CRON_SECRET_KEY environment variable.
+
+    This dependency should be added to all cron-triggered endpoints to prevent
+    unauthenticated access.
+
+    Raises:
+        HTTPException: 403 if the key is missing, incorrect, or not configured.
+    """
+    if not CRON_SECRET or x_cron_key != CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid cron key")

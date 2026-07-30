@@ -7,12 +7,14 @@ from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
 from app.schemas.request import AppKeywordUpdateRequest
 from app.db.repositories.ranking_repository import RankingRepository
+from app.core.logging_route import LoggingRoute
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/keywords",
     tags=["Keywords"],
+    route_class=LoggingRoute,
 )
 
 

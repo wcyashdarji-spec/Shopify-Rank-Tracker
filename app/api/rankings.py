@@ -2,16 +2,18 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import get_db
-from app.core.logger import get_logger
-from app.db.repositories.ranking_repository import RankingRepository
 from app.db.models.user import User
+from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
+from app.core.logging_route import LoggingRoute
+from app.db.repositories.ranking_repository import RankingRepository
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/tracker",
     tags=["Rankings"],
+    route_class=LoggingRoute,
 )
 
 @router.get("/latest")

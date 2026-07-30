@@ -4,17 +4,71 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
-from app.api.auth_deps import get_current_user
+from app.api.auth_deps import get_current_user, verify_cron_key
 from app.schemas.request import CompetitorCreateRequest
 from app.db.repositories.ranking_repository import RankingRepository
+from app.core.logging_route import LoggingRoute
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/apps",
     tags=["Apps"],
+    route_class=LoggingRoute,
 )
 
+
+@router.post("/cron/listing-audit")
+def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
+    """
+    Execute scheduled listing audits for all active applications.
+
+    This endpoint is intended for automated cron jobs. It performs a
+    fresh listing audit for every active primary application and its
+    linked competitors, updates the stored audit data and history, and
+    returns a summary of successful and failed audit executions.
+
+    Raises:
+        HTTPException:
+            - 500: If an unexpected error occurs while executing the
+              scheduled listing audit process.
+    """
+    try:
+        from app.db.models.ranking import App as AppModel
+        from app.services.audit_service import AuditService
+        
+        apps = db.query(AppModel).filter(
+            AppModel.is_competitor == False,
+            AppModel.is_deleted == False
+        ).all()
+        
+        results = []
+        for app in apps:
+            try:
+                logger.info(f"Cron: Auditing primary app {app.name} (id={app.id})...")
+                AuditService.run_and_save_audit(db, app.id, app.name, app.url)
+                
+                for competitor in app.competitors:
+                    try:
+                        logger.info(f"Cron: Auditing competitor {competitor.name} (id={competitor.id}) linked to {app.name}...")
+                        AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
+                    except Exception as ec:
+                        logger.error(f"Cron: Failed to audit competitor {competitor.name} (id={competitor.id}): {ec}")
+                
+                results.append({"app_id": app.id, "name": app.name, "status": "success"})
+            except Exception as ea:
+                logger.error(f"Cron: Failed to audit primary app {app.name} (id={app.id}): {ea}")
+                results.append({"app_id": app.id, "name": app.name, "status": "failed", "error": str(ea)})
+                
+        return {
+            "status": "completed",
+            "audited_count": len(results),
+            "results": results
+        }
+    except Exception as e:
+        logger.exception(f"Cron: Failed to execute automated listing audits: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to execute automated listing audits")
+    
 
 @router.get("/apps")
 def get_all_apps(
@@ -450,58 +504,6 @@ def run_listing_audit(
         raise HTTPException(status_code=500, detail="Failed to execute listing audit")
 
 
-@router.post("/cron/listing-audit")
-def run_cron_listing_audits(db: Session = Depends(get_db)):
-    """
-    Execute scheduled listing audits for all active applications.
-
-    This endpoint is intended for automated cron jobs. It performs a
-    fresh listing audit for every active primary application and its
-    linked competitors, updates the stored audit data and history, and
-    returns a summary of successful and failed audit executions.
-
-    Raises:
-        HTTPException:
-            - 500: If an unexpected error occurs while executing the
-              scheduled listing audit process.
-    """
-    try:
-        from app.db.models.ranking import App as AppModel
-        from app.services.audit_service import AuditService
-        
-        apps = db.query(AppModel).filter(
-            AppModel.is_competitor == False,
-            AppModel.is_deleted == False
-        ).all()
-        
-        results = []
-        for app in apps:
-            try:
-                logger.info(f"Cron: Auditing primary app {app.name} (id={app.id})...")
-                AuditService.run_and_save_audit(db, app.id, app.name, app.url)
-                
-                for competitor in app.competitors:
-                    try:
-                        logger.info(f"Cron: Auditing competitor {competitor.name} (id={competitor.id}) linked to {app.name}...")
-                        AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
-                    except Exception as ec:
-                        logger.error(f"Cron: Failed to audit competitor {competitor.name} (id={competitor.id}): {ec}")
-                
-                results.append({"app_id": app.id, "name": app.name, "status": "success"})
-            except Exception as ea:
-                logger.error(f"Cron: Failed to audit primary app {app.name} (id={app.id}): {ea}")
-                results.append({"app_id": app.id, "name": app.name, "status": "failed", "error": str(ea)})
-                
-        return {
-            "status": "completed",
-            "audited_count": len(results),
-            "results": results
-        }
-    except Exception as e:
-        logger.exception(f"Cron: Failed to execute automated listing audits: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to execute automated listing audits")
-
-
 @router.get("/{app_id}/competitors-activity")
 def get_competitors_activity(
     app_id: int,
@@ -630,7 +632,6 @@ def get_competitors_activity(
                         }
                     })
 
-                # Meta Description Change
                 if prev_meta != curr_meta:
                     activity_logs.append({
                         "id": f"meta_{curr_entry.id}",
@@ -648,7 +649,6 @@ def get_competitors_activity(
                         }
                     })
 
-                # Description Text Change (word-level diff)
                 if prev_desc != curr_desc:
                     activity_logs.append({
                         "id": f"desc_{curr_entry.id}",
@@ -666,7 +666,6 @@ def get_competitors_activity(
                         }
                     })
 
-                # Feature List Change (item-by-item alignment)
                 prev_feats = prev_data.get("key_features", [])
                 curr_feats = curr_data.get("key_features", [])
                 if prev_feats != curr_feats:

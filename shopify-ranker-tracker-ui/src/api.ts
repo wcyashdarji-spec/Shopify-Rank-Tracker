@@ -179,6 +179,17 @@ export const api = {
     return res;
   },
 
+  // Log out of existing session
+  async logout(): Promise<{ message: string }> {
+    try {
+      return await request<{ message: string }>("/auth/logout", {
+        method: "POST",
+      });
+    } finally {
+      setToken(null);
+    }
+  },
+
   // Get all apps
   async getApps(): Promise<{ apps: App[] }> {
     return request<{ apps: App[] }>("/apps/apps");

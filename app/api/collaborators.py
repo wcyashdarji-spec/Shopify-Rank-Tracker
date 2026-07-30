@@ -10,12 +10,14 @@ from app.utils.email import send_invitation_email
 from app.db.models.ranking import App, AppInvitation
 from app.schemas.request import InviteCollaboratorRequest
 from app.db.repositories.ranking_repository import RankingRepository
+from app.core.logging_route import LoggingRoute
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/collaborators",
     tags=["Collaborators"],
+    route_class=LoggingRoute,
 )
 
 @router.post("/apps/{app_id}/invite")

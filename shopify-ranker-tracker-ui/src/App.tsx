@@ -103,7 +103,12 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (err) {
+      console.error("Failed to logout on backend", err);
+    }
     logout();
     setIsAuthenticated(false);
     setApps([]);

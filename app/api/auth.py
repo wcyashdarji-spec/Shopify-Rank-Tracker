@@ -1,18 +1,21 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.db import get_db
-from app.db.models.user import User
+from app.db.models.user import User, UserActivity
 from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
 from app.schemas.request import UserCreate, UserLogin, UserUpdate
 from app.core.security import hash_password, verify_password, create_access_token
+from app.core.logging_route import LoggingRoute
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
+    route_class=LoggingRoute,
 )
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -110,6 +113,10 @@ def login(request: UserLogin, db: Session = Depends(get_db)):
             
         token = create_access_token(subject=user.id)
         
+        activity = UserActivity(user_id=user.id, login_at=datetime.utcnow())
+        db.add(activity)
+        db.commit()
+        
         logger.info(f"User logged in: {email}")
         
         return {
@@ -202,3 +209,49 @@ def update_me(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update profile"
         )
+
+
+@router.post("/logout")
+def logout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Log out the authenticated user and record their logout time.
+
+    This endpoint updates the user's most recent active session by
+    setting the logout timestamp. If no active session record exists,
+    a new logout activity entry is created to ensure the user's
+    activity history remains consistent.
+
+    Raises:
+        HTTPException:
+            - 500: If an unexpected error occurs while recording the
+              user's logout activity.
+    """
+    try:
+        activity = (
+            db.query(UserActivity)
+            .filter(UserActivity.user_id == current_user.id, UserActivity.logout_at == None)
+            .order_by(UserActivity.login_at.desc())
+            .first()
+        )
+        if activity:
+            activity.logout_at = datetime.utcnow()
+        else:
+            activity = UserActivity(user_id=current_user.id, logout_at=datetime.utcnow())
+            db.add(activity)
+            
+        db.commit()
+        
+        logger.info(f"User logged out: {current_user.email}")
+        return {"message": "Logged out successfully"}
+    
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Failed to logout user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record logout activity"
+        )
+

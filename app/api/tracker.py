@@ -1,12 +1,13 @@
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.db import get_db, init_db
+from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
-from app.api.auth_deps import get_current_user
+from app.core.logging_route import LoggingRoute
 from app.services.tracker_service import TrackerService
 from app.schemas.request import TrackerRequest, AppRequest
+from app.api.auth_deps import get_current_user, verify_cron_key
 from app.db.repositories.ranking_repository import RankingRepository
 
 logger = get_logger(__name__)
@@ -21,13 +22,7 @@ def _build_saved_apps_payload(db, user_id: int) -> list[AppRequest]:
             payload.append(AppRequest(name=app.name, url=app.url, keywords=keywords))
     return payload
 
-router = APIRouter(prefix="/tracker", tags=["Tracker"])
-
-
-@router.on_event("startup")
-def startup():
-    """Initialize database on startup."""
-    init_db()
+router = APIRouter(prefix="/tracker", tags=["Tracker"], route_class=LoggingRoute)
 
 
 @router.post("/run")
@@ -143,7 +138,7 @@ def get_apps_last_sync(
 
 
 @router.post("/run/cron")
-def run_cron_saved_apps(db: Session = Depends(get_db)):
+def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
     """
     Execute the scheduled ranking tracker for all saved applications.
 
