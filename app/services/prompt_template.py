@@ -65,7 +65,7 @@ For each of the 6 categories, calculate the scores and checklist items dynamical
 
 ## 3. LANGUAGES (Score range: 50-100)
 
-IMPORTANT:
+- IMPORTANT:
 Use ONLY the provided `languages` array as the source of truth.
 
 Do NOT infer, assume, or guess that a language is supported because the app supports many languages or because similar apps usually support it.
@@ -127,56 +127,189 @@ Do NOT contradict the provided language list.
    - Otherwise mark as Missing.
 
 ## 4. TECHNICAL SIGNALS (Score range: 50-100)
-- **subtext**: MUST be format: "Badge {badge_status}, demo store, {price_slots_used}/8 pricing slots." (e.g. "Badge active, demo store, 8/8 pricing slots.")
+
+- **subtext**: MUST be format:
+  "Badge {badge_status}, demo store, {price_slots_used}/8 pricing slots."
+
 - **Checklist items**:
-    1. Built for Shopify badge (type: check_circle if built_for_shopify is True else warning; title: "Built for Shopify badge"; desc: "Badge is active" if built_for_shopify else "Standard listing badge active")
-    2. Demo store (type: check_circle if demo_link else warning; title: "Demo store"; desc: "Yes" if demo_link else "No")
-    3. Privacy policy (type: check_circle if privacy_link else warning; title: "Privacy policy"; desc: "Found in support section" if privacy_link else "Privacy URL linked correctly")
-    4. FAQ (type: check_circle if faq_link else warning; title: "FAQ"; desc: "Found in support section" if faq_link else "FAQ section is available")
-    5. Documentation (type: check_circle if docs_link else warning; title: "Documentation"; desc: "Found in support section" if docs_link else "Installation documentation linked")
-    6. Tutorial (type: cancel if not tutorial_link else check_circle; title: "Tutorial"; desc: "Not found in support section" if not tutorial_link else "Getting started video/tutorial found")
-    7. Pricing feature slots (type: check_circle; title: "Pricing feature slots"; desc: "All {price_slots_used} slots used" if price_slots_used >= 8 else "{price_slots_used}/8 slots used")
+
+1. Built for Shopify badge
+   - type: check_circle if built_for_shopify else warning
+   - title: "Built for Shopify badge"
+   - desc:
+     - "Badge is active" if built_for_shopify
+     - "Not available" otherwise
+
+2. Demo store
+   - type: check_circle if demo_link else warning
+   - title: "Demo store"
+   - desc:
+     - "Yes" if demo_link
+     - "Not available" otherwise
+
+3. Privacy policy
+   - type: check_circle if privacy_link else warning
+   - title: "Privacy policy"
+   - desc:
+     - "Privacy URL linked correctly" if privacy_link
+     - "Not available" otherwise
+
+4. FAQ
+   - type: check_circle if faq_link else warning
+   - title: "FAQ"
+   - desc:
+     - "FAQ section is available" if faq_link
+     - "Not available" otherwise
+
+5. Documentation
+   - type: check_circle if docs_link else warning
+   - title: "Documentation"
+   - desc:
+     - "Installation documentation linked" if docs_link
+     - "Not available" otherwise
+
+6. Tutorial
+   - type: check_circle if tutorial_link else cancel
+   - title: "Tutorial"
+   - desc:
+     - "Getting started video/tutorial found" if tutorial_link
+     - "Not available" otherwise
+
+7. Pricing feature slots
+   - type: check_circle
+   - title: "Pricing feature slots"
+   - desc:
+     - "All {price_slots_used} slots used" if price_slots_used >= 8
+     - "{price_slots_used}/8 slots used" otherwise
 
 ## 5. CATEGORIES & DISCOVERABILITY (Score range: 50-100)
-- **subtext**: MUST be format: "{categories_count} categories, {feature_tags_count} tags, {integrations_count}/6 integrations." (e.g. "2 categories, 32 tags, 136/6 integrations.")
+
+- **subtext**: MUST be format:
+  "{categories_count} categories, {feature_tags_count} tags, {integrations_count}/6 integrations."
+
 - **Checklist items**:
-    1. Categories count (type: check_circle; title: "Categories count"; desc: "{categories_count} categories listed")
-    2. Category relevance (type: check_circle; title: "Category relevance"; desc: "Categories fit well. Primary should remain {primary_category} since {key_feature} functionality is a core driver here.")
-    3. Suggested categories (type: info; title: "Suggested categories"; desc: "Provide high-volume subcategories matching the app domain.")
-    4. Feature tags (type: check_circle; title: "Feature tags"; desc: "{feature_tags_count} feature tags")
-    5. Integrations (type: check_circle; title: "Integrations"; desc: "All {integrations_count} slots used: {integrations_list}")
+
+1. Categories count
+   - type: check_circle if categories_count > 0 else warning
+   - title: "Categories count"
+   - desc:
+     - "{categories_count} categories listed" if categories_count > 0
+     - "Not available" otherwise
+
+2. Category relevance
+   - type: check_circle if categories_count > 0 else warning
+   - title: "Category relevance"
+   - desc:
+     - "Categories fit well. Primary should remain {primary_category} since {key_feature} functionality is a core driver here." if categories_count > 0
+     - "Not available" otherwise
+
+3. Suggested categories
+   - type: info
+   - title: "Suggested categories"
+   - desc:
+     - "Provide high-volume subcategories matching the app domain."
+
+4. Feature tags
+   - type: check_circle if feature_tags_count > 0 else warning
+   - title: "Feature tags"
+   - desc:
+     - "{feature_tags_count} feature tags" if feature_tags_count > 0
+     - "Not available" otherwise
+
+5. Integrations
+   - type: check_circle if integrations_count > 0 else warning
+   - title: "Integrations"
+   - desc:
+     - "All {integrations_count} integrations listed: {integrations_list}" if integrations_count > 0
+     - "Not available" otherwise
 
 ## 6. DESCRIPTION & CONTENT (Score range: 50-100)
-- **subtext**: MUST be format: "{keyword_count} keywords, 5/5 features, demo store found."
+
+- **subtext**: MUST be format:
+  "{keyword_count} keywords, {feature_count}/5 features, {demo_status}."
+
+  where:
+  - demo_status = "demo store found" if demo_link else "demo store not available"
+
 - **Checklist items**:
-    1. Intro keywords (type: warning if keyword count < 3 else check_circle; title: "Intro keywords"; desc: "{keyword_count}/3 keywords, need more" if keyword_count < 3 else "Intro contains strong keyword density")
-    2. Value promise (type: check_circle; title: "Value promise"; desc: "Strong value promise ({benefit}) but lacks specific keywords like '{missing_search_terms}' that merchants search for.")
-    3. Description keywords (type: check_circle; title: "Description keywords"; desc: "{keyword_count} keywords: {comma separated keywords}")
-    4. Description quality (type: info; title: "Description quality"; desc: "Clear value proposition. Good keyword density and feature emphasis, though could tighten language for even sharper messaging.")
-    5. Feature list (type: check_circle; title: "Feature list"; desc: "All 5 feature slots used")
-    6. Feature clarity (type: check_circle; title: "Feature clarity"; desc: "Feature list clearly describes {list of core feature points}. All statements are concrete and benefit-focused.")
-    7. SEO meta description (type: check_circle; title: "SEO meta description"; desc: "OG description includes {keywords}—strong keyword coverage that mirrors search behavior.")
-    8. Main image alt text (type: check_circle; title: "Main image alt text"; desc: "62/64 characters used")
-    9. Demo store (type: check_circle; title: "Demo store"; desc: "Demo store link found")
+
+1. Intro keywords
+   - type: warning if keyword_count < 3 else check_circle
+   - title: "Intro keywords"
+   - desc:
+     - "{keyword_count}/3 keywords, need more" if keyword_count < 3
+     - "Intro contains strong keyword density" otherwise
+
+2. Value promise
+   - type: check_circle if value_promise_exists else warning
+   - title: "Value promise"
+   - desc:
+     - "Strong value promise ({benefit}) but lacks specific keywords like '{missing_search_terms}' that merchants search for." if value_promise_exists
+     - "Not available" otherwise
+
+3. Description keywords
+   - type: check_circle if keyword_count > 0 else warning
+   - title: "Description keywords"
+   - desc:
+     - "{keyword_count} keywords: {comma separated keywords}" if keyword_count > 0
+     - "Not available" otherwise
+
+4. Description quality
+   - type: info if description_exists else warning
+   - title: "Description quality"
+   - desc:
+     - "Clear value proposition. Good keyword density and feature emphasis, though could tighten language for even sharper messaging." if description_exists
+     - "Not available" otherwise
+
+5. Feature list
+   - type: check_circle if feature_count > 0 else warning
+   - title: "Feature list"
+   - desc:
+     - "All {feature_count} feature slots used" if feature_count >= 5
+     - "{feature_count}/5 feature slots used" if feature_count > 0
+     - "Not available" otherwise
+
+6. Feature clarity
+   - type: check_circle if feature_count > 0 else warning
+   - title: "Feature clarity"
+   - desc:
+     - "Feature list clearly describes {list of core feature points}. All statements are concrete and benefit-focused." if feature_count > 0
+     - "Not available" otherwise
+
+7. SEO meta description
+   - type: check_circle if seo_meta_exists else warning
+   - title: "SEO meta description"
+   - desc:
+     - "OG description includes {keywords}—strong keyword coverage that mirrors search behavior." if seo_meta_exists
+     - "Not available" otherwise
+
+8. Main image alt text
+   - type: check_circle if main_image_alt_exists else warning
+   - title: "Main image alt text"
+   - desc:
+     - "{alt_length}/64 characters used" if main_image_alt_exists
+     - "Not available" otherwise
+
+9. Demo store
+   - type: check_circle if demo_link else warning
+   - title: "Demo store"
+   - desc:
+     - "Demo store link found" if demo_link
+     - "Not available" otherwise
 
 # EXTRACTED & CLEANED LISTS
 In addition to the optimization analysis, clean, verify, and populate the following list fields from the scraped listing context:
 1. **raw_integrations**: A list of actual third-party platforms, apps, or services the app integrates with (e.g., "Klaviyo", "Shopify Flow", "Shopify Admin", "Mailchimp"). You MUST filter out and exclude any garbage UI strings, ratings (like "4.8"), review counts (like "(87)"), developer names, page numbers, or UI actions (like "Install", "View demo store", "Close", "Previous", "Next", "+ 9 more"). Only return clean, verified third-party systems or channels.
 2. **raw_feature_tags**: A clean, validated list of tags or feature categories for the app (e.g., "Auto-alerts", "Email", "SMS", "Waitlists").
-3. raw_pricing_plans
-
-Extract the pricing plans from the scraped listing.
-
-Rules:
-
-- If `pricing_plans` contains one or more entries, return them exactly after cleaning.
-- If `pricing_plans` is an empty list ([]), treat the app as a Free plan application and return:
-
-  ["Free plan"]
-
-- Never invent paid plans or prices.
-- Never return an empty list.
-- Return exactly one "Free plan" entry when `pricing_plans` is empty.
+3. **raw_pricing_plans** :
+- Extract the pricing plans from the scraped listing.
+- Rules:
+    - If `pricing_plans` contains one or more entries, return them exactly after cleaning.
+    - If `pricing_plans` is an empty list ([]), treat the app as a Free plan application and return:
+- ["Free plan"]
+    - Never invent paid plans or prices.
+    - Never return an empty list.
+    - Return exactly one "Free plan" entry when `pricing_plans` is empty.
 
 Ensure the returned JSON structure is complete and conforms to the Pydantic schema model specification.
 """
