@@ -21,7 +21,7 @@ router = APIRouter(
 )
 
 @router.post("/apps/{app_id}/invite")
-def invite_collaborator(
+async def invite_collaborator(
     app_id: int,
     request: InviteCollaboratorRequest,
     background_tasks: BackgroundTasks,
@@ -98,7 +98,7 @@ def invite_collaborator(
 
 
 @router.get("/invitations/pending")
-def get_pending_invitations(
+async def get_pending_invitations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -139,7 +139,7 @@ def get_pending_invitations(
 
 
 @router.post("/invitations/{invite_id}/accept")
-def accept_invitation(
+async def accept_invitation(
     invite_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -179,7 +179,7 @@ def accept_invitation(
 
 
 @router.post("/invitations/{invite_id}/decline")
-def decline_invitation(
+async def decline_invitation(
     invite_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -218,7 +218,7 @@ def decline_invitation(
 
 
 @router.get("/apps/{app_id}/collaborators")
-def get_app_collaborators(
+async def get_app_collaborators(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

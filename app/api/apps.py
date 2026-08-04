@@ -71,7 +71,7 @@ def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = De
     
 
 @router.get("/apps")
-def get_all_apps(
+async def get_all_apps(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -110,7 +110,7 @@ def get_all_apps(
 
 
 @router.delete("/apps/{app_id}")
-def delete_app(
+async def delete_app(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -149,7 +149,7 @@ def delete_app(
 
 
 @router.get("/{app_id}/competitors")
-def get_competitors(
+async def get_competitors(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -264,7 +264,7 @@ def get_competitors(
 
 
 @router.post("/{app_id}/competitors")
-def add_competitor(
+async def add_competitor(
     app_id: int,
     request: CompetitorCreateRequest,
     db: Session = Depends(get_db),
@@ -306,7 +306,7 @@ def add_competitor(
 
 
 @router.delete("/{app_id}/competitors/{competitor_id}")
-def delete_competitor(
+async def delete_competitor(
     app_id: int,
     competitor_id: int,
     db: Session = Depends(get_db),
@@ -360,7 +360,7 @@ def delete_competitor(
 
 
 @router.get("/{app_id}/listing-audit")
-def get_listing_audit(
+async def get_listing_audit(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -428,7 +428,7 @@ def get_listing_audit(
 
 
 @router.post("/{app_id}/listing-audit")
-def run_listing_audit(
+async def run_listing_audit(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -505,7 +505,7 @@ def run_listing_audit(
 
 
 @router.get("/{app_id}/competitors-activity")
-def get_competitors_activity(
+async def get_competitors_activity(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -778,7 +778,7 @@ def get_competitors_activity(
 
 
 @router.get("/{app_id}/head-to-head/{competitor_id}")
-def get_head_to_head(
+async def get_head_to_head(
     app_id: int,
     competitor_id: int,
     db: Session = Depends(get_db),

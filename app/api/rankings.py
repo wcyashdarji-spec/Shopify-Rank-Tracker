@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 @router.get("/latest")
-def get_latest_rankings(
+async def get_latest_rankings(
     app_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -66,7 +66,7 @@ def get_latest_rankings(
 
 
 @router.get("/history/{app_id}")
-def get_ranking_history_multi(
+async def get_ranking_history_multi(
     app_id: int,
     keyword_ids: list[int] | None = Query(None),
     days: int = 30,
@@ -164,7 +164,7 @@ def get_ranking_history_multi(
 
 
 @router.get("/history/{app_id}/{keyword_id}")
-def get_ranking_history(
+async def get_ranking_history(
     app_id: int,
     keyword_id: int,
     days: int = 30,

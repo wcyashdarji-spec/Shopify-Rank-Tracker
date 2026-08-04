@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 @router.post("/apps/{app_id}/keywords")
-def add_keywords_to_app(
+async def add_keywords_to_app(
     app_id: int,
     request: AppKeywordUpdateRequest,
     db: Session = Depends(get_db),
@@ -65,7 +65,7 @@ def add_keywords_to_app(
 
 
 @router.delete("/apps/{app_id}/keywords/{keyword_id}")
-def remove_keyword_from_app(
+async def remove_keyword_from_app(
     app_id: int,
     keyword_id: int,
     db: Session = Depends(get_db),

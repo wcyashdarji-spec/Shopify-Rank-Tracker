@@ -26,7 +26,7 @@ router = APIRouter(prefix="/tracker", tags=["Tracker"], route_class=LoggingRoute
 
 
 @router.post("/run")
-def run_tracker(
+async def run_tracker(
     request: TrackerRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -57,7 +57,7 @@ def run_tracker(
 
 
 @router.post("/run/saved")
-def run_saved_apps(
+async def run_saved_apps(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -88,7 +88,7 @@ def run_saved_apps(
 
 
 @router.get("/apps/last-sync")
-def get_apps_last_sync(
+async def get_apps_last_sync(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

@@ -1,4 +1,6 @@
 import os
+import secrets
+from typing import Optional
 
 import jwt
 from sqlalchemy.orm import Session
@@ -13,7 +15,7 @@ security = HTTPBearer()
 
 CRON_SECRET = os.getenv("CRON_SECRET_KEY")
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
@@ -52,7 +54,7 @@ def get_current_user(
     return user
 
 
-def verify_cron_key(x_cron_key: str = Header(...)):
+async def verify_cron_key(x_cron_key: Optional[str] = Header(None)):
     """
     Validate the X-Cron-Key header against the CRON_SECRET_KEY environment variable.
 
@@ -62,5 +64,8 @@ def verify_cron_key(x_cron_key: str = Header(...)):
     Raises:
         HTTPException: 403 if the key is missing, incorrect, or not configured.
     """
-    if not CRON_SECRET or x_cron_key != CRON_SECRET:
+    if not CRON_SECRET or not x_cron_key:
+        raise HTTPException(status_code=403, detail="Invalid cron key")
+
+    if not secrets.compare_digest(x_cron_key, CRON_SECRET):
         raise HTTPException(status_code=403, detail="Invalid cron key")

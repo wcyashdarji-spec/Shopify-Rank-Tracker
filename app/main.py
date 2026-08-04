@@ -19,13 +19,13 @@ app.add_middleware(
 )
 
 @app.on_event("startup")
-def startup():
+async def startup():
     """Initialize database on startup."""
     init_db()
 
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "Welcome to Shopify Rank Tracker API"}
 
 app.include_router(api_router)

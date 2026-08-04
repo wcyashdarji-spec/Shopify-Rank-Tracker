@@ -19,7 +19,7 @@ router = APIRouter(
 )
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(request: UserCreate, db: Session = Depends(get_db)):
+async def register(request: UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user account.
 
@@ -78,7 +78,7 @@ def register(request: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(request: UserLogin, db: Session = Depends(get_db)):
+async def login(request: UserLogin, db: Session = Depends(get_db)):
     """
     Authenticate an existing user and issue a JWT access token.
 
@@ -139,7 +139,7 @@ def login(request: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user)):
     """
     Retrieve the authenticated user's profile information.
 
@@ -156,7 +156,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.put("/me")
-def update_me(
+async def update_me(
     request: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -212,7 +212,7 @@ def update_me(
 
 
 @router.post("/logout")
-def logout(
+async def logout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
