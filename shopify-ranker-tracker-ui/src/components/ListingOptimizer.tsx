@@ -215,7 +215,11 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
     );
   }
 
-  const { overall_score, rating_val, reviews_text, categories } = auditData;
+  const { overall_score, rating_val, reviews_text } = auditData;
+  const categories: Record<string, any> =
+    auditData.categories && !Array.isArray(auditData.categories) && typeof auditData.categories === "object"
+      ? auditData.categories
+      : {};
 
   function renderIcon(type: string) {
     switch (type) {
@@ -542,7 +546,7 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
                   <Collapse in={isExpanded} timeout="auto" unmountOnExit onClick={(e) => e.stopPropagation()}>
                     <Divider sx={{ my: 2 }} />
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {data.items.map((item: any, idx: number) => (
+                      {(data.items || []).map((item: any, idx: number) => (
                         <Box key={idx} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
                           <Box sx={{ mt: 0.25, display: "flex" }}>{renderIcon(item.type)}</Box>
                           <Box>

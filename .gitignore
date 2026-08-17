@@ -207,3 +207,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+/.logfire

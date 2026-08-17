@@ -1,5 +1,6 @@
 import re
 import json
+import asyncio
 from datetime import datetime
 from urllib.parse import urlsplit
 from sqlalchemy.orm import Session
@@ -42,7 +43,7 @@ class AuditService:
     """
 
     @staticmethod
-    def get_audit(db: Session, app_id: int, app_name: str, app_url: str) -> dict:
+    async def get_audit(db: Session, app_id: int, app_name: str, app_url: str) -> dict:
         """
         Retrieve the listing audit for a specific application.
 
@@ -65,11 +66,11 @@ class AuditService:
         except Exception as e:
             logger.error(f"Failed to read database audit for app {app_id}: {e}")
 
-        return AuditService.run_and_save_audit(db, app_id, app_name, app_url)
+        return await AuditService.run_and_save_audit(db, app_id, app_name, app_url)
 
 
     @staticmethod
-    def run_and_save_audit(db: Session, app_id: int, app_name: str, app_url: str) -> dict:
+    async def run_and_save_audit(db: Session, app_id: int, app_name: str, app_url: str) -> dict:
         """
         Execute a fresh listing audit and persist the results.
 
@@ -87,7 +88,7 @@ class AuditService:
             logger.info(f"Audit for app {app_id} is already in progress. Waiting for concurrent run to finish...")
             import time
             for _ in range(30):
-                time.sleep(1.0)
+                await asyncio.sleep(1.0)
                 if app_id not in CURRENTLY_SCRAPING:
                     app = db.query(App).filter(App.id == app_id).first()
                     if app and app.audit_data:
@@ -101,7 +102,11 @@ class AuditService:
 
         try:
             CURRENTLY_SCRAPING.add(app_id)
-            audit_data = AuditService.execute_scrape_and_rules(app_name, app_url)
+            audit_data = await asyncio.to_thread(
+                AuditService.execute_scrape_and_rules,
+                app_name,
+                app_url,
+            )
             audit_data["app_id"] = app_id
             
             try:
@@ -884,15 +889,54 @@ class AuditService:
         agent_payload = AuditService._build_agent_payload(scraped)
 
         ai_audit = run_agent_audit(app_name, app_url, scraped, agent_payload)
+
         if ai_audit:
             logger.info("Successfully generated listing audit using Pydantic AI Agent.")
+
             merged = {**scraped, **ai_audit}
-            merged["raw_pricing_plans"] = clean_string_list(ai_audit.get("raw_pricing_plans", scraped.get("pricing_plans", [])))
-            merged["raw_feature_tags"] = clean_string_list(ai_audit.get("raw_feature_tags", scraped.get("feature_tags", [])))
-            merged["raw_integrations"] = clean_string_list(ai_audit.get("raw_integrations", scraped.get("integrations", [])))
-            
+
+            merged["raw_pricing_plans"] = clean_string_list(
+                ai_audit.get(
+                    "raw_pricing_plans",
+                    scraped.get("pricing_plans", [])
+                )
+            )
+
+            merged["raw_feature_tags"] = clean_string_list(
+                ai_audit.get(
+                    "raw_feature_tags",
+                    scraped.get("feature_tags", [])
+                )
+            )
+
+            merged["raw_integrations"] = clean_string_list(
+                ai_audit.get(
+                    "raw_integrations",
+                    scraped.get("integrations", [])
+                )
+            )
+
             merged["pricing_plans"] = merged["raw_pricing_plans"]
             merged["feature_tags"] = merged["raw_feature_tags"]
             merged["integrations"] = merged["raw_integrations"]
+
             return merged
+
+        # AI audit failed/returned None — return scraped data instead
+        logger.warning(
+            f"AI audit returned no result for app '{app_name}'. "
+            "Returning scraped listing data."
+        )
+
+        scraped["raw_pricing_plans"] = clean_string_list(
+            scraped.get("pricing_plans", [])
+        )
+        scraped["raw_feature_tags"] = clean_string_list(
+            scraped.get("feature_tags", [])
+        )
+        scraped["raw_integrations"] = clean_string_list(
+            scraped.get("integrations", [])
+        )
+
+        return scraped
 

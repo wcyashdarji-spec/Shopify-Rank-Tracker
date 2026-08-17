@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 @router.post("/cron/listing-audit")
-def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
+async def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
     """
     Execute scheduled listing audits for all active applications.
 
@@ -46,12 +46,12 @@ def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = De
         for app in apps:
             try:
                 logger.info(f"Cron: Auditing primary app {app.name} (id={app.id})...")
-                AuditService.run_and_save_audit(db, app.id, app.name, app.url)
+                await AuditService.run_and_save_audit(db, app.id, app.name, app.url)
                 
                 for competitor in app.competitors:
                     try:
                         logger.info(f"Cron: Auditing competitor {competitor.name} (id={competitor.id}) linked to {app.name}...")
-                        AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
+                        await AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
                     except Exception as ec:
                         logger.error(f"Cron: Failed to audit competitor {competitor.name} (id={competitor.id}): {ec}")
                 
@@ -474,7 +474,7 @@ async def run_listing_audit(
 
         from app.services.audit_service import AuditService
         
-        audit_result = AuditService.run_and_save_audit(db, app.id, app.name, app.url)
+        audit_result = await AuditService.run_and_save_audit(db, app.id, app.name, app.url)
 
         db.refresh(app)
         
@@ -487,7 +487,7 @@ async def run_listing_audit(
         for competitor in app.competitors:
             try:
                 logger.info(f"Auto-running listing audit for competitor {competitor.name} (id={competitor.id}) because primary app optimizer is run.")
-                AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
+                await AuditService.run_and_save_audit(db, competitor.id, competitor.name, competitor.url)
             except Exception as e:
                 logger.error(f"Failed to run listing audit for competitor {competitor.name}: {e}")
                 
@@ -544,7 +544,7 @@ async def get_competitors_activity(
             if existing == 0:
                 try:
                     logger.info(f"Auto-scraping ASO data for {a.name} (app_id={a.id}) on activity fetch...")
-                    AuditService.get_audit(db, a.id, a.name, a.url)
+                    await AuditService.get_audit(db, a.id, a.name, a.url)
                 except Exception as ex:
                     logger.error(f"Failed to auto-scrape activity data for {a.name}: {ex}")
 

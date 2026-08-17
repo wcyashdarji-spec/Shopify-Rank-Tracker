@@ -1,3 +1,4 @@
+import asyncio
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -45,7 +46,7 @@ async def run_tracker(
     try:
         service = TrackerService(db=db, user_id=current_user.id)
 
-        results = service.run(request.apps)
+        results = await asyncio.to_thread(service.run, request.apps)
 
         return {
             "message": "Tracking completed",
@@ -76,7 +77,7 @@ async def run_saved_apps(
             }
 
         service = TrackerService(db=db, user_id=current_user.id)
-        results = service.run(apps_payload)
+        results = await asyncio.to_thread(service.run, apps_payload)
 
         return {
             "message": "Saved apps tracking completed.",
@@ -138,7 +139,7 @@ async def get_apps_last_sync(
 
 
 @router.post("/run/cron")
-def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
+async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
     """
     Execute the scheduled ranking tracker for all saved applications.
 
