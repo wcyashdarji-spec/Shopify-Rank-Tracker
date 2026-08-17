@@ -11,6 +11,22 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "agentmail"
+version = "0.5.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/15/a2/897610d1efef1e63b8080d07b4e3f21590aba42b60ec5f64d9ec4afe103c/agentmail-0.5.9.tar.gz", hash = "sha256:6fb83da5d702d057dcab0bc4c3626f661946ed35198dd690b830dd5af2c61805", size = 151695, upload-time = "2026-08-03T19:14:26.49Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/61/651002fe0ba3d89170d73d49844a01af54ce2801d21e5db6745326a28fae/agentmail-0.5.9-py3-none-any.whl", hash = "sha256:818198cce30b2b4309e4f6c1ce96442161fa41d99959efc5580754b3036c313b", size = 323349, upload-time = "2026-08-03T19:14:25.134Z" },
+]
+
+[[package]]
 name = "aiofile"
 version = "3.11.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2272,6 +2288,7 @@ name = "shopify-rank-tracker"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "agentmail" },
     { name = "fastapi" },
     { name = "logfire" },
     { name = "openpyxl" },
@@ -2291,6 +2308,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agentmail", specifier = ">=0.5.9" },
     { name = "fastapi" },
     { name = "logfire", specifier = ">=4.39.0" },
     { name = "openpyxl" },

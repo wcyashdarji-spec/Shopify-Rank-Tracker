@@ -1,20 +1,26 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
+import base64
+import requests as req_lib
 from app.core.logger import get_logger
-from email.mime.multipart import MIMEMultipart
 
 logger = get_logger(__name__)
 
-def send_invitation_email(to_email: str, app_name: str, inviter_email: str):
-    """
-    Send a collaboration invitation email using the configured SMTP server.
 
-    This function composes an HTML email containing the application
-    details and instructions for accepting the invitation. SMTP
-    configuration is loaded from environment variables, and the email
-    is sent securely using TLS. If the required SMTP credentials are
-    not configured, the email is skipped gracefully.
+def send_invitation_email(to_email: str, app_name: str, inviter_email: str) -> bool:
+    """
+    Send a collaboration invitation email using the AgentMail service.
+
+    Attempts to send via the AgentMail Python SDK first. If the SDK is not
+    installed or the call fails, it automatically falls back to the AgentMail
+    HTTP REST API. If AGENTMAIL_INBOX_ID is not provided, a new inbox is
+    created automatically using the client_id ``shopify-rank-tracker-inbox-v1``.
+
+    SMTP credentials are no longer required; configure the following variables
+    in ``.env`` instead::
+
+        AGENTMAIL_API_KEY   – Your AgentMail API key (required).
+        AGENTMAIL_INBOX_ID  – Sender inbox ID (optional; created on first use).
+        AGENTMAIL_TO        – Fallback override for the recipient (optional).
 
     Args:
         to_email: Recipient's email address.
@@ -24,52 +30,138 @@ def send_invitation_email(to_email: str, app_name: str, inviter_email: str):
     Returns:
         bool:
             - True if the email was sent successfully.
-            - False if SMTP is not configured or an error occurs while
+            - False if AgentMail is not configured or an error occurs while
               sending the email.
     """
-    host = os.getenv("SMTP_HOST")
-    port = os.getenv("SMTP_PORT", "587")
-    username = os.getenv("SMTP_USERNAME")
-    password = os.getenv("SMTP_PASSWORD")
-    sender = os.getenv("SMTP_FROM", username)
+    api_key = os.getenv("AGENTMAIL_API_KEY")
+    inbox_id = os.getenv("AGENTMAIL_INBOX_ID") or None
 
-    if not all([host, port, username, password]):
-        logger.warning("SMTP credentials are not fully configured in .env. Skipping email.")
+    if not api_key:
+        logger.warning(
+            "AGENTMAIL_API_KEY is not set in .env. Skipping invitation email."
+        )
         return False
 
+    subject = f"Invitation to collaborate on '{app_name}'"
+
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2>Collaboration Invite</h2>
+            <p>Hello,</p>
+            <p><strong>{inviter_email}</strong> has invited you to collaborate on their
+            application <strong>{app_name}</strong> on Shopify Rank Tracker.</p>
+            <p>To accept or decline the invitation:</p>
+            <ol>
+                <li>Log into your Rank Tracker account (or register if you don't have one).</li>
+                <li>Go to your <strong>Profile Settings</strong> page.</li>
+                <li>Find the invitation under the <strong>"Pending Collaborator Invitations"</strong> section.</li>
+            </ol>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 11px; color: #999;">This automated message was sent via AgentMail.</p>
+        </body>
+    </html>
+    """
+
+    text_body = (
+        f"{inviter_email} has invited you to collaborate on '{app_name}' "
+        "on Shopify Rank Tracker.\n\n"
+        "Log in to your account and visit Profile Settings > "
+        "Pending Collaborator Invitations to respond."
+    )
+
+    logger.info(
+        f"Preparing to send invitation email via AgentMail to {to_email}..."
+    )
+
+    # ------------------------------------------------------------------ #
+    # Attempt 1: AgentMail Python SDK                                     #
+    # ------------------------------------------------------------------ #
     try:
-        msg = MIMEMultipart()
-        msg["From"] = sender
-        msg["To"] = to_email
-        msg["Subject"] = f"Invitation to collaborate on '{app_name}'"
+        from agentmail import AgentMail
 
-        body = f"""
-        <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <h2>Collaboration Invite</h2>
-                <p>Hello,</p>
-                <p><strong>{inviter_email}</strong> has invited you to collaborate on their application <strong>{app_name}</strong> on Shopify Rank Tracker.</p>
-                <p>To accept or decline the invitation:</p>
-                <ol>
-                    <li>Log into your Rank Tracker account (or register if you don't have one).</li>
-                    <li>Go to your <strong>Profile Settings</strong> page.</li>
-                    <li>Find the invitation under the <strong>"Pending Collaborator Invitations"</strong> section.</li>
-                </ol>
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-                <p style="font-size: 11px; color: #999;">This is an automated message, please do not reply directly.</p>
-            </body>
-        </html>
-        """
-        msg.attach(MIMEText(body, "html"))
+        client = AgentMail(api_key=api_key)
 
-        with smtplib.SMTP(host, int(port)) as server:
-            server.starttls()
-            server.login(username, password)
-            server.send_message(msg)
+        if not inbox_id:
+            logger.info(
+                "AGENTMAIL_INBOX_ID not set. Creating/fetching inbox via AgentMail SDK..."
+            )
+            inbox = client.inboxes.create(
+                client_id="shopify-rank-tracker-inbox-v1"
+            )
+            inbox_id = (
+                getattr(inbox, "inbox_id", None)
+                or (inbox.get("inbox_id") if isinstance(inbox, dict) else str(inbox))
+            )
 
-        logger.info(f"Successfully sent invitation email to {to_email}")
+        logger.info(
+            f"Sending invitation email from inbox '{inbox_id}' to '{to_email}' via AgentMail SDK..."
+        )
+        client.inboxes.messages.send(
+            inbox_id,
+            to=to_email,
+            subject=subject,
+            text=text_body,
+            html=html_body,
+        )
+        logger.info(
+            f"Successfully sent invitation email to {to_email} via AgentMail SDK."
+        )
         return True
 
+    except ImportError:
+        logger.info(
+            "'agentmail' package not installed. Falling back to AgentMail HTTP API..."
+        )
+    except Exception as sdk_err:
+        logger.warning(
+            f"AgentMail SDK call failed: {sdk_err}. Falling back to AgentMail HTTP API..."
+        )
+
+    # ------------------------------------------------------------------ #
+    # Attempt 2: AgentMail HTTP REST API fallback                         #
+    # ------------------------------------------------------------------ #
+    try:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        if not inbox_id:
+            res = req_lib.post(
+                "https://api.agentmail.to/inboxes",
+                headers=headers,
+                json={"client_id": "shopify-rank-tracker-inbox-v1"},
+                timeout=30,
+            )
+            if res.status_code in (200, 201):
+                inbox_id = res.json().get("inbox_id")
+            else:
+                logger.error(
+                    f"Failed to create AgentMail inbox: HTTP {res.status_code} – {res.text}"
+                )
+                return False
+
+        url = f"https://api.agentmail.to/inboxes/{inbox_id}/messages/send"
+        payload = {
+            "to": to_email,
+            "subject": subject,
+            "text": text_body,
+            "html": html_body,
+        }
+
+        r = req_lib.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code in (200, 201):
+            logger.info(
+                f"Successfully sent invitation email to {to_email} via AgentMail REST API."
+            )
+            return True
+        else:
+            logger.error(
+                f"AgentMail REST API error: HTTP {r.status_code} – {r.text}"
+            )
+            return False
+
     except Exception as e:
-        logger.exception(f"Failed to send email to {to_email}: {str(e)}")
+        logger.exception(f"Failed to send invitation email via AgentMail API: {e}")
         return False

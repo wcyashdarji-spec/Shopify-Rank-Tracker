@@ -223,39 +223,20 @@ export default function App() {
     }
   };
 
-  const handleRunAllSaved = async () => {
-    setIsScraping(true);
-    setScrapingLogs(["[System] Initializing manual run for all saved apps..."]);
-    const interval = setInterval(() => {
-      const phases = [
-        "[Browser] Launching Headless Chromium...",
-        "[Database] Fetching all tracking jobs...",
-        "[Job Queue] Spawning scrapers...",
-        "[Status] Running scrape cycles...",
-        "[Info] Saving rank outputs...",
-      ];
-      setScrapingLogs((prev) => [...prev, phases[Math.floor(Math.random() * phases.length)]]);
-    }, 4000);
-    try {
-      const res = await api.runSavedApps();
-      clearInterval(interval);
-      setScrapingLogs((prev) => [
-        ...prev,
-        "[Done] Run finished!",
-        `[Done] ${res?.message || "Saved apps tracking completed."}`
-      ]);
-      showToast("All apps re-scraped!", "success");
-      await fetchApps();
-    } catch (err: any) {
-      clearInterval(interval);
-      setScrapingLogs((prev) => [...prev, `[ERROR] ${err?.message || String(err)}`]);
-      showToast(err?.message || "Run failed", "error");
-    } finally {
-      setTimeout(() => {
-        setIsScraping(false);
-        setScrapingLogs([]);
-      }, 5000);
-    }
+  const handleRunAllSaved = () => {
+    // Fire-and-forget: kick off the backend scan and immediately notify the user
+    showToast(
+      "🔄 Backend scanning started — this may take a few minutes. Check the History page after some time.",
+      "info"
+    );
+
+    api.runSavedApps()
+      .then(() => {
+        fetchApps();
+      })
+      .catch((err: any) => {
+        showToast(err?.message || "Background scan failed. Please try again.", "error");
+      });
   };
 
   const headerContent =
