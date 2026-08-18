@@ -6,7 +6,7 @@ import { Box, IconButton, Tooltip } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 
 // Components
-import ScraperLogs from "./ScraperLogs";
+
 import Sidebar from "./Sidebar";
 
 // Types
@@ -19,9 +19,7 @@ interface LayoutProps {
   onRunAllSaved: () => void;
   onTrackApp: (name: string, url: string, keywordsList: string[]) => void;
   onDeleteApp: (appId: number) => void;
-  isScraping: boolean;
-  scrapingLogs: string[];
-  logsConsoleRef: React.RefObject<HTMLDivElement | null>;
+
   isLoadingApps: boolean;
   currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
   onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors") => void;
@@ -41,9 +39,7 @@ export default function Layout({
   onRunAllSaved,
   onTrackApp,
   onDeleteApp,
-  isScraping,
-  scrapingLogs,
-  logsConsoleRef,
+
   isLoadingApps,
   currentPage,
   onNavigate,
@@ -122,7 +118,7 @@ export default function Layout({
         </Box>
 
         <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
-          {isScraping ? <ScraperLogs logs={scrapingLogs} logsConsoleRef={logsConsoleRef} /> : children}
+          {children}
         </Box>
       </Box>
     </Box>

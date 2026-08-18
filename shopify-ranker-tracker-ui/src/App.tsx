@@ -1,5 +1,5 @@
 // React
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Material UI
 import { Alert, Button, Snackbar, Typography, Box } from "@mui/material";
@@ -39,10 +39,7 @@ export default function App() {
   const [selectedApp, setSelectedApp] = useState<AppType | null>(null);
   const [apiUrl] = useState(getApiBaseUrl());
   const [isLoadingApps, setIsLoadingApps] = useState(false);
-  const [isScraping, setIsScraping] = useState(false);
-  const [scrapingLogs, setScrapingLogs] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
-  const logsConsoleRef = useRef<HTMLDivElement>(null);
 
   const showToast = (message: string, severity: "success" | "error" | "info" = "info") => {
     setToast((prev) => {
@@ -150,63 +147,26 @@ export default function App() {
   };
 
   // const handleSaveSettings = (url: string) => {
-  //   setApiBaseUrl(url);
-  //   setApiUrl(url);
-  //   showToast(`API set to ${url}`, "success");
-  //   fetchApps(true);
-  // };
+  const handleTrackApp = (name: string, url: string, keywordsList: string[]) => {
+    // Immediately notify the user and run in background
+    showToast(
+      `⏳ Scraping started for '${name}' — running in the background. Results will reflect shortly.`,
+      "info"
+    );
 
-  const startFakeScraperLogs = (appName: string, keywords: string[]) => {
-    let index = 0;
-    const logs = [
-      "[Playwright] Spawning isolated browser session (headless=true)...",
-      "[Browser] Navigating to https://apps.shopify.com...",
-      "[Browser] Home page loaded. Locating search inputs...",
-      ...keywords.flatMap((kw) => [
-        `[Scraper] Searching for keyword: '${kw}'`,
-        `[Scraper] Parsing search result list on page 1...`,
-        `[Scraper] App '${appName}' found? Scanning page list nodes...`,
-        `[Capture] Snapping view screenshot for '${kw}'...`,
-      ]),
-      "[DB] Writing transaction log entries into table...",
-      "[DB] Ranking results saved successfully.",
-    ];
-    const interval = setInterval(() => {
-      if (index < logs.length) {
-        setScrapingLogs((prev) => [...prev, logs[index]]);
-        index++;
+    // Fire-and-forget: do not await
+    (async () => {
+      try {
+        await api.runTracker(name, url, keywordsList);
+        showToast(`✅ Scraping complete for '${name}'! Results have been updated.`, "success");
+        await fetchApps();
+        const updated = await api.getApps();
+        const newApp = updated.apps.find((a) => a.name.toLowerCase() === name.toLowerCase().trim());
+        if (newApp) setSelectedApp(newApp);
+      } catch (err: any) {
+        showToast(err?.message || "Scraper failed", "error");
       }
-    }, 2000);
-    return interval;
-  };
-
-  const handleTrackApp = async (name: string, url: string, keywordsList: string[]) => {
-    setIsScraping(true);
-    setScrapingLogs([`[System] Submitting track request for '${name}'...`]);
-    const interval = startFakeScraperLogs(name, keywordsList);
-    try {
-      const response = await api.runTracker(name, url, keywordsList);
-      clearInterval(interval);
-      setScrapingLogs((prev) => [
-        ...prev,
-        "[Done] Scraper finished tracking successfully!",
-        `[Done] Saved ${response.results.length} keyword metrics.`,
-      ]);
-      showToast(`Tracked app: ${name}`, "success");
-      await fetchApps();
-      const updated = await api.getApps();
-      const newApp = updated.apps.find((a) => a.name.toLowerCase() === name.toLowerCase().trim());
-      if (newApp) setSelectedApp(newApp);
-    } catch (err: any) {
-      clearInterval(interval);
-      setScrapingLogs((prev) => [...prev, `[ERROR] ${err?.message || String(err)}`]);
-      showToast(err?.message || "Scraper failed", "error");
-    } finally {
-      setTimeout(() => {
-        setIsScraping(false);
-        setScrapingLogs([]);
-      }, 5000);
-    }
+    })();
   };
 
   const handleDeleteApp = async (appId: number) => {
@@ -316,9 +276,6 @@ export default function App() {
           onRunAllSaved={handleRunAllSaved}
           onTrackApp={handleTrackApp}
           onDeleteApp={handleDeleteApp}
-          isScraping={isScraping}
-          scrapingLogs={scrapingLogs}
-          logsConsoleRef={logsConsoleRef}
           isLoadingApps={isLoadingApps}
           currentPage={page}
           onNavigate={setPage}

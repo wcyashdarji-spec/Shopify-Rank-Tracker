@@ -50,7 +50,7 @@ interface SidebarProps {
   onSelectApp: (app: App) => void;
   onRunAllSaved: () => void;
   onTrackApp: (name: string, url: string, keywords: string[]) => void;
-  isScraping: boolean;
+
   isLoadingApps: boolean;
   onDeleteApp: (appId: number) => void;
   currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
@@ -75,7 +75,7 @@ export default function Sidebar({
   onSelectApp,
   onRunAllSaved,
   onTrackApp,
-  isScraping,
+
   isLoadingApps,
   onDeleteApp,
   currentPage,
@@ -452,7 +452,7 @@ export default function Sidebar({
           size="small"
           startIcon={<AddIcon sx={{ fontSize: 15 }} />}
           onClick={() => setTrackDialogOpen(true)}
-          disabled={isScraping}
+
           sx={{
             bgcolor: "#111827", color: "#fff", borderRadius: "8px",
             fontSize: 12, fontWeight: 600, textTransform: "none", py: 0.75,
@@ -465,7 +465,7 @@ export default function Sidebar({
           variant="outlined"
           size="small"
           onClick={onRunAllSaved}
-          disabled={isScraping}
+
           sx={{ borderRadius: "8px", borderColor: "#e5e7eb", color: "#374151", px: 1, py: 0.75, minWidth: 0, "&:hover": { borderColor: "#9ca3af" } }}
           title="Re-scrape all saved apps"
         >
