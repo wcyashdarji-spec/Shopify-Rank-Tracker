@@ -4,8 +4,8 @@ import logging
 
 import logfire
 from pydantic_ai import Agent, ImageUrl
-from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 
 from app.schemas.request import AuditReport
 from app.services.prompt_template import SYSTEM_PROMPT
@@ -15,15 +15,23 @@ logfire.configure()
 logger = logging.getLogger(__name__)
 
 
-api_key = os.getenv("GEMINI_API_KEY")
-provider = GoogleProvider(api_key=api_key)
-model_name = os.getenv("MODEL_NAME")
-model = GoogleModel(model_name, provider=provider)
+api_key = os.getenv("OPENAI_API_KEY")
+provider = OpenAIProvider(api_key=api_key)
+model_name = os.getenv("OPENAI_MODEL_NAME")
+model = OpenAIChatModel(model_name, provider=provider)
+
+settings = OpenAIChatModelSettings(
+    openai_reasoning_effort="none",
+    temperature=0.4,
+    max_tokens=5000,
+    top_p=1.0
+)
 
 audit_agent = Agent(
     model,
     output_type=AuditReport,
-    system_prompt=SYSTEM_PROMPT
+    system_prompt=SYSTEM_PROMPT,
+    model_settings=settings
 )
 
 logfire.instrument_pydantic_ai(audit_agent)
@@ -55,9 +63,9 @@ def run_agent_audit(app_name: str, app_url: str, scraped_data: dict, agent_paylo
             - None if the AI service is unavailable or an error occurs
               during execution.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.warning("GEMINI_API_KEY not set. Falling back to the rule-based ASO engine.")
+        logger.warning("OPENAI_API_KEY not set. Falling back to the rule-based ASO engine.")
         return None
 
     prompt_text = f"""

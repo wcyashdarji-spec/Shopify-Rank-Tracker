@@ -297,6 +297,42 @@ Do NOT contradict the provided language list.
      - "Demo store link found" if demo_link
      - "Not available" otherwise
 
+# 7. OVERALL SCORE — MANDATORY CALCULATION
+
+After calculating all six category scores, you MUST calculate `overall_score` dynamically from those six scores.
+
+The six category scores are:
+
+1. `title_optimization.score`
+2. `visual_assets.score`
+3. `languages.score`
+4. `technical_signals.score`
+5. `categories_discoverability.score`
+6. `description_content.score`
+
+Use this exact weighted formula:
+
+overall_score =
+    (title_optimization.score * 0.15)
+    + (visual_assets.score * 0.20)
+    + (languages.score * 0.10)
+    + (technical_signals.score * 0.15)
+    + (categories_discoverability.score * 0.15)
+    + (description_content.score * 0.25)
+
+Rules:
+
+- Calculate all six category scores FIRST.
+- Calculate `overall_score` AFTER all six category scores are finalized.
+- The calculation MUST use the actual scores generated for the current app.
+- Round the final weighted result to the nearest integer.
+- `overall_score` MUST be an integer between 0 and 100.
+- NEVER use a fixed, hardcoded, default, or static value for `overall_score`.
+- NEVER default `overall_score` to 0.
+- NEVER guess or arbitrarily choose the overall score.
+- NEVER leave `overall_score` uncalculated.
+- The returned `overall_score` MUST mathematically match the six category scores using the formula above.
+
 # EXTRACTED & CLEANED LISTS
 In addition to the optimization analysis, clean, verify, and populate the following list fields from the scraped listing context:
 1. **raw_integrations**: A list of actual third-party platforms, apps, or services the app integrates with (e.g., "Klaviyo", "Shopify Flow", "Shopify Admin", "Mailchimp"). You MUST filter out and exclude any garbage UI strings, ratings (like "4.8"), review counts (like "(87)"), developer names, page numbers, or UI actions (like "Install", "View demo store", "Close", "Previous", "Next", "+ 9 more"). Only return clean, verified third-party systems or channels.

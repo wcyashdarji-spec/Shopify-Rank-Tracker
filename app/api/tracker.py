@@ -180,7 +180,10 @@ async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = 
             if apps_payload:
                 logger.info(f"Running cron tracking for user_id={user_id} with {len(apps_payload)} apps")
                 service = TrackerService(db=db, user_id=user_id)
-                results = service.run(apps_payload)
+                results = await asyncio.to_thread(
+                    service.run,
+                    apps_payload
+                )
                 all_results.extend(results)
 
         return {
