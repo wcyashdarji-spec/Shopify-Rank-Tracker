@@ -87,7 +87,7 @@ export default function KeywordsManager({
       </Box>
 
       <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 600, letterSpacing: 0.5, mb: 1, display: "block" }}>
-        Active Scraper Keywords ({selectedApp.keywords?.length || 0})
+        Active Sync Keywords ({selectedApp.keywords?.length || 0})
       </Typography>
 
       <Box sx={{ flexGrow: 1, overflowY: "auto", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 2, bgcolor: "rgba(0,0,0,0.15)", maxH: 260 }}>

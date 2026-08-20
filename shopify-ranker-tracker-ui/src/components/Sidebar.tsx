@@ -1,5 +1,5 @@
 // React
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 // Material UI
 import {
@@ -94,6 +94,25 @@ export default function Sidebar({
   const [, setLastSyncs] = useState<AppLastSync[]>([]);
   const [, setLoadingHistory] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
+
+  const showSyncButton = useMemo(() => {
+    if (!apps || apps.length === 0) return false;
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDate = today.getDate();
+
+    return apps.some((app) => {
+      if (!app.last_synced_at) return true;
+      const dateStr = app.last_synced_at.endsWith("Z") ? app.last_synced_at : `${app.last_synced_at}Z`;
+      const syncDate = new Date(dateStr);
+      return (
+        syncDate.getFullYear() !== todayYear ||
+        syncDate.getMonth() !== todayMonth ||
+        syncDate.getDate() !== todayDate
+      );
+    });
+  }, [apps]);
 
   useEffect(() => {
   if (!historyExpanded) return;
@@ -461,16 +480,18 @@ export default function Sidebar({
         >
           Track App
         </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={onRunAllSaved}
+        {showSyncButton && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onRunAllSaved}
 
-          sx={{ borderRadius: "8px", borderColor: "#e5e7eb", color: "#374151", px: 1, py: 0.75, minWidth: 0, "&:hover": { borderColor: "#9ca3af" } }}
-          title="Re-scrape all saved apps"
-        >
-          <RefreshIcon sx={{ fontSize: 16 }} />
-        </Button>
+            sx={{ borderRadius: "8px", borderColor: "#e5e7eb", color: "#374151", px: 1, py: 0.75, minWidth: 0, "&:hover": { borderColor: "#9ca3af" } }}
+            title="Re-sync all saved apps"
+          >
+            <RefreshIcon sx={{ fontSize: 16 }} />
+          </Button>
+        )}
       </Box>
 
       {/* Track New App Dialog */}

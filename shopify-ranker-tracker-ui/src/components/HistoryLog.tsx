@@ -27,9 +27,11 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState("");
 
-  const filtered = tableRows.filter((r) =>
-    r.keyword.toLowerCase().includes(search.toLowerCase())
-  );
+const filtered = tableRows.filter((r) => {
+    const queryTerms = search.toLowerCase().split(/\s+/).filter(Boolean);
+    const keywordLower = r.keyword.toLowerCase();
+    return queryTerms.every((term) => keywordLower.includes(term));
+  });
   const paginated = filtered.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
@@ -84,7 +86,6 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
         <Table size="small" sx={{ minWidth: 550 }}>
           <TableHead>
             <TableRow sx={{ "& th": { bgcolor: "#f9fafb", borderColor: "#f3f4f6" } }}>
-              <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>App</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Keyword</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Rank</TableCell>
               <TableCell sx={{ fontSize: 12, fontWeight: 600, color: "#6b7280", py: 1.25 }}>Page</TableCell>
@@ -110,25 +111,6 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
                     "& td": { borderColor: "#f3f4f6", py: 1.25 },
                   }}
                 >
-                  <TableCell sx={{ fontSize: 13, color: "#111827", fontWeight: 500 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{row.appName}</Typography>
-                      {row.isCompetitor && (
-                        <Chip
-                          size="small"
-                          label="Competitor"
-                          sx={{
-                            height: 18,
-                            fontSize: 9.5,
-                            fontWeight: 600,
-                            bgcolor: "#f3f4f6",
-                            color: "#6b7280",
-                            border: "1px solid #e5e7eb",
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
                   <TableCell sx={{ fontSize: 13, color: "#4b5563" }}>
                     {row.keyword}
                   </TableCell>
@@ -141,7 +123,7 @@ export default function HistoryLog({ tableRows, onViewScreenshot }: HistoryLogPr
                   <TableCell>
                     <Chip
                       size="small"
-                      label={row.found ? "Found" : "Not Found"}
+                      label={row.found ? "Located" : "Missing"}
                       sx={{
                         height: 22,
                         fontSize: 11.5,

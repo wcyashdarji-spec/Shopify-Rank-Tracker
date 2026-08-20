@@ -54,8 +54,17 @@ export default function App() {
     setIsLoadingApps(true);
     try {
       const response = await api.getApps();
-      setApps(response.apps || []);
-      if (selectFirst && response.apps?.length > 0) setSelectedApp(response.apps[0]);
+      const newApps = response.apps || [];
+      setApps(newApps);
+      if (selectFirst && newApps.length > 0) {
+        setSelectedApp(newApps[0]);
+      } else {
+        setSelectedApp((prev) => {
+          if (!prev) return null;
+          const fresh = newApps.find((a) => a.id === prev.id);
+          return fresh || prev;
+        });
+      }
     } catch (err: any) {
       if (
         err?.message?.includes("expired") ||
@@ -141,6 +150,22 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
+  const isAnyAppSyncing = apps.some((app) => app.sync_status === "syncing");
+
+  useEffect(() => {
+    if (!isAnyAppSyncing) return;
+
+    const interval = setInterval(async () => {
+      try {
+        await fetchApps();
+      } catch (err) {
+        console.error("Failed to poll apps sync status", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAnyAppSyncing]);
+
   const handleAppSelect = (app: AppType) => {
     setSelectedApp(app);
     setPage("dashboard");
@@ -150,7 +175,7 @@ export default function App() {
   const handleTrackApp = (name: string, url: string, keywordsList: string[]) => {
     // Immediately notify the user and run in background
     showToast(
-      `⏳ Scraping started for '${name}' — running in the background. Results will reflect shortly.`,
+      `⏳ Sync started for '${name}' — running in the background. Results will reflect shortly.`,
       "info"
     );
 
@@ -158,13 +183,15 @@ export default function App() {
     (async () => {
       try {
         await api.runTracker(name, url, keywordsList);
-        showToast(`✅ Scraping complete for '${name}'! Results have been updated.`, "success");
+        showToast(`✅ Sync complete for '${name}'! Results have been updated.`, "success");
         await fetchApps();
         const updated = await api.getApps();
         const newApp = updated.apps.find((a) => a.name.toLowerCase() === name.toLowerCase().trim());
         if (newApp) setSelectedApp(newApp);
       } catch (err: any) {
-        showToast(err?.message || "Scraper failed", "error");
+        const errMsg = err?.message || "Sync failed";
+        const isTimeoutInfo = errMsg.includes("continuing to run in the background");
+        showToast(errMsg, isTimeoutInfo ? "info" : "error");
       }
     })();
   };
@@ -195,9 +222,23 @@ export default function App() {
         fetchApps();
       })
       .catch((err: any) => {
-        showToast(err?.message || "Background scan failed. Please try again.", "error");
+        const errMsg = err?.message || "Background scan failed. Please try again.";
+        const isTimeoutInfo = errMsg.includes("continuing to run in the background");
+        showToast(errMsg, isTimeoutInfo ? "info" : "error");
       });
   };
+
+  const showSelectedAppResync = (() => {
+    if (!selectedApp || !selectedApp.last_synced_at) return true;
+    const today = new Date();
+    const dateStr = selectedApp.last_synced_at.endsWith("Z") ? selectedApp.last_synced_at : `${selectedApp.last_synced_at}Z`;
+    const syncDate = new Date(dateStr);
+    return (
+      syncDate.getFullYear() !== today.getFullYear() ||
+      syncDate.getMonth() !== today.getMonth() ||
+      syncDate.getDate() !== today.getDate()
+    );
+  })();
 
   const headerContent =
     page === "dashboard" ? (
@@ -212,8 +253,9 @@ export default function App() {
                 ml: "auto",
               }}
             >
-              {selectedApp && (
+              {selectedApp && showSelectedAppResync && (
                 <Button
+                  variant="outlined"
                   size="small"
                   startIcon={<RefreshIcon sx={{ fontSize: 15 }} />}
                   onClick={() =>
@@ -232,7 +274,7 @@ export default function App() {
                     py: 0.5,
                   }}
                 >
-                  Rescrape
+                  Resync
                 </Button>
               )}
 

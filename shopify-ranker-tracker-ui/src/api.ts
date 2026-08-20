@@ -14,6 +14,8 @@ export interface App {
   history_count: number;
   keywords: Keyword[];
   audit_last_synced_at?: string | null;
+  last_synced_at?: string | null;
+  sync_status?: string;
 }
 
 export interface HistoryRecord {
@@ -86,6 +88,7 @@ export interface AppLastSync {
   url: string;
   last_synced_at: string | null;
   audit_last_synced_at?: string | null;
+  sync_status?: string;
 }
 
 // Manage API base URL in localStorage
@@ -131,28 +134,55 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (netErr: any) {
+    throw new Error("Connection lost or server is unreachable. Please check your internet connection.");
+  }
 
   if (!response.ok) {
-    let errorText = "";
+    let rawText = "";
+    let parsedDetail = "";
     try {
-      const errJson = await response.json();
-      errorText = errJson.detail || JSON.stringify(errJson);
+      rawText = await response.text();
+      try {
+        const errJson = JSON.parse(rawText);
+        parsedDetail = errJson.detail || (typeof errJson === 'string' ? errJson : JSON.stringify(errJson));
+      } catch {
+        parsedDetail = rawText;
+      }
     } catch {
-      errorText = await response.text();
-    }
-    
-    if (response.status === 401 && !path.includes("/auth/login")) {
-      logout();
-      window.dispatchEvent(
-        new CustomEvent("unauthorized-token-expiration", { detail: errorText })
-      );
+      // ignore
     }
 
-    throw new Error(errorText || `API error: ${response.status} ${response.statusText}`);
+    let errorText = "";
+    if (response.status === 504 || response.status === 502) {
+      if (path.includes("/tracker/run")) {
+        errorText = "The sync is taking longer than expected but is continuing to run in the background. Please wait a moment and refresh.";
+      } else {
+        errorText = "The server is busy or unreachable. Please try again in a few seconds.";
+      }
+    } else if (response.status === 401 && !path.includes("/auth/login")) {
+      logout();
+      window.dispatchEvent(
+        new CustomEvent("unauthorized-token-expiration", { detail: parsedDetail || "Session expired." })
+      );
+      errorText = "Your session has expired. Please log in again.";
+    } else if (response.status === 403) {
+      errorText = parsedDetail || "Access denied. You do not have permission to perform this action.";
+    } else if (response.status === 404) {
+      errorText = parsedDetail || "The requested resource could not be found.";
+    } else if (response.status === 500) {
+      errorText = parsedDetail || "Internal server error. Please try again later.";
+    } else {
+      errorText = parsedDetail || `API error: ${response.status} ${response.statusText}`;
+    }
+
+    throw new Error(errorText);
   }
 
   return response.json() as Promise<T>;

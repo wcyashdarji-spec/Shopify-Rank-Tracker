@@ -125,6 +125,7 @@ async def get_apps_last_sync(
                         if app.audit_last_synced_at
                         else None
                     ),
+                    "sync_status": app.sync_status,
                 }
                 for app in apps
             ]

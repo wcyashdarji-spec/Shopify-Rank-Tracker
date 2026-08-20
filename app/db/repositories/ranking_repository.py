@@ -1,6 +1,7 @@
-from typing import List, Optional
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, case
+from typing import Dict, List, Optional, Tuple
+from sqlalchemy.orm import Session, selectinload
+
 from app.db.models.user import User
 from app.core.logger import get_logger
 from datetime import datetime, timedelta
@@ -180,7 +181,10 @@ class RankingRepository:
         windows: dict[str, int],
     ) -> dict[str, dict[str, Optional[float]]]:
         """
-        Compute average rank metrics for defined time windows.
+        Compute average rank metrics for all defined time windows in a single query.
+
+        Uses SQLAlchemy conditional aggregation so every window is computed in
+        one round trip to the database instead of one query per window.
 
         Args:
             db: Database session.
@@ -192,26 +196,47 @@ class RankingRepository:
             Dictionary of average rank and record count for each window.
         """
         try:
-            averages = {}
-            for label, days in windows.items():
-                since = datetime.utcnow() - timedelta(days=days)
-                avg_rank, record_count = (
-                    db.query(
-                        func.avg(RankingHistory.rank),
-                        func.count(RankingHistory.rank),
-                    )
-                    .filter(
-                        RankingHistory.app_id == app_id,
-                        RankingHistory.keyword_id == keyword_id,
-                        RankingHistory.tracked_date >= since,
-                        RankingHistory.rank != None,
-                    )
-                    .one()
+            now = datetime.utcnow()
+            # Build cutoff timestamps for all windows upfront
+            cutoffs: Dict[str, datetime] = {
+                label: now - timedelta(days=days)
+                for label, days in windows.items()
+            }
+
+            # Build SELECT columns dynamically — one AVG + one COUNT per window
+            columns = []
+            labels = list(cutoffs.keys())
+            for label, since in cutoffs.items():
+                columns.append(
+                    func.avg(
+                        case((RankingHistory.tracked_date >= since, RankingHistory.rank), else_=None)
+                    ).label(f"avg_{label}")
+                )
+                columns.append(
+                    func.count(
+                        case((RankingHistory.tracked_date >= since, RankingHistory.rank), else_=None)
+                    ).label(f"cnt_{label}")
                 )
 
+            # Single query covering the widest window so the DB scans once
+            widest_since = min(cutoffs.values())
+            row = (
+                db.query(*columns)
+                .filter(
+                    RankingHistory.app_id == app_id,
+                    RankingHistory.keyword_id == keyword_id,
+                    RankingHistory.tracked_date >= widest_since,
+                )
+                .one()
+            )
+
+            averages: Dict[str, dict] = {}
+            for label in labels:
+                avg_val = getattr(row, f"avg_{label}")
+                cnt_val = getattr(row, f"cnt_{label}")
                 averages[label] = {
-                    "average_rank": round(avg_rank, 2) if avg_rank is not None else None,
-                    "record_count": record_count,
+                    "average_rank": round(float(avg_val), 2) if avg_val is not None else None,
+                    "record_count": cnt_val if cnt_val is not None else 0,
                 }
 
             return averages
@@ -219,6 +244,138 @@ class RankingRepository:
         except Exception as e:
             logger.exception(
                 f"Failed to compute averages for app_id={app_id}, keyword_id={keyword_id}: {str(e)}"
+            )
+            raise
+
+    @staticmethod
+    def get_ranking_history_bulk(
+        db: Session,
+        app_ids: List[int],
+        keyword_ids: List[int],
+        days: int = 30,
+    ) -> Dict[Tuple[int, int], List[RankingHistory]]:
+        """
+        Fetch ranking history for any number of (app_id, keyword_id) pairs in one query.
+
+        Replaces the N×M loop of individual get_ranking_history calls with a single
+        SQL statement that fetches all rows at once and groups them in Python.
+
+        Args:
+            db: Database session.
+            app_ids: All app IDs to include (primary app + all competitor IDs).
+            keyword_ids: All keyword IDs to include.
+            days: Lookback window in days.
+
+        Returns:
+            Dict keyed by (app_id, keyword_id) → sorted list of RankingHistory rows.
+        """
+        if not app_ids or not keyword_ids:
+            return {}
+        try:
+            since = datetime.utcnow() - timedelta(days=days)
+            rows = (
+                db.query(RankingHistory)
+                .filter(
+                    RankingHistory.app_id.in_(app_ids),
+                    RankingHistory.keyword_id.in_(keyword_ids),
+                    RankingHistory.tracked_date >= since,
+                )
+                .order_by(RankingHistory.app_id, RankingHistory.keyword_id, RankingHistory.tracked_date.asc())
+                .all()
+            )
+
+            result: Dict[Tuple[int, int], List[RankingHistory]] = {}
+            for row in rows:
+                key = (row.app_id, row.keyword_id)
+                result.setdefault(key, []).append(row)
+            return result
+
+        except Exception as e:
+            logger.exception(
+                f"Failed to bulk-fetch ranking history for app_ids={app_ids}, keyword_ids={keyword_ids}: {str(e)}"
+            )
+            raise
+
+    @staticmethod
+    def get_average_rank_windows_bulk(
+        db: Session,
+        app_ids: List[int],
+        keyword_ids: List[int],
+        windows: dict[str, int],
+    ) -> Dict[Tuple[int, int], dict]:
+        """
+        Compute average rank metrics for all time windows for any number of
+        (app_id, keyword_id) pairs in a single database query.
+
+        Replaces the N×M×W loop (N apps × M keywords × W windows) with one
+        GROUP BY query using conditional aggregation.
+
+        Args:
+            db: Database session.
+            app_ids: All app IDs to include.
+            keyword_ids: All keyword IDs to include.
+            windows: Mapping of label → lookback days.
+
+        Returns:
+            Dict keyed by (app_id, keyword_id) →
+                { label: { "average_rank": float|None, "record_count": int } }
+        """
+        if not app_ids or not keyword_ids or not windows:
+            return {}
+        try:
+            now = datetime.utcnow()
+            cutoffs: Dict[str, datetime] = {
+                label: now - timedelta(days=days)
+                for label, days in windows.items()
+            }
+            labels = list(cutoffs.keys())
+            widest_since = min(cutoffs.values())
+
+            # Build SELECT: app_id, keyword_id, then AVG+COUNT per window
+            agg_columns = [
+                RankingHistory.app_id,
+                RankingHistory.keyword_id,
+            ]
+            for label, since in cutoffs.items():
+                agg_columns.append(
+                    func.avg(
+                        case((RankingHistory.tracked_date >= since, RankingHistory.rank), else_=None)
+                    ).label(f"avg_{label}")
+                )
+                agg_columns.append(
+                    func.count(
+                        case((RankingHistory.tracked_date >= since, RankingHistory.rank), else_=None)
+                    ).label(f"cnt_{label}")
+                )
+
+            rows = (
+                db.query(*agg_columns)
+                .filter(
+                    RankingHistory.app_id.in_(app_ids),
+                    RankingHistory.keyword_id.in_(keyword_ids),
+                    RankingHistory.tracked_date >= widest_since,
+                )
+                .group_by(RankingHistory.app_id, RankingHistory.keyword_id)
+                .all()
+            )
+
+            result: Dict[Tuple[int, int], dict] = {}
+            for row in rows:
+                key = (row.app_id, row.keyword_id)
+                averages: Dict[str, dict] = {}
+                for label in labels:
+                    avg_val = getattr(row, f"avg_{label}")
+                    cnt_val = getattr(row, f"cnt_{label}")
+                    averages[label] = {
+                        "average_rank": round(float(avg_val), 2) if avg_val is not None else None,
+                        "record_count": cnt_val if cnt_val is not None else 0,
+                    }
+                result[key] = averages
+            return result
+
+        except Exception as e:
+            logger.exception(
+                f"Failed to bulk-compute averages for app_ids={app_ids}, keyword_ids={keyword_ids}: {str(e)}"
             )
             raise
 
@@ -328,16 +485,24 @@ class RankingRepository:
         """
         Get all primary apps from database.
 
+        Uses selectinload for the keywords relationship so all app keywords
+        are fetched in a single batched query instead of one lazy-loaded
+        SELECT per app.
+
         Args:
             db: Database session.
             user_id: Optional User ID to filter by.
             include_deleted: Whether to include soft-deleted apps.
 
         Returns:
-            List of App objects.
+            List of App objects with keywords eagerly loaded.
         """
         try:
-            query = db.query(App).filter(App.is_competitor == False)
+            query = (
+                db.query(App)
+                .options(selectinload(App.keywords))
+                .filter(App.is_competitor == False)
+            )
             if not include_deleted:
                 query = query.filter(App.is_deleted == False)
             if user_id is not None:

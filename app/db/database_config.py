@@ -7,6 +7,7 @@ logger = get_logger(__name__)
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
+    connect_args={"sslmode": "require"},
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

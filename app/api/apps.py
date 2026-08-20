@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -86,7 +87,18 @@ async def get_all_apps(
         List of all user's apps with their tracking history count.
     """
     try:
+        from app.db.models.ranking import RankingHistory
+
         apps = RankingRepository.get_all_apps(db, user_id=current_user.id)
+
+        app_ids = [app.id for app in apps]
+        counts_query = (
+            db.query(RankingHistory.app_id, func.count(RankingHistory.id).label("cnt"))
+            .filter(RankingHistory.app_id.in_(app_ids))
+            .group_by(RankingHistory.app_id)
+            .all()
+        )
+        history_counts = {row.app_id: row.cnt for row in counts_query}
 
         return {
             "apps": [
@@ -96,9 +108,11 @@ async def get_all_apps(
                     "name": app.name,
                     "url": app.url,
                     "created_at": app.created_at.isoformat(),
-                    "history_count": len(app.rankings),
+                    "history_count": history_counts.get(app.id, 0),
                     "keywords": [{"id": k.id, "name": k.name} for k in app.keywords],
                     "audit_last_synced_at": app.audit_last_synced_at.isoformat() if app.audit_last_synced_at else None,
+                    "last_synced_at": app.last_synced_at.isoformat() if app.last_synced_at else None,
+                    "sync_status": app.sync_status,
                 }
                 for app in apps
             ]
@@ -162,6 +176,9 @@ async def get_competitors(
     Each competitor includes its basic information along with the total
     number of ranking history records available.
 
+    Uses a single bulk query to fetch the latest audit record for the
+    primary app and all competitors instead of one query per app.
+
     Raises:
         HTTPException:
             - 404: If the requested application does not exist.
@@ -173,61 +190,62 @@ async def get_competitors(
             raise HTTPException(status_code=404, detail="App not found")
 
         import json
+        from sqlalchemy import text
         from app.db.models.ranking import AppAuditHistory
 
-        def get_starting_price(target_app):
-            history = (
-                db.query(AppAuditHistory)
-                .filter(AppAuditHistory.app_id == target_app.id)
-                .order_by(AppAuditHistory.created_at.desc())
-                .first()
+        all_app_ids = [app.id] + [c.id for c in app.competitors]
+
+        subq = (
+            db.query(
+                AppAuditHistory.app_id,
+                func.max(AppAuditHistory.created_at).label("max_created_at"),
             )
-            data = None
-            if history:
+            .filter(AppAuditHistory.app_id.in_(all_app_ids))
+            .group_by(AppAuditHistory.app_id)
+            .subquery()
+        )
+        latest_audits = (
+            db.query(AppAuditHistory)
+            .join(
+                subq,
+                (AppAuditHistory.app_id == subq.c.app_id)
+                & (AppAuditHistory.created_at == subq.c.max_created_at),
+            )
+            .all()
+        )
+        audit_by_app = {a.app_id: a for a in latest_audits}
+
+        def _get_parsed_data(target_app):
+            """Return parsed JSON dict for the app's latest audit, or None."""
+            audit = audit_by_app.get(target_app.id)
+            if audit:
                 try:
-                    data = json.loads(history.scraped_data)
-                except:
+                    return json.loads(audit.scraped_data)
+                except Exception:
                     pass
-            elif target_app.audit_data:
+            if target_app.audit_data:
                 try:
-                    data = json.loads(target_app.audit_data)
-                except:
+                    return json.loads(target_app.audit_data)
+                except Exception:
                     pass
-                    
+            return None
+
+        def get_starting_price(target_app):
+            data = _get_parsed_data(target_app)
             if not data:
                 return "Not found"
-                
             plans = data.get("raw_pricing_plans", [])
             if not plans:
                 return "Not found"
-            
             first_plan = plans[0].replace("\n", "").replace("  ", " ").strip()
             if len(plans) > 1:
                 return f"{first_plan} + more"
             return first_plan
 
         def get_rating_and_reviews(target_app):
-            history = (
-                db.query(AppAuditHistory)
-                .filter(AppAuditHistory.app_id == target_app.id)
-                .order_by(AppAuditHistory.created_at.desc())
-                .first()
-            )
-            data = None
-            if history:
-                try:
-                    data = json.loads(history.scraped_data)
-                except:
-                    pass
-            elif target_app.audit_data:
-                try:
-                    data = json.loads(target_app.audit_data)
-                except:
-                    pass
-                    
+            data = _get_parsed_data(target_app)
             if not data:
                 return 4.5, "0 reviews"
-                
             rating = data.get("rating_val", 4.5)
             reviews = data.get("reviews_text", "0 reviews")
             return rating, reviews

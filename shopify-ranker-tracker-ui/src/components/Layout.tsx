@@ -69,7 +69,6 @@ export default function Layout({
             onRunAllSaved={onRunAllSaved}
             onTrackApp={onTrackApp}
             onDeleteApp={onDeleteApp}
-            // isScraping={isScraping}
             isLoadingApps={isLoadingApps}
             currentPage={currentPage}
             onNavigate={onNavigate}

@@ -100,7 +100,7 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
           Running optimization audit for your app & competitors...
         </Typography>
         <Typography sx={{ color: "#6b7280", fontSize: 13.5 }}>
-          Scraping Shopify listings and analyzing SEO metadata. This may take up to 20 seconds.
+          Syncing Shopify listings and analyzing SEO metadata. This may take up to 20 seconds.
         </Typography>
       </Box>
     );
@@ -117,7 +117,7 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
             Shopify Listing Optimizer
           </Typography>
           <Typography variant="subtitle1" sx={{ color: "#4b5563", maxWidth: 640, mx: "auto", mb: 4, lineHeight: 1.6, fontSize: 15 }}>
-            Run an AI-powered ASO (App Store Optimization) audit on <strong>{appName}</strong>. We scrape the live App Store listing, evaluate keyword coverage, visual layouts, technical parameters, and log benchmarks for your ASO Activity Feed.
+            Run an AI-powered ASO (App Store Optimization) audit on <strong>{appName}</strong>. We sync the live App Store listing, evaluate keyword coverage, visual layouts, technical parameters, and log benchmarks for your ASO Activity Feed.
           </Typography>
           <Button 
             variant="contained" 
