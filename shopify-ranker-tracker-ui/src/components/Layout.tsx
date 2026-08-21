@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 // Material UI
 import { Box, IconButton, Tooltip } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import MenuIcon from "@mui/icons-material/Menu";
 
 // Components
 

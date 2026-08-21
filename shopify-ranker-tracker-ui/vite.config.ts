@@ -4,6 +4,17 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   envDir: '../',
+  optimizeDeps: {
+    include: [
+      '@mui/material',
+      '@mui/x-data-grid',
+      '@emotion/react',
+      '@emotion/styled',
+      'echarts',
+      'echarts-for-react',
+      'react-router-dom',
+    ],
+  },
 
   server: {
     host: '0.0.0.0',

@@ -3,7 +3,8 @@ import { useState } from "react";
 
 // Material UI
 import { Box, Chip, IconButton, InputAdornment, Paper, Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TextField, Typography } from "@mui/material";
-import { Image as ImageIcon, Search as SearchIcon } from "@mui/icons-material";
+import ImageIcon from "@mui/icons-material/Image";
+import SearchIcon from "@mui/icons-material/Search";
 
 interface TableRowData {
   id: number;

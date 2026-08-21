@@ -11,10 +11,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  DeleteOutlineOutlined as DeleteIcon,
-  Add as AddIcon,
-} from "@mui/icons-material";
+import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import AddIcon from "@mui/icons-material/Add";
 import { api, type Competitor } from "../api";
 
 interface CompetitorManagerProps {

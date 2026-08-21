@@ -3,7 +3,9 @@ import { Fragment, useState } from "react";
 
 // Material UI
 import { Box, Button, Divider, IconButton, List, ListItem, ListItemText, Paper, TextField, Typography } from "@mui/material";
-import { AddCircleOutlined as AddIcon, Delete as DeleteIcon, Label as LabelIcon } from "@mui/icons-material";
+import AddIcon from "@mui/icons-material/AddCircleOutlined";
+import DeleteIcon from "@mui/icons-material/Delete";
+import LabelIcon from "@mui/icons-material/Label";
 
 // Types
 import type { App } from "../api";

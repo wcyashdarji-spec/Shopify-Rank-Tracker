@@ -24,21 +24,19 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  Add as AddIcon,
-  BarChart as BarChartIcon,
-  Close as CloseIcon,
-  DeleteOutlineOutlined as DeleteOutlineIcon,
-  ExpandLess as ExpandLessIcon,
-  ExpandMore as ExpandMoreIcon,
-  History as HistoryIcon,
-  Home as HomeIcon,
-  Refresh as RefreshIcon,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
-  Logout as LogoutIcon,
-  People as PeopleIcon,
-} from "@mui/icons-material";
+import AddIcon from "@mui/icons-material/Add";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HistoryIcon from "@mui/icons-material/History";
+import HomeIcon from "@mui/icons-material/Home";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SearchIcon from "@mui/icons-material/Search";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PeopleIcon from "@mui/icons-material/People";
 
 // API
 import { api, type App, type AppLastSync } from "../api";

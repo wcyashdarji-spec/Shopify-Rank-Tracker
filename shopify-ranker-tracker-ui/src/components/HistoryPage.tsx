@@ -3,7 +3,11 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 // Material UI
 import { Box, Chip, CircularProgress, IconButton, InputAdornment, Paper, Skeleton, TextField, Tooltip, Typography } from "@mui/material";
-import { Search as SearchIcon, Refresh as RefreshIcon, CheckCircle as SyncedIcon, Schedule as StaleIcon, HelpOutlineOutlined as NeverIcon } from "@mui/icons-material";
+import SearchIcon from "@mui/icons-material/Search";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SyncedIcon from "@mui/icons-material/CheckCircle";
+import StaleIcon from "@mui/icons-material/Schedule";
+import NeverIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 
 // API

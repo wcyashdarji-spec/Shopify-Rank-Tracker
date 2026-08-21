@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Typography } from "@mui/material";
-import { Mail as MailIcon } from "@mui/icons-material";
+import MailIcon from "@mui/icons-material/Mail";
 
 interface Invitation {
   id: number;

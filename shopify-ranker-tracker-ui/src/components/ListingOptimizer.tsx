@@ -16,23 +16,21 @@ import {
   Chip,
   Alert
 } from "@mui/material";
-import {
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
-  KeyboardArrowDown as ArrowDownIcon,
-  KeyboardArrowUp as ArrowUpIcon,
-  Refresh as RefreshIcon,
-  PictureAsPdf as PdfIcon,
-  Title as TitleIcon,
-  Image as ImageIcon,
-  Translate as LanguageIcon,
-  DeveloperMode as TechIcon,
-  Category as CategoryIcon,
-  Description as DescIcon,
-  Star as StarIcon
-} from "@mui/icons-material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import WarningIcon from "@mui/icons-material/Warning";
+import InfoIcon from "@mui/icons-material/Info";
+import ArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import ArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import PdfIcon from "@mui/icons-material/PictureAsPdf";
+import TitleIcon from "@mui/icons-material/Title";
+import ImageIcon from "@mui/icons-material/Image";
+import LanguageIcon from "@mui/icons-material/Translate";
+import TechIcon from "@mui/icons-material/DeveloperMode";
+import CategoryIcon from "@mui/icons-material/Category";
+import DescIcon from "@mui/icons-material/Description";
+import StarIcon from "@mui/icons-material/Star";
 import { api, type App } from "../api";
 
 interface ListingOptimizerProps {

@@ -1,24 +1,26 @@
 // React
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 
 // Material UI
-import { Alert, Button, Snackbar, Typography, Box } from "@mui/material";
+import { Alert, Button, Snackbar, Typography, Box, CircularProgress } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
-import { Refresh as RefreshIcon } from "@mui/icons-material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
 import { api, getApiBaseUrl, getToken, logout, type App as AppType } from "./api";
 
-// Components
-import Dashboard from "./components/DashBoard";
-import HistoryPage from "./components/HistoryPage";
+// Core Components
 import Layout from "./components/Layout";
 import PageHeader from "./components/PageHeader";
 import LoginRegister from "./components/LoginRegister";
-import ProfilePage from "./components/ProfilePage";
-import ListingOptimizer from "./components/ListingOptimizer";
-import CompetitorsPage from "./components/CompetitorsPage";
+
+// Lazy loaded page components
+const Dashboard = lazy(() => import("./components/DashBoard"));
+const HistoryPage = lazy(() => import("./components/HistoryPage"));
+const ProfilePage = lazy(() => import("./components/ProfilePage"));
+const ListingOptimizer = lazy(() => import("./components/ListingOptimizer"));
+const CompetitorsPage = lazy(() => import("./components/CompetitorsPage"));
 
 const theme = createTheme({
   palette: {
@@ -326,39 +328,55 @@ export default function App() {
           onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
           onLogout={handleLogout}
         >
-          {page === "dashboard" ? (
-            <Dashboard
-              selectedApp={selectedApp}
-              apiUrl={apiUrl}
-              onRefreshApps={fetchApps}
-              onUpdateSelectedApp={setSelectedApp}
-              showToast={showToast}
-            />
-          ) : page === "history" ? (
-            <HistoryPage />
-          ) : page === "optimizer" && selectedApp ? (
-            <ListingOptimizer
-              apps={apps}
-              selectedApp={selectedApp}
-              onSelectApp={setSelectedApp}
-              showToast={showToast}
-            />
-          ) : page === "competitors" && selectedApp ? (
-            <CompetitorsPage
-              apps={apps}
-              selectedApp={selectedApp}
-              onSelectApp={setSelectedApp}
-              showToast={showToast}
-            />
-          ) : (
-            <ProfilePage
-              apps={apps}
-              invitations={invitations}
-              onAcceptInvitation={handleAcceptInvitation}
-              onDeclineInvitation={handleDeclineInvitation}
-              showToast={showToast}
-            />
-          )}
+          <Suspense
+            fallback={
+              <Box
+                sx={{
+                  display: "flex",
+                  justify: "center",
+                  alignItems: "center",
+                  minHeight: "300px",
+                  width: "100%",
+                }}
+              >
+                <CircularProgress size={32} sx={{ color: "#f97316" }} />
+              </Box>
+            }
+          >
+            {page === "dashboard" ? (
+              <Dashboard
+                selectedApp={selectedApp}
+                apiUrl={apiUrl}
+                onRefreshApps={fetchApps}
+                onUpdateSelectedApp={setSelectedApp}
+                showToast={showToast}
+              />
+            ) : page === "history" ? (
+              <HistoryPage />
+            ) : page === "optimizer" && selectedApp ? (
+              <ListingOptimizer
+                apps={apps}
+                selectedApp={selectedApp}
+                onSelectApp={setSelectedApp}
+                showToast={showToast}
+              />
+            ) : page === "competitors" && selectedApp ? (
+              <CompetitorsPage
+                apps={apps}
+                selectedApp={selectedApp}
+                onSelectApp={setSelectedApp}
+                showToast={showToast}
+              />
+            ) : (
+              <ProfilePage
+                apps={apps}
+                invitations={invitations}
+                onAcceptInvitation={handleAcceptInvitation}
+                onDeclineInvitation={handleDeclineInvitation}
+                showToast={showToast}
+              />
+            )}
+          </Suspense>
         </Layout>
       )}
 
