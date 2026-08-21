@@ -333,7 +333,7 @@ export default function App() {
               <Box
                 sx={{
                   display: "flex",
-                  justify: "center",
+                  justifyContent: "center",
                   alignItems: "center",
                   minHeight: "300px",
                   width: "100%",

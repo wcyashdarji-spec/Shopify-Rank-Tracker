@@ -9,6 +9,7 @@ from app.core.logging_route import LoggingRoute
 from app.services.tracker_service import TrackerService
 from app.schemas.request import TrackerRequest, AppRequest
 from app.api.auth_deps import get_current_user, verify_cron_key
+from app.services.notification_service import NotificationService
 from app.db.repositories.ranking_repository import RankingRepository
 
 logger = get_logger(__name__)
@@ -48,6 +49,15 @@ async def run_tracker(
 
         results = await asyncio.to_thread(service.run, request.apps)
 
+        try:
+            await asyncio.to_thread(
+                NotificationService.notify_user,
+                current_user.email,
+                results,
+            )
+        except Exception as notify_exc:
+            logger.exception("Notification failed for user=%s: %s", current_user.email, notify_exc)
+
         return {
             "message": "Tracking completed",
             "results": results
@@ -78,6 +88,15 @@ async def run_saved_apps(
 
         service = TrackerService(db=db, user_id=current_user.id)
         results = await asyncio.to_thread(service.run, apps_payload)
+
+        try:
+            await asyncio.to_thread(
+                NotificationService.notify_user,
+                current_user.email,
+                results,
+            )
+        except Exception as notify_exc:
+            logger.exception("Notification failed for user=%s: %s", current_user.email, notify_exc)
 
         return {
             "message": "Saved apps tracking completed.",
@@ -186,6 +205,19 @@ async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = 
                     apps_payload
                 )
                 all_results.extend(results)
+
+                try:
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user:
+                        await asyncio.to_thread(
+                            NotificationService.notify_user,
+                            user.email,
+                            results,
+                        )
+                    else:
+                        logger.warning(f"Could not find user record for user_id={user_id}; skipping notification.")
+                except Exception as notify_exc:
+                    logger.exception(f"Notification failed for user_id={user_id}: {notify_exc}")
 
         return {
             "message": "Global cron tracking run completed successfully.",
