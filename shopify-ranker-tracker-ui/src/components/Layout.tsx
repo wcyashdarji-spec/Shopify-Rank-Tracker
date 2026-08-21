@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 // Material UI
 import { Box, IconButton, Tooltip } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import MenuIcon from "@mui/icons-material/Menu";
 
 // Components
 
@@ -69,7 +69,6 @@ export default function Layout({
             onRunAllSaved={onRunAllSaved}
             onTrackApp={onTrackApp}
             onDeleteApp={onDeleteApp}
-            // isScraping={isScraping}
             isLoadingApps={isLoadingApps}
             currentPage={currentPage}
             onNavigate={onNavigate}

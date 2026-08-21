@@ -16,7 +16,9 @@ import {
   Chip,
   Divider,
 } from "@mui/material";
-import { Close as CloseIcon, Person as PersonIcon, Send as SendIcon } from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
+import PersonIcon from "@mui/icons-material/Person";
+import SendIcon from "@mui/icons-material/Send";
 import { api } from "../api";
 
 interface CollaboratorsDialogProps {

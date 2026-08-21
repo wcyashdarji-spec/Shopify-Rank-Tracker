@@ -17,12 +17,10 @@ import {
   MenuItem,
   FormControl,
 } from "@mui/material";
-import {
-  Close as CloseIcon,
-  RemoveCircleOutlined as RemoveIcon,
-  AddCircleOutlined as AddIcon,
-  CheckCircleOutlined as CheckIcon,
-} from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
+import RemoveIcon from "@mui/icons-material/RemoveCircleOutlined";
+import AddIcon from "@mui/icons-material/AddCircleOutlined";
+import CheckIcon from "@mui/icons-material/CheckCircleOutlined";
 import { api, type App } from "../api";
 
 interface Competitor {

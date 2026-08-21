@@ -1,4 +1,4 @@
-﻿// React
+// React
 import { type RefObject, useEffect } from "react";
 
 // Material UI
@@ -45,10 +45,10 @@ export default function ScraperLogs({ logs, logsConsoleRef }: ScraperLogsProps) 
 
       <Box sx={{ textAlign: "center" }}>
         <Typography sx={{ fontWeight: 600, fontSize: 16, color: "#111827", mb: 0.5 }}>
-          Scraper Running
+          Sync Running
         </Typography>
         <Typography sx={{ fontSize: 13, color: "#6b7280" }}>
-          Playwright is scanning Shopify App Store results…
+          Scanning Shopify App Store results…
         </Typography>
       </Box>
 

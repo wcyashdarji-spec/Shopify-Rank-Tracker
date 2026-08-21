@@ -1,9 +1,9 @@
-﻿// React
+// React
 import { useState } from "react";
 
 // Material UI
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField, Typography } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Types
 import type { Keyword } from "../api";

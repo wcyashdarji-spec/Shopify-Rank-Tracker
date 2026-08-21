@@ -41,6 +41,7 @@ class App(Base):
     audit_data = Column(String, nullable=True)
     audit_last_synced_at = Column(DateTime, nullable=True)
     audit_run_count = Column(Integer, default=0, nullable=True)
+    sync_status = Column(String(50), default="idle", server_default="idle", nullable=False)
     
     __table_args__ = (
         UniqueConstraint("user_id", "url", name="uix_user_app"),

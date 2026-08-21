@@ -76,9 +76,13 @@ async def get_ranking_history_multi(
     """
     Get ranking history for one or more keywords for a given app, including competitor history.
 
+    Uses bulk queries to fetch all (app + competitor) × keyword combinations in
+    2 database round trips regardless of how many keywords or competitors exist,
+    instead of the previous N×M×W per-keyword per-window loop.
+
     Args:
         app_id: App ID.
-        keyword_ids: Optional list of keyword IDs to include.
+        keyword_ids: Optional list of keyword IDs to include (all keywords used if omitted).
         days: Number of days to look back (default: 30).
         db: Database session.
         current_user: Authenticated user.
@@ -106,15 +110,36 @@ async def get_ranking_history_multi(
             "12_months": 365,
         }
 
+        all_keyword_ids = [k.id for k in keywords]
+        competitor_ids = [c.id for c in app.competitors]
+        all_app_ids = [app_id] + competitor_ids
+
+        history_map = RankingRepository.get_ranking_history_bulk(
+            db, all_app_ids, all_keyword_ids, days
+        )
+        averages_map = RankingRepository.get_average_rank_windows_bulk(
+            db, all_app_ids, all_keyword_ids, windows
+        )
+
+        empty_averages = {
+            label: {"average_rank": None, "record_count": 0}
+            for label in windows
+        }
+
+        comp_meta = {c.id: c for c in app.competitors}
+
         results = []
         for keyword in keywords:
-            rankings = RankingRepository.get_ranking_history(db, app_id, keyword.id, days)
-            averages = RankingRepository.get_average_rank_windows(db, app_id, keyword.id, windows)
-            
+            kid = keyword.id
+
+            main_history = history_map.get((app_id, kid), [])
+            main_averages = averages_map.get((app_id, kid), empty_averages)
+
             competitors_data = []
-            for comp in app.competitors:
-                comp_rankings = RankingRepository.get_ranking_history(db, comp.id, keyword.id, days)
-                comp_averages = RankingRepository.get_average_rank_windows(db, comp.id, keyword.id, windows)
+            for comp_id in competitor_ids:
+                comp = comp_meta[comp_id]
+                comp_history = history_map.get((comp_id, kid), [])
+                comp_averages = averages_map.get((comp_id, kid), empty_averages)
                 competitors_data.append({
                     "id": comp.id,
                     "name": comp.name,
@@ -127,7 +152,7 @@ async def get_ranking_history_multi(
                             "found": r.found,
                             "tracked_date": r.tracked_date.isoformat(),
                         }
-                        for r in comp_rankings
+                        for r in comp_history
                     ],
                     "averages": comp_averages,
                 })
@@ -144,9 +169,9 @@ async def get_ranking_history_multi(
                             "screenshot_path": r.screenshot_path,
                             "tracked_date": r.tracked_date.isoformat(),
                         }
-                        for r in rankings
+                        for r in main_history
                     ],
-                    "averages": averages,
+                    "averages": main_averages,
                     "competitors": competitors_data,
                 }
             )

@@ -2,8 +2,12 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 // Material UI
-import { Box, Chip, IconButton, InputAdornment, Paper, Skeleton, TextField, Tooltip, Typography } from "@mui/material";
-import { Search as SearchIcon, Refresh as RefreshIcon, CheckCircle as SyncedIcon, Schedule as StaleIcon, HelpOutlineOutlined as NeverIcon } from "@mui/icons-material";
+import { Box, Chip, CircularProgress, IconButton, InputAdornment, Paper, Skeleton, TextField, Tooltip, Typography } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SyncedIcon from "@mui/icons-material/CheckCircle";
+import StaleIcon from "@mui/icons-material/Schedule";
+import NeverIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 
 // API
@@ -27,9 +31,11 @@ function formatRelativeTime(dateStr: string | null): string {
   return `${years} year${years === 1 ? "" : "s"} ago`;
 }
 
-type SyncStatus = "synced" | "stale" | "never";
+type SyncStatus = "synced" | "stale" | "never" | "syncing";
 
-function getSyncStatus(dateStr: string | null): SyncStatus {
+function getSyncStatus(row: AppLastSync): SyncStatus {
+  if (row.sync_status === "syncing") return "syncing";
+  const dateStr = row.last_synced_at;
   if (!dateStr) return "never";
   const hoursSince = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60);
   return hoursSince <= 48 ? "synced" : "stale";
@@ -51,7 +57,7 @@ const STATUS_CONFIG: Record<
     icon: <SyncedIcon sx={{ fontSize: 15 }} />,
   },
   stale: {
-    label: "Needs refresh",
+    label: "Needs Sync",
     color: "#b45309",
     bg: "#fffbeb",
     icon: <StaleIcon sx={{ fontSize: 15 }} />,
@@ -61,6 +67,12 @@ const STATUS_CONFIG: Record<
     color: "#6b7280",
     bg: "#f3f4f6",
     icon: <NeverIcon sx={{ fontSize: 15 }} />,
+  },
+  syncing: {
+    label: "Syncing...",
+    color: "#2563eb",
+    bg: "#eff6ff",
+    icon: <CircularProgress size={12} sx={{ color: "#2563eb" }} />,
   },
 };
 
@@ -85,6 +97,23 @@ export default function HistoryPage() {
     load();
   }, []);
 
+  const isAnySyncing = useMemo(() => rows.some((r) => r.sync_status === "syncing"), [rows]);
+
+  useEffect(() => {
+    if (!isAnySyncing) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.getAppsLastSync();
+        setRows(data.apps);
+      } catch (err) {
+        console.error("Failed to poll sync status", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAnySyncing]);
+
   const filteredRows = useMemo(() => {
     if (!search.trim()) return rows;
     const q = search.toLowerCase();
@@ -92,10 +121,11 @@ export default function HistoryPage() {
   }, [rows, search]);
 
   const summary = useMemo(() => {
-    const synced = rows.filter((r) => getSyncStatus(r.last_synced_at) === "synced").length;
-    const stale = rows.filter((r) => getSyncStatus(r.last_synced_at) === "stale").length;
-    const never = rows.filter((r) => getSyncStatus(r.last_synced_at) === "never").length;
-    return { total: rows.length, synced, stale, never };
+    const synced = rows.filter((r) => getSyncStatus(r) === "synced").length;
+    const stale = rows.filter((r) => getSyncStatus(r) === "stale").length;
+    const never = rows.filter((r) => getSyncStatus(r) === "never").length;
+    const syncing = rows.filter((r) => getSyncStatus(r) === "syncing").length;
+    return { total: rows.length, synced, stale, never, syncing };
   }, [rows]);
 
   const columns: GridColDef<AppLastSync>[] = [
@@ -141,12 +171,17 @@ export default function HistoryPage() {
       flex: 1,
       minWidth: 150,
       renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
-          <Tooltip title={params.value ? new Date(params.value).toLocaleString() : "This app hasn't been scraped yet"}>
-            <Typography sx={{ fontSize: 13, color: "#374151" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
+          <Tooltip title={params.value ? `UTC: ${params.value}` : "This app hasn't been synced yet"}>
+            <Typography sx={{ fontSize: 13, color: "#374151", lineHeight: 1.3 }}>
               {formatRelativeTime(params.value)}
             </Typography>
           </Tooltip>
+          {params.value && (
+            <Typography sx={{ fontSize: 11, color: "#6b7280", lineHeight: 1.3 }}>
+              UTC
+            </Typography>
+          )}
         </Box>
       ),
     },
@@ -157,7 +192,7 @@ export default function HistoryPage() {
       minWidth: 150,
       sortable: false,
       renderCell: (params) => {
-        const status = getSyncStatus(params.row.last_synced_at);
+        const status = getSyncStatus(params.row);
         const cfg = STATUS_CONFIG[status];
         return (
           <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
@@ -211,6 +246,14 @@ export default function HistoryPage() {
                 label={`${summary.never} never synced`}
                 size="small"
                 sx={{ fontSize: 12.5, fontWeight: 500, bgcolor: "#f3f4f6", color: "#6b7280", height: 26, "& .MuiChip-icon": { color: "#6b7280" } }}
+              />
+            )}
+            {summary.syncing > 0 && (
+              <Chip
+                icon={<CircularProgress size={12} sx={{ color: "#2563eb" }} />}
+                label={`${summary.syncing} syncing`}
+                size="small"
+                sx={{ fontSize: 12.5, fontWeight: 500, bgcolor: "#eff6ff", color: "#2563eb", height: 26, "& .MuiChip-icon": { color: "#2563eb" } }}
               />
             )}
           </Box>

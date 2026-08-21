@@ -20,13 +20,11 @@ import {
   ListItemText,
   Chip,
 } from "@mui/material";
-import {
-  Person as PersonIcon,
-  Lock as LockIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-  Mail as MailIcon,
-} from "@mui/icons-material";
+import PersonIcon from "@mui/icons-material/Person";
+import LockIcon from "@mui/icons-material/Lock";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import MailIcon from "@mui/icons-material/Mail";
 import { api, type App as AppType } from "../api";
 
 interface ProfilePageProps {

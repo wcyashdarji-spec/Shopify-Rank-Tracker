@@ -408,9 +408,22 @@ class AuditService:
                 scraped["rating_val"] = rating_val
                 scraped["reviews_text"] = reviews_text if reviews_text else "0 reviews"
                 
-                badge_text_count = page.locator("text='Built for Shopify'").count()
-                badge_img_count = page.locator("img[alt='Built for Shopify']").count()
-                scraped["built_for_shopify"] = (badge_text_count > 0 or badge_img_count > 0)
+
+                try:
+                    scraped["built_for_shopify"] = bool(page.evaluate("""
+                        () => {
+                            const badges = document.querySelectorAll('.built-for-shopify-badge');
+                            for (const badge of badges) {
+                                const rect = badge.getBoundingClientRect();
+                                if (rect.width > 0 && rect.height > 0 && rect.top < 800) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                    """))
+                except Exception:
+                    scraped["built_for_shopify"] = False
                 
                 imgs = page.locator("img[src*='screenshot'], img[src*='files/'], button img").all()
                 _seen_paths = set()

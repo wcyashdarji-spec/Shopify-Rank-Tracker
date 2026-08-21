@@ -1,6 +1,7 @@
-﻿// Material UI
+// Material UI
 import { Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Typography } from "@mui/material";
-import { Close as CloseIcon, OpenInNew as OpenIcon } from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
+import OpenIcon from "@mui/icons-material/OpenInNew";
 
 interface ScreenshotDialogProps {
   open: boolean;
