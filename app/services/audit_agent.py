@@ -8,12 +8,13 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 
 from app.schemas.request import AuditReport
+from app.core.logger import get_logger
+from app.core.telemetry import setup_telemetry
 from app.services.prompt_template import SYSTEM_PROMPT
 
-logfire.configure()
+setup_telemetry()
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 api_key = os.getenv("OPENAI_API_KEY")
 provider = OpenAIProvider(api_key=api_key)
@@ -97,14 +98,31 @@ def run_agent_audit(app_name: str, app_url: str, scraped_data: dict, agent_paylo
             message_parts.append(ImageUrl(url=scr_url))
 
     try:
-        with logfire.span("Running Pydantic AI ASO Agent for App: {app_name}", app_name=app_name):
-            logfire.info("ASO Scraped Data Input: {scraped_data}", scraped_data=scraped_data)
+        input_payload = {
+            "app_name": app_name,
+            "app_url": app_url,
+            "agent_payload": agent_payload if agent_payload is not None else scraped_data,
+        }
+        span_title = f"Running Pydantic AI ASO Agent for App: {app_name}"
+        with logfire.span(span_title, app_name=app_name) as span:
+            if hasattr(span, "_span") and hasattr(span._span, "update_name"):
+                span._span.update_name(span_title)
+
+            span.set_attribute("openinference.span.kind", "AGENT")
+            span.set_attribute("app_name", app_name)
+            span.set_attribute("input.value", json.dumps(input_payload, indent=2, default=str))
+            span.set_attribute("input.mime_type", "application/json")
+
+            logfire.info(f"ASO Scraped Data Input for {app_name}", scraped_data=scraped_data)
             result = audit_agent.run_sync(message_parts)
-            
-            logfire.info("ASO Audit Generated: {audit_report}", audit_report=result.output.model_dump())
-            
-            return result.output.model_dump()
-            
+
+            output_dict = result.output.model_dump()
+            span.set_attribute("output.value", json.dumps(output_dict, indent=2, default=str))
+            span.set_attribute("output.mime_type", "application/json")
+
+            logfire.info(f"ASO Audit Generated for {app_name}", audit_report=output_dict)
+            return output_dict
+
     except Exception as e:
         logger.exception(f"Pydantic AI Agent execution failed: {e}")
         logfire.error("Pydantic AI Agent failed: {error}", error=str(e))

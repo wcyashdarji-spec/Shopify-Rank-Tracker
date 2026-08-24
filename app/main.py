@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.logger import get_logger
+from app.core.telemetry import setup_telemetry
+
+setup_telemetry()
 
 logger = get_logger(__name__)
 
@@ -62,7 +65,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Shopify Rank Tracker API",
     description="API for tracking Shopify app keyword rankings, persisting history, and retrieving ranking data.",
-    version="1.0.0",
+    version="2.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    root_path="/api",
     lifespan=lifespan,
 )
 
