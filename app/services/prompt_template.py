@@ -333,19 +333,5 @@ Rules:
 - NEVER leave `overall_score` uncalculated.
 - The returned `overall_score` MUST mathematically match the six category scores using the formula above.
 
-# EXTRACTED & CLEANED LISTS
-In addition to the optimization analysis, clean, verify, and populate the following list fields from the scraped listing context:
-1. **raw_integrations**: A list of actual third-party platforms, apps, or services the app integrates with (e.g., "Klaviyo", "Shopify Flow", "Shopify Admin", "Mailchimp"). You MUST filter out and exclude any garbage UI strings, ratings (like "4.8"), review counts (like "(87)"), developer names, page numbers, or UI actions (like "Install", "View demo store", "Close", "Previous", "Next", "+ 9 more"). Only return clean, verified third-party systems or channels.
-2. **raw_feature_tags**: A clean, validated list of tags or feature categories for the app (e.g., "Auto-alerts", "Email", "SMS", "Waitlists").
-3. **raw_pricing_plans** :
-- Extract the pricing plans from the scraped listing.
-- Rules:
-    - If `pricing_plans` contains one or more entries, return them exactly after cleaning.
-    - If `pricing_plans` is an empty list ([]), treat the app as a Free plan application and return:
-- ["Free plan"]
-    - Never invent paid plans or prices.
-    - Never return an empty list.
-    - Return exactly one "Free plan" entry when `pricing_plans` is empty.
-
 Ensure the returned JSON structure is complete and conforms to the Pydantic schema model specification.
 """

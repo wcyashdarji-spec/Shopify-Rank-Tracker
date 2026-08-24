@@ -412,13 +412,27 @@ class AuditService:
                 try:
                     scraped["built_for_shopify"] = bool(page.evaluate("""
                         () => {
-                            const badges = document.querySelectorAll('.built-for-shopify-badge');
-                            for (const badge of badges) {
-                                const rect = badge.getBoundingClientRect();
-                                if (rect.width > 0 && rect.height > 0 && rect.top < 800) {
+                            // 1. Primary Check: Main App Hero Section (#adp-hero)
+                            const hero = document.querySelector('#adp-hero');
+                            if (hero) {
+                                const badge = hero.querySelector('.built-for-shopify-badge, .built-for-shopify-badge-container, [class*="built-for-shopify"]');
+                                if (badge) {
+                                    const rect = badge.getBoundingClientRect();
+                                    if (rect.width > 0 && rect.height > 0) return true;
+                                }
+                                const heroText = (hero.textContent || '').toLowerCase();
+                                if (heroText.includes('built for shopify')) return true;
+                            }
+
+                            // 2. Secondary Check: Top section badges (rect.top < 1200px)
+                            const topBadges = document.querySelectorAll('.built-for-shopify-badge, .built-for-shopify-badge-container');
+                            for (const el of topBadges) {
+                                const rect = el.getBoundingClientRect();
+                                if (rect.width > 0 && rect.height > 0 && rect.top < 1200) {
                                     return true;
                                 }
                             }
+
                             return false;
                         }
                     """))
@@ -908,26 +922,13 @@ class AuditService:
 
             merged = {**scraped, **ai_audit}
 
-            merged["raw_pricing_plans"] = clean_string_list(
-                ai_audit.get(
-                    "raw_pricing_plans",
-                    scraped.get("pricing_plans", [])
-                )
-            )
+            plans = scraped.get("pricing_plans", [])
+            if not plans:
+                plans = ["Free plan"]
 
-            merged["raw_feature_tags"] = clean_string_list(
-                ai_audit.get(
-                    "raw_feature_tags",
-                    scraped.get("feature_tags", [])
-                )
-            )
-
-            merged["raw_integrations"] = clean_string_list(
-                ai_audit.get(
-                    "raw_integrations",
-                    scraped.get("integrations", [])
-                )
-            )
+            merged["raw_pricing_plans"] = clean_string_list(plans)
+            merged["raw_feature_tags"] = clean_string_list(scraped.get("feature_tags", []))
+            merged["raw_integrations"] = clean_string_list(scraped.get("integrations", []))
 
             merged["pricing_plans"] = merged["raw_pricing_plans"]
             merged["feature_tags"] = merged["raw_feature_tags"]
@@ -941,15 +942,13 @@ class AuditService:
             "Returning scraped listing data."
         )
 
-        scraped["raw_pricing_plans"] = clean_string_list(
-            scraped.get("pricing_plans", [])
-        )
-        scraped["raw_feature_tags"] = clean_string_list(
-            scraped.get("feature_tags", [])
-        )
-        scraped["raw_integrations"] = clean_string_list(
-            scraped.get("integrations", [])
-        )
+        plans = scraped.get("pricing_plans", [])
+        if not plans:
+            plans = ["Free plan"]
+
+        scraped["raw_pricing_plans"] = clean_string_list(plans)
+        scraped["raw_feature_tags"] = clean_string_list(scraped.get("feature_tags", []))
+        scraped["raw_integrations"] = clean_string_list(scraped.get("integrations", []))
 
         return scraped
 

@@ -64,6 +64,4 @@ class AuditReport(BaseModel):
     reviews_text: str = Field(description="Scraped reviews count string (e.g. '12 reviews', '0 reviews')")
     rating_val: float = Field(description="Scraped star rating numerical value (e.g. 4.8, 0.0)")
     categories: AuditCategories = Field(description="Scoring details across the 6 optimization categories")
-    raw_integrations: List[str] = Field(description="Cleaned, verified list of actual third-party integrations and platforms (e.g., Klaviyo, Shopify Flow) the app works with, filtering out any rating, UI, or garbage elements.")
-    raw_feature_tags: List[str] = Field(description="Cleaned, verified list of feature tags relevant to the app.")
-    raw_pricing_plans: List[str] = Field(description="Cleaned, verified list of pricing plans.")
+
