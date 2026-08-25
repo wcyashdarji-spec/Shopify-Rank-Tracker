@@ -383,4 +383,92 @@ export const api = {
   async getHeadToHead(appId: number, competitorId: number): Promise<any> {
     return request<any>(`/apps/${appId}/head-to-head/${competitorId}`);
   },
+
+  // Get user's Slack integrations
+  async getSlackIntegrations(): Promise<SlackIntegrationsResponse> {
+    return request<SlackIntegrationsResponse>("/integrations/slack");
+  },
+
+  // Add new Slack workspace integration
+  async addSlackIntegration(
+    workspace_name: string,
+    webhook_url?: string,
+    bot_token?: string,
+    channel_name?: string
+  ): Promise<{ message: string; integration: SlackIntegrationItem }> {
+    return request<{ message: string; integration: SlackIntegrationItem }>("/integrations/slack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_name, webhook_url, bot_token, channel_name }),
+    });
+  },
+
+  // Save selected active Slack workspace
+  async saveSlackIntegration(selected_integration_id: number | null): Promise<{ message: string }> {
+    return request<{ message: string }>("/integrations/slack/save", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selected_integration_id }),
+    });
+  },
+
+  // Remove single Slack integration
+  async deleteSlackIntegration(integrationId: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/integrations/slack/${integrationId}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Remove all Slack integrations
+  async removeAllSlackIntegrations(): Promise<{ message: string }> {
+    return request<{ message: string }>("/integrations/slack", {
+      method: "DELETE",
+    });
+  },
+
+  // Automatically detect workspace name based on current user profile & apps
+  async autoDetectSlackWorkspace(): Promise<{ workspace_name: string; suggested_workspaces: string[]; user_email: string }> {
+    return request<{ workspace_name: string; suggested_workspaces: string[]; user_email: string }>("/integrations/slack/auto-detect-workspace");
+  },
+
+  // Get backend-generated Slack OAuth2 URL
+  async getSlackAuthorizeUrl(): Promise<{ configured: boolean; url: string | null; message?: string }> {
+    return request<{ configured: boolean; url: string | null; message?: string }>("/integrations/slack/authorize-url");
+  },
+
+  // Trigger backend-managed OAuth2 token exchange & registration
+  async simulateSlackOAuth(
+    workspace_name: string,
+    channel_name?: string
+  ): Promise<{ message: string; integration: SlackIntegrationItem }> {
+    return request<{ message: string; integration: SlackIntegrationItem }>("/integrations/slack/oauth/simulate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_name, channel_name }),
+    });
+  },
+
+  // Send a test Slack notification
+  async sendTestSlackNotification(): Promise<{ message: string }> {
+    return request<{ message: string }>("/integrations/slack/test-notification", {
+      method: "POST",
+    });
+  },
 };
+
+export interface SlackIntegrationItem {
+  id: number;
+  workspace_name: string;
+  webhook_url?: string | null;
+  bot_token?: string | null;
+  channel_name?: string | null;
+  is_active: boolean;
+  created_at?: string | null;
+}
+
+export interface SlackIntegrationsResponse {
+  integrations: SlackIntegrationItem[];
+  selected_integration_id: number | null;
+  is_connected: boolean;
+}
+

@@ -37,6 +37,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleIcon from "@mui/icons-material/People";
+import ExtensionIcon from "@mui/icons-material/Extension";
 
 // API
 import { api, type App, type AppLastSync } from "../api";
@@ -51,8 +52,8 @@ interface SidebarProps {
 
   isLoadingApps: boolean;
   onDeleteApp: (appId: number) => void;
-  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
-  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors") => void;
+  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations";
+  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => void;
   onLogout?: () => void;
 }
 
@@ -336,6 +337,25 @@ export default function Sidebar({
                     },
                   }}
                   primary="History Log"
+                />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+                  sx={navItemSx(currentPage === "integrations")}
+                  onClick={() => onNavigate("integrations")}
+              >
+                <ListItemIcon sx={{ minWidth: 28 }}>
+                  <ExtensionIcon sx={{ fontSize: 16 }} />
+                </ListItemIcon>
+
+                <ListItemText
+                  slotProps={{
+                    primary: {
+                      sx: { fontSize: 13 },
+                    },
+                  }}
+                  primary="Integrations"
                 />
             </ListItemButton>
           </ListItem>

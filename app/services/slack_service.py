@@ -85,6 +85,120 @@ class SlackService:
 
 
     @classmethod
+    def send_to_workspace(cls, integration: any, results: list[dict], user_email: str) -> bool:
+        """
+        Send a ranking summary to the user's configured active Slack workspace.
+
+        The notification is sent using the following priority:
+
+        1. Slack incoming webhook URL, when configured.
+        2. Slack bot token with the configured channel.
+        3. Slack bot token with a direct message to the user's Slack account,
+        resolved using their email address.
+
+        Args:
+            integration: Slack integration containing webhook URL, bot token,
+                workspace name, and optional channel information.
+            results: Ranking results used to build the Slack message blocks.
+            user_email: Email address of the user receiving the notification.
+
+        Returns:
+            True if the notification was successfully delivered through either
+            the webhook or bot-token flow; otherwise False.
+
+        Notes:
+            Exceptions are logged and handled internally so that a Slack
+            notification failure does not interrupt the calling workflow.
+        """
+        blocks = cls._build_blocks(results)
+
+        if getattr(integration, "webhook_url", None):
+            try:
+                resp = requests.post(
+                    integration.webhook_url,
+                    json={
+                        "text": f"📊 Rank Tracking Report for {user_email}",
+                        "blocks": blocks,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    logger.info(
+                        "Sent Slack notification via Webhook URL to workspace '%s'.",
+                        getattr(integration, "workspace_name", "Slack"),
+                    )
+                    return True
+                logger.warning("Slack webhook returned status %d: %s", resp.status_code, resp.text)
+            except Exception as exc:
+                logger.exception(
+                    "Exception posting to Slack webhook for workspace '%s': %s",
+                    getattr(integration, "workspace_name", "Slack"),
+                    exc,
+                )
+
+        token = getattr(integration, "bot_token", None) or _bot_token()
+        if token:
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            }
+            channel = getattr(integration, "channel_name", None)
+
+            if not channel:
+                try:
+                    user_resp = requests.get(
+                        f"{_SLACK_API}/users.lookupByEmail",
+                        headers=headers,
+                        params={"email": user_email},
+                        timeout=10,
+                    )
+                    u_data = user_resp.json()
+                    if u_data.get("ok"):
+                        slack_uid = u_data["user"]["id"]
+                        open_resp = requests.post(
+                            f"{_SLACK_API}/conversations.open",
+                            headers=headers,
+                            json={"users": slack_uid},
+                            timeout=10,
+                        )
+                        o_data = open_resp.json()
+                        if o_data.get("ok"):
+                            channel = o_data["channel"]["id"]
+                except Exception as exc:
+                    logger.exception("Exception looking up user DM for workspace: %s", exc)
+
+            if channel:
+                target_channel = channel if (channel.startswith("C") or channel.startswith("D") or channel.startswith("G") or channel.startswith("#")) else f"#{channel}"
+                try:
+                    post_resp = requests.post(
+                        f"{_SLACK_API}/chat.postMessage",
+                        headers=headers,
+                        json={
+                            "channel": target_channel,
+                            "blocks": blocks,
+                            "text": f"📊 Rank Tracking Report for {user_email}",
+                        },
+                        timeout=15,
+                    )
+                    p_data = post_resp.json()
+                    if p_data.get("ok"):
+                        logger.info(
+                            "Sent Slack notification via Bot Token to channel '%s' in workspace '%s'.",
+                            target_channel,
+                            getattr(integration, "workspace_name", "Slack"),
+                        )
+                        return True
+                    logger.error(
+                        "chat.postMessage failed for workspace '%s': %s",
+                        getattr(integration, "workspace_name", "Slack"),
+                        p_data.get("error"),
+                    )
+                except Exception as exc:
+                    logger.exception("Exception posting Slack message via Bot Token: %s", exc)
+
+        return False
+
+    @classmethod
     def send_dm(cls, slack_user_id: str, results: list[dict]) -> bool:
         """
         Send a Block Kit ranking summary as a DM to the given Slack user.

@@ -54,6 +54,7 @@ async def run_tracker(
                 NotificationService.notify_user,
                 current_user.email,
                 results,
+                db,
             )
         except Exception as notify_exc:
             logger.exception("Notification failed for user=%s: %s", current_user.email, notify_exc)
@@ -94,6 +95,7 @@ async def run_saved_apps(
                 NotificationService.notify_user,
                 current_user.email,
                 results,
+                db,
             )
         except Exception as notify_exc:
             logger.exception("Notification failed for user=%s: %s", current_user.email, notify_exc)
@@ -213,6 +215,7 @@ async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = 
                             NotificationService.notify_user,
                             user.email,
                             results,
+                            db,
                         )
                     else:
                         logger.warning(f"Could not find user record for user_id={user_id}; skipping notification.")

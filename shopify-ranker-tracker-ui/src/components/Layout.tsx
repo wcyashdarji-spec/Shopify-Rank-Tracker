@@ -21,8 +21,8 @@ interface LayoutProps {
   onDeleteApp: (appId: number) => void;
 
   isLoadingApps: boolean;
-  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors";
-  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors") => void;
+  currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations";
+  onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => void;
   headerContent?: ReactNode;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
