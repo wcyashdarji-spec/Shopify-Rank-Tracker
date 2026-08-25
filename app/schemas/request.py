@@ -65,3 +65,17 @@ class AuditReport(BaseModel):
     rating_val: float = Field(description="Scraped star rating numerical value (e.g. 4.8, 0.0)")
     categories: AuditCategories = Field(description="Scoring details across the 6 optimization categories")
 
+class SlackIntegrationCreate(BaseModel):
+    workspace_name: str
+    webhook_url: Optional[str] = None
+    bot_token: Optional[str] = None
+    channel_name: Optional[str] = None
+
+
+class SlackIntegrationSaveRequest(BaseModel):
+    selected_integration_id: Optional[int] = None
+
+
+class SlackOAuthSimulateRequest(BaseModel):
+    workspace_name: str
+    channel_name: Optional[str] = None

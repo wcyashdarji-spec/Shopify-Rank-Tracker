@@ -16,11 +16,13 @@ import PageHeader from "./components/PageHeader";
 import LoginRegister from "./components/LoginRegister";
 
 // Lazy loaded page components
+// Lazy loaded page components
 const Dashboard = lazy(() => import("./components/DashBoard"));
 const HistoryPage = lazy(() => import("./components/HistoryPage"));
 const ProfilePage = lazy(() => import("./components/ProfilePage"));
 const ListingOptimizer = lazy(() => import("./components/ListingOptimizer"));
 const CompetitorsPage = lazy(() => import("./components/CompetitorsPage"));
+const IntegrationsPage = lazy(() => import("./components/IntegrationsPage"));
 
 const theme = createTheme({
   palette: {
@@ -32,7 +34,7 @@ const theme = createTheme({
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
-  const [page, setPage] = useState<"dashboard" | "history" | "settings" | "optimizer" | "competitors">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [invitations, setInvitations] = useState<any[]>([]);
 
@@ -302,6 +304,8 @@ export default function App() {
       null
     ) : page === "competitors" ? (
       null
+    ) : page === "integrations" ? (
+      null
     ) : (
       <PageHeader
         title="Profile Settings"
@@ -367,6 +371,8 @@ export default function App() {
                 onSelectApp={setSelectedApp}
                 showToast={showToast}
               />
+            ) : page === "integrations" ? (
+              <IntegrationsPage showToast={showToast} />
             ) : (
               <ProfilePage
                 apps={apps}
@@ -399,4 +405,4 @@ export default function App() {
       </Snackbar>
     </ThemeProvider>
   );
-}
+}

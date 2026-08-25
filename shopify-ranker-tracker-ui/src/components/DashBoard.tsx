@@ -40,32 +40,46 @@ export default function Dashboard({
   const [keywordsDialogOpen, setKeywordsDialogOpen] = useState(false);
   const [listingScore, setListingScore] = useState<number | null>(null);
 
-  const fetchListingScore = async () => {
-    if (!selectedApp) return;
-    try {
-      const audit = await api.getListingAudit(selectedApp.id);
-      if (audit && typeof audit.overall_score === "number") {
-        setListingScore(audit.overall_score);
+  useEffect(() => {
+    if (!selectedApp) {
+      setListingScore(null);
+      setHistoryData([]);
+      setSelectedKeywords([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    const kwIds = selectedApp.keywords.map((k) => k.id);
+
+    Promise.allSettled([
+      api.getListingAudit(selectedApp.id),
+      kwIds.length > 0 ? api.getHistory(selectedApp.id, kwIds, daysRange) : Promise.resolve({ keywords: [] }),
+    ]).then(([auditRes, historyRes]) => {
+      if (!isMounted) return;
+
+      if (auditRes.status === "fulfilled" && auditRes.value && typeof auditRes.value.overall_score === "number") {
+        setListingScore(auditRes.value.overall_score);
       } else {
         setListingScore(null);
       }
-    } catch (err) {
-      setListingScore(null);
-    }
-  };
 
-  useEffect(() => {
-    if (selectedApp) {
-      fetchListingScore();
-    } else {
-      setListingScore(null);
-    }
-  }, [selectedApp]);
+      if (historyRes.status === "fulfilled") {
+        setHistoryData(historyRes.value.keywords || []);
+        setSelectedKeywords((prev) => {
+          const isValidPrev = prev.length > 0 && prev.every((id) => kwIds.includes(id));
+          return isValidPrev ? prev : kwIds;
+        });
+      } else {
+        showToast((historyRes as PromiseRejectedResult).reason?.message || "Failed to load history", "error");
+      }
+      setIsLoadingHistory(false);
+    });
 
-  // Reset selected keywords whenever the app changes
-  useEffect(() => {
-    setSelectedKeywords([]);
-  }, [selectedApp?.id]);
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedApp?.id, daysRange]);
 
   const fetchHistory = async () => {
     if (!selectedApp) return;
@@ -78,22 +92,16 @@ export default function Dashboard({
       }
       const data = await api.getHistory(selectedApp.id, kwIds, daysRange);
       setHistoryData(data.keywords || []);
-      setSelectedKeywords((prev) => (prev.length === 0 ? kwIds : prev));
+      setSelectedKeywords((prev) => {
+        const isValidPrev = prev.length > 0 && prev.every((id) => kwIds.includes(id));
+        return isValidPrev ? prev : kwIds;
+      });
     } catch (err: any) {
       showToast(err?.message || "Failed to load history", "error");
     } finally {
       setIsLoadingHistory(false);
     }
   };
-
-  useEffect(() => {
-    if (selectedApp) {
-      fetchHistory();
-    } else {
-      setHistoryData([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedApp, daysRange]);
 
   const handleToggleKeyword = (id: number) => {
     if (selectedKeywords.includes(id)) {

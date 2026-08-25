@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from sqlalchemy import text
 from app.db import init_db, engine
 from app.core.logger import get_logger
 from app.db.models.ranking import Base 
@@ -21,7 +22,7 @@ def main():
         logger.info("\n[1/3] Testing database connection...")
         try:
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             logger.info("✓ Database connection successful")
         except Exception as e:
             logger.info(f"✗ Database connection failed: {e}")
@@ -39,7 +40,7 @@ def main():
         WHERE table_schema = 'public'
         """
         with engine.connect() as conn:
-            result = conn.execute(inspector_sql)
+            result = conn.execute(text(inspector_sql))
             tables = [row[0] for row in result.fetchall()]
 
         expected_tables = {"apps", "keywords", "ranking_history", "users", "user_activities"}
