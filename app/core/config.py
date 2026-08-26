@@ -24,3 +24,5 @@ if DAILY_AUDIT_LIMIT_RAW is not None and DAILY_AUDIT_LIMIT_RAW.strip() != "":
     except ValueError:
         pass
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+

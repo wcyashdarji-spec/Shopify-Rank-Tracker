@@ -272,9 +272,11 @@ def slack_oauth_callback(
             exchange fails.
     """
     try:
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
         if error:
             logger.error("Slack OAuth authorization error: %s", error)
-            return RedirectResponse(url="/?slack_error=" + error)
+            return RedirectResponse(url=f"{frontend_url}/?slack_error={error}")
 
         if not code:
             raise HTTPException(
@@ -349,7 +351,7 @@ def slack_oauth_callback(
             user_id,
         )
 
-        return RedirectResponse(url=f"http://localhost:5173/?slack_connected=true&workspace={workspace_name}")
+        return RedirectResponse(url=f"{frontend_url}/?slack_connected=true&workspace={workspace_name}")
     except Exception as e:
         logger.error("slack_oauth_callback", e)
         raise HTTPException(

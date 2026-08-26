@@ -148,6 +148,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Check for Slack OAuth redirect query params and clean URL bar
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("slack_connected") === "true") {
+      const ws = params.get("workspace") || "Slack Workspace";
+      showToast(`🎉 Backend OAuth2 Authorization complete! Connected to '${ws}'.`, "success");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setPage("integrations");
+    } else if (params.get("slack_error")) {
+      showToast(`Slack OAuth Error: ${params.get("slack_error")}`, "error");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setPage("integrations");
+    }
+
     if (isAuthenticated) {
       fetchApps(true);
       fetchInvitations();
