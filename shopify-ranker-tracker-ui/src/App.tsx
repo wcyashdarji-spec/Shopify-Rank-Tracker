@@ -2,9 +2,10 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 
 // Material UI
-import { Alert, Button, Snackbar, Typography, Box, CircularProgress } from "@mui/material";
+import { Alert, Button, Snackbar, Box, CircularProgress } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
@@ -183,7 +184,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isAnyAppSyncing]);
 
-  const handleAppSelect = (app: AppType) => {
+  const handleAppSelect = (app: AppType | null) => {
     setSelectedApp(app);
     setPage("dashboard");
   };
@@ -257,11 +258,18 @@ export default function App() {
     );
   })();
 
-  const headerContent =
-    page === "dashboard" ? (
-      <PageHeader
-        title="Shopify App Store Index"
-        actions={
+  const headerContent = (() => {
+    if (page === "dashboard") {
+      const title = selectedApp ? selectedApp.name : "Home Overview";
+      const subtitle = selectedApp
+        ? selectedApp.url
+        : "Overview of tracked Shopify apps & keyword rankings";
+
+      return (
+        <PageHeader
+          title={title}
+          subtitle={subtitle}
+          actions={
             <Box
               sx={{
                 display: "flex",
@@ -274,7 +282,7 @@ export default function App() {
                 <Button
                   variant="outlined"
                   size="small"
-                  startIcon={<RefreshIcon sx={{ fontSize: 15 }} />}
+                  startIcon={<RefreshIcon sx={{ fontSize: 14 }} />}
                   onClick={() =>
                     handleTrackApp(
                       selectedApp.name,
@@ -283,48 +291,105 @@ export default function App() {
                     )
                   }
                   sx={{
-                    fontSize: 13,
-                    color: "#6b7280",
-                    border: "1px solid #e5e7eb",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    color: "#475569",
+                    borderColor: "#e2e8f0",
                     borderRadius: "8px",
-                    px: 1.5,
+                    px: 1.75,
                     py: 0.5,
+                    bgcolor: "#ffffff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                    "&:hover": {
+                      borderColor: "#6366f1",
+                      color: "#6366f1",
+                      bgcolor: "#f8fafc",
+                    },
                   }}
                 >
-                  Resync
+                  Re-sync App
                 </Button>
               )}
 
-              <Typography
+              <Button
+                size="small"
+                startIcon={<HelpOutlineIcon sx={{ fontSize: 15, color: "#6366f1" }} />}
+                onClick={() => showToast("Contact support at support@shopifyranktracker.com", "info")}
                 sx={{
-                  fontSize: 13,
-                  color: "#f97316",
-                  fontWeight: 500,
-                  cursor: "pointer",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  textTransform: "none",
+                  color: "#475569",
+                  bgcolor: "#f1f5f9",
+                  borderRadius: "8px",
+                  px: 1.5,
+                  py: 0.5,
+                  "&:hover": {
+                    bgcolor: "#e2e8f0",
+                    color: "#0f172a",
+                  },
                 }}
               >
                 Need help?
-              </Typography>
+              </Button>
             </Box>
           }
-      />
-    ) : page === "history" ? (
-      <PageHeader
-        title="History Log"
-        subtitle="See when each tracked app was last checked for keyword rankings."
-      />
-    ) : page === "optimizer" ? (
-      null
-    ) : page === "competitors" ? (
-      null
-    ) : page === "integrations" ? (
-      null
-    ) : (
+        />
+      );
+    }
+
+    if (page === "history") {
+      return (
+        <PageHeader
+          title="History Log"
+          subtitle="See when each tracked app was last checked for keyword rankings."
+        />
+      );
+    }
+
+    if (page === "optimizer") {
+      return (
+        <PageHeader
+          title="Listing Optimizer"
+          subtitle={
+            selectedApp
+              ? `Audit and optimize App Store listing for ${selectedApp.name}`
+              : "Audit and optimize Shopify App Store listing for SEO & search visibility"
+          }
+        />
+      );
+    }
+
+    if (page === "competitors") {
+      return (
+        <PageHeader
+          title="Competitor Intelligence"
+          subtitle={
+            selectedApp
+              ? `Head-to-head competitor analysis for ${selectedApp.name}`
+              : "Track and compare keyword rankings side-by-side against competitor apps"
+          }
+        />
+      );
+    }
+
+    if (page === "integrations") {
+      return (
+        <PageHeader
+          title="Integrations & Alerts"
+          subtitle="Connect Slack workspaces and manage automated rank notifications."
+        />
+      );
+    }
+
+    return (
       <PageHeader
         title="Profile Settings"
         subtitle="Manage your user profile details."
       />
-    );  return (
+    );
+  })();  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       {!isAuthenticated ? (
@@ -367,6 +432,9 @@ export default function App() {
                 onRefreshApps={fetchApps}
                 onUpdateSelectedApp={setSelectedApp}
                 showToast={showToast}
+                apps={apps}
+                onSelectApp={handleAppSelect}
+                onNavigate={setPage}
               />
             ) : page === "history" ? (
               <HistoryPage />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -12,16 +12,17 @@ import {
   Select,
   TextField,
   Typography,
-  CircularProgress,
   Paper,
+  Tooltip,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
 import LinkIcon from "@mui/icons-material/Link";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CloseIcon from "@mui/icons-material/Close";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import SecurityIcon from "@mui/icons-material/Security";
 import { api, type SlackIntegrationItem } from "../api";
+import AppLogo from "./AppLogo";
 
 interface IntegrationsPageProps {
   showToast: (message: string, severity?: "success" | "error" | "info") => void;
@@ -68,7 +69,6 @@ export function SlackLogo({ size = 24 }: { size?: number }) {
 }
 
 export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
-  const [view, setView] = useState<"overview" | "slack-detail">("slack-detail");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -174,7 +174,6 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
 
   const handlePlusClick = async () => {
     try {
-      // Auto-detect current user's workspace from backend
       try {
         const autoRes = await api.autoDetectSlackWorkspace();
         if (autoRes.workspace_name) {
@@ -184,7 +183,6 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
         // Ignore fallback
       }
 
-      // Check if backend OAuth2 URL is configured
       const res = await api.getSlackAuthorizeUrl();
       if (res.configured && res.url) {
         window.location.href = res.url;
@@ -243,262 +241,167 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
 
   const isSlackConnected = integrations.length > 0;
 
-  // View 1: Overview Screen ("Powerful Integrations")
-  if (view === "overview") {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 2, sm: 4 } }}>
-        <Box sx={{ mb: 4 }}>
+  return (
+    <Container maxWidth="md" sx={{ py: { xs: 3, sm: 4 }, px: { xs: 2, sm: 4 } }}>
+      {/* Top Header */}
+      <Box sx={{ mb: 3.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: 1 }}>
           <Typography
             variant="h5"
             sx={{
-              fontWeight: 700,
-              color: "#111827",
+              fontWeight: 800,
+              color: "#0f172a",
               letterSpacing: "-0.02em",
               fontSize: 24,
-              mb: 0.5,
-            }}
-          >
-            Integrations
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#6b7280", fontSize: 14 }}>
-            Power up your product workflow by integrating with tools that notify your workspace.
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-          {/* Slack Integration Card (Matching Image 1) */}
-          <Card
-            sx={{
-              width: 340,
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-              border: "1px solid #e5e7eb",
-              bgcolor: "#ffffff",
-              overflow: "hidden",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              "&:hover": {
-                transform: "translateY(-4px)",
-                boxShadow: "0 12px 30px rgba(0,0,0,0.08)",
-              },
-            }}
-          >
-            {/* Soft Blue Top Banner Container */}
-            <Box
-              sx={{
-                height: 180,
-                bgcolor: "#eef8fc",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Box
-                sx={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: "18px",
-                  bgcolor: "#ffffff",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <SlackLogo size={38} />
-              </Box>
-            </Box>
-
-            {/* Body Section */}
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
-                  Slack
-                </Typography>
-                {isSlackConnected && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <CheckCircleIcon sx={{ fontSize: 16, color: "#10b981" }} />
-                    <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#10b981" }}>
-                      Connected
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-              <Typography
-                sx={{
-                  fontSize: 13.5,
-                  color: "#4b5563",
-                  lineHeight: 1.5,
-                  mb: 3,
-                  minHeight: 40,
-                }}
-              >
-                Get real-time alerts for new feedback, and updates- right in your Slack channels.
-              </Typography>
-
-              <Button
-                variant="outlined"
-                onClick={() => setView("slack-detail")}
-                sx={{
-                  borderRadius: "8px",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  color: "#111827",
-                  borderColor: "#e5e7eb",
-                  px: 2.5,
-                  py: 0.75,
-                  bgcolor: "#ffffff",
-                  "&:hover": {
-                    borderColor: "#d1d5db",
-                    bgcolor: "#f9fafb",
-                  },
-                }}
-              >
-                {isSlackConnected ? "Configure →" : "Connect →"}
-              </Button>
-            </Box>
-          </Card>
-          
-        </Box>
-      </Container>
-    );
-  }
-
-  // View 2: Slack Integration Detail Screen (Matching Image 2)
-  return (
-    <Container maxWidth="md" sx={{ py: 4, px: { xs: 2, sm: 4 } }}>
-      {/* Top Header with Back Arrow */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-          <IconButton
-            size="small"
-            onClick={() => setView("overview")}
-            sx={{
-              color: "#374151",
-              p: 0.5,
-              "&:hover": { bgcolor: "#f3f4f6" },
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 700,
-              color: "#111827",
-              letterSpacing: "-0.02em",
-              fontSize: 22,
             }}
           >
             Slack Integration
           </Typography>
+
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: "20px",
+              bgcolor: isSlackConnected ? "#ecfdf5" : "#f1f5f9",
+              border: isSlackConnected ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: isSlackConnected ? "#10b981" : "#94a3b8",
+              }}
+            />
+            <Typography
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: isSlackConnected ? "#047857" : "#64748b",
+              }}
+            >
+              {isSlackConnected ? "Connected to Slack" : "Not Connected"}
+            </Typography>
+          </Box>
         </Box>
+
         <Typography
           variant="body2"
-          sx={{ color: "#6b7280", fontSize: 13.5, pl: 4.5, maxWidth: "700px" }}
+          sx={{ color: "#64748b", fontSize: 14, lineHeight: 1.6, maxWidth: "720px" }}
         >
-          Connect your workspace to receive real-time Slack notifications and Never miss a comment, vote, or reaction - stay informed as your users engage.
+          Connect your Slack workspace to receive instant real-time notifications, daily keyword rank digests, and daily position change alerts directly in your team channels.
         </Typography>
       </Box>
 
-      {/* Main Integration Card (Exact match to Image 2) */}
+      {/* Main Integration Card */}
       <Card
+        elevation={0}
         sx={{
-          borderRadius: "12px",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.03)",
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)",
           bgcolor: "#ffffff",
-          p: { xs: 2.5, sm: 3.5 },
+          p: { xs: 3, sm: 4 },
+          mb: 4,
         }}
       >
-        {/* Top Header Row inside Card */}
+        {/* Top Connected Logo Chain Row */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             pb: 3,
-            borderBottom: "1px solid #f3f4f6",
-            mb: 3,
+            borderBottom: "1px solid #f1f5f9",
+            mb: 3.5,
+            flexWrap: "wrap",
+            gap: 2,
           }}
         >
-          {/* Logo chain view */}
+          {/* Logo chain emblems */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            {/* App Rank Tracker logo in dark slate box with orange chart icon */}
+            {/* App Rank Tracker Light Brand Emblem */}
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
+                width: 48,
+                height: 48,
+                borderRadius: "14px",
+                bgcolor: "#ffffff",
+                border: "1px solid #e2e8f0",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#ffffff",
-                boxShadow: "0 4px 12px rgba(17, 24, 39, 0.15)",
+                boxShadow: "0 4px 14px rgba(99, 102, 241, 0.08)",
               }}
             >
-              <TrendingUpIcon sx={{ fontSize: 22, color: "#f97316" }} />
+              <AppLogo size={28} />
             </Box>
 
             {/* Link chain emblem */}
             <Box
               sx={{
-                width: 22,
-                height: 22,
+                width: 24,
+                height: 24,
                 borderRadius: "50%",
                 bgcolor: "#ffffff",
-                border: "1px solid #e5e7eb",
+                border: "1.5px solid #e2e8f0",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                mx: -0.75,
+                mx: -0.85,
                 zIndex: 1,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
               }}
             >
-              <LinkIcon sx={{ fontSize: 12, color: "#9ca3af" }} />
+              <LinkIcon sx={{ fontSize: 13, color: "#64748b" }} />
             </Box>
 
             {/* Slack logo square */}
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "10px",
+                width: 48,
+                height: 48,
+                borderRadius: "14px",
                 bgcolor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.05)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <SlackLogo size={24} />
+              <SlackLogo size={26} />
             </Box>
           </Box>
 
           {/* Remove Integration Button */}
           <Button
-            variant="contained"
-            disableElevation
+            variant="outlined"
             onClick={handleRemoveIntegration}
             disabled={removing || !isSlackConnected}
             sx={{
-              bgcolor: "#ff8080",
-              color: "#ffffff",
-              borderRadius: "8px",
-              px: 2.5,
-              py: 0.9,
+              borderColor: "#fecaca",
+              color: "#dc2626",
+              bgcolor: "#fef2f2",
+              borderRadius: "9px",
+              px: 2.25,
+              py: 0.85,
               fontSize: 13,
-              fontWeight: 600,
+              fontWeight: 700,
               textTransform: "none",
               "&:hover": {
-                bgcolor: "#ef4444",
+                bgcolor: "#fee2e2",
+                borderColor: "#fca5a5",
               },
               "&.Mui-disabled": {
-                bgcolor: "#fca5a5",
-                color: "#ffffff",
-                opacity: 0.7,
+                bgcolor: "#f8fafc",
+                borderColor: "#e2e8f0",
+                color: "#94a3b8",
               },
             }}
           >
@@ -506,14 +409,14 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
           </Button>
         </Box>
 
-        {/* Middle Section: Connect to Slack Workspace */}
-        <Box sx={{ my: 2 }}>
+        {/* Middle Section: Workspace Select */}
+        <Box sx={{ mb: 3.5 }}>
           <Typography
             sx={{
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: "#111827",
-              mb: 1.5,
+              fontSize: 14,
+              fontWeight: 700,
+              color: "#0f172a",
+              mb: 1.25,
             }}
           >
             Connect to Slack Workspace
@@ -527,19 +430,22 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
                 onChange={(e) => setSelectedWorkspaceId(e.target.value as number | "")}
                 disabled={loading}
                 sx={{
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   fontSize: 13.5,
                   bgcolor: "#ffffff",
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#e5e7eb",
+                    borderColor: "#e2e8f0",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#d1d5db",
+                    borderColor: "#cbd5e1",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#6366f1",
                   },
                 }}
               >
                 <MenuItem value="" disabled>
-                  <em style={{ fontStyle: "normal", color: "#9ca3af" }}>
+                  <em style={{ fontStyle: "normal", color: "#94a3b8" }}>
                     Select a Slack Workspace
                   </em>
                 </MenuItem>
@@ -552,26 +458,30 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
             </FormControl>
 
             {/* Plus Button (+) */}
-            <Button
-              variant="outlined"
-              onClick={handlePlusClick}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: "8px",
-                borderColor: "#e5e7eb",
-                color: "#374151",
-                "&:hover": {
-                  borderColor: "#9ca3af",
-                  bgcolor: "#f9fafb",
-                },
-              }}
-              title="Connect new Slack workspace"
-            >
-              <AddIcon sx={{ fontSize: 18 }} />
-            </Button>
+            <Tooltip title="Authorize new Slack Workspace">
+              <Button
+                variant="outlined"
+                onClick={handlePlusClick}
+                sx={{
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                  borderRadius: "10px",
+                  borderColor: "#e2e8f0",
+                  color: "#0f172a",
+                  bgcolor: "#ffffff",
+                  flexShrink: 0,
+                  "&:hover": {
+                    borderColor: "#6366f1",
+                    color: "#6366f1",
+                    bgcolor: "#f8fafc",
+                  },
+                }}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+              </Button>
+            </Tooltip>
           </Box>
         </Box>
 
@@ -581,31 +491,32 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            mt: 4,
-            pt: 2.5,
-            borderTop: "1px solid #f3f4f6",
+            pt: 3,
+            borderTop: "1px solid #f1f5f9",
+            flexWrap: "wrap",
+            gap: 2,
           }}
         >
-          {/* Need help? Contact Us */}
+          {/* Need help? Contact Support */}
           <Typography
             sx={{
               fontSize: 13.5,
               fontWeight: 500,
-              color: "#374151",
+              color: "#475569",
             }}
           >
             Need help?{" "}
             <Box
               component="span"
               sx={{
-                color: "#f97316",
-                fontWeight: 600,
+                color: "#6366f1",
+                fontWeight: 700,
                 cursor: "pointer",
                 "&:hover": { textDecoration: "underline" },
               }}
               onClick={() => showToast("Contact support at support@shopifyranktracker.com", "info")}
             >
-              Contact Us
+              Contact Support
             </Box>
           </Typography>
 
@@ -616,22 +527,24 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
                 variant="outlined"
                 onClick={handleTestSlackNotification}
                 disabled={testingSlack}
+                startIcon={<FlashOnIcon sx={{ fontSize: 16 }} />}
                 sx={{
-                  borderRadius: "8px",
-                  borderColor: "#007a5a",
-                  color: "#007a5a",
-                  fontWeight: 600,
+                  borderRadius: "9px",
+                  borderColor: "#10b981",
+                  color: "#047857",
+                  bgcolor: "#ecfdf5",
+                  fontWeight: 700,
                   fontSize: 13,
                   textTransform: "none",
-                  px: 2.5,
-                  py: 0.9,
+                  px: 2.25,
+                  py: 0.85,
                   "&:hover": {
-                    borderColor: "#00664b",
-                    bgcolor: "#e8f5e9",
+                    borderColor: "#059669",
+                    bgcolor: "#d1fae5",
                   },
                 }}
               >
-                {testingSlack ? "Sending..." : "⚡ Test Slack Alert"}
+                {testingSlack ? "Sending..." : "Test Slack Alert"}
               </Button>
             )}
 
@@ -641,16 +554,18 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
               onClick={handleSaveIntegration}
               disabled={saving}
               sx={{
-                bgcolor: "#111827",
+                bgcolor: "#0f172a",
                 color: "#ffffff",
-                borderRadius: "8px",
+                borderRadius: "9px",
                 px: 3.5,
-                py: 0.9,
+                py: 0.85,
                 fontSize: 13.5,
-                fontWeight: 600,
+                fontWeight: 700,
                 textTransform: "none",
+                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
                 "&:hover": {
-                  bgcolor: "#1f2937",
+                  bgcolor: "#1e293b",
+                  boxShadow: "0 6px 16px rgba(15, 23, 42, 0.25)",
                 },
               }}
             >
@@ -660,64 +575,76 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
         </Box>
       </Card>
 
-      {/* Feature Highlights & Capability Grid (User-Friendly Info Cards) */}
-      <Box sx={{ mt: 4, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 2.5 }}>
+      {/* Feature Highlights Grid */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2.5 }}>
+        {/* Card 1 */}
         <Paper
           elevation={0}
           sx={{
-            p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
+            p: 3,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
             bgcolor: "#ffffff",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
           }}
         >
-          <Typography sx={{ fontSize: 20, mb: 1 }}>⚡</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#111827", mb: 0.5 }}>
+          <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#e0e7ff", color: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+            <FlashOnIcon sx={{ fontSize: 22 }} />
+          </Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
             Real-Time Rank Alerts
           </Typography>
-          <Typography sx={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
             Get instant notifications directly in your Slack channel whenever your app's rank moves up or down.
           </Typography>
         </Paper>
 
+        {/* Card 2 */}
         <Paper
           elevation={0}
           sx={{
-            p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
+            p: 3,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
             bgcolor: "#ffffff",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
           }}
         >
-          <Typography sx={{ fontSize: 20, mb: 1 }}>📊</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#111827", mb: 0.5 }}>
+          <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#faf5ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+            <AssessmentIcon sx={{ fontSize: 22 }} />
+          </Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
             Daily Summary Reports
           </Typography>
-          <Typography sx={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
             Receive structured daily digest summaries grouping all tracked keywords and average ranks.
           </Typography>
         </Paper>
 
+        {/* Card 3 */}
         <Paper
           elevation={0}
           sx={{
-            p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
+            p: 3,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
             bgcolor: "#ffffff",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
           }}
         >
-          <Typography sx={{ fontSize: 20, mb: 1 }}>🔒</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#111827", mb: 0.5 }}>
+          <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#ecfdf5", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+            <SecurityIcon sx={{ fontSize: 22 }} />
+          </Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
             Dynamic Slack OAuth
           </Typography>
-          <Typography sx={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
             Securely authorize and switch between your team Slack workspaces with one click.
           </Typography>
         </Paper>
       </Box>
 
-      {/* Slack OAuth Authorization Modal (Matching User's Screenshot Flow) */}
+      {/* Slack OAuth Authorization Modal */}
       <Dialog
         open={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
@@ -728,7 +655,7 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
             sx: {
               borderRadius: "16px",
               boxShadow: "0 24px 72px rgba(0,0,0,0.18)",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #e2e8f0",
               bgcolor: "#ffffff",
               p: 0,
               overflow: "hidden",
@@ -736,372 +663,91 @@ export default function IntegrationsPage({ showToast }: IntegrationsPageProps) {
           },
         }}
       >
-        {/* Top Header Bar with Slack Brand Logo */}
+        {/* Modal Top Bar */}
         <Box
           sx={{
             px: 3.5,
             py: 2,
-            borderBottom: "1px solid #ebebeb",
+            borderBottom: "1px solid #e2e8f0",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <SlackLogo size={22} />
-            <Typography
-              sx={{
-                fontWeight: 900,
-                fontSize: 20,
-                color: "#1d1c1d",
-                letterSpacing: "-0.04em",
-                fontFamily: "system-ui, -apple-system, sans-serif",
-              }}
-            >
-              slack
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+            <SlackLogo size={24} />
+            <Typography sx={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+              Slack OAuth Authorization
             </Typography>
           </Box>
           <IconButton size="small" onClick={() => setIsAddDialogOpen(false)}>
-            <CloseIcon sx={{ fontSize: 20, color: "#616061" }} />
+            <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
 
-        <form onSubmit={handleAddWorkspaceSubmit}>
-          <DialogContent sx={{ p: { xs: 3, sm: 4.5 }, pt: 4 }}>
-            {/* Grid Container: Left App Info vs Right Permission Review */}
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 4,
-                alignItems: "start",
-              }}
-            >
-              {/* Left Column: App Branding & Workspace Selector */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {/* App Brand Icon Badge */}
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "16px",
-                    background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#ffffff",
-                    boxShadow: "0 6px 16px rgba(17, 24, 39, 0.18)",
-                    mb: 0.5,
-                  }}
-                >
-                  <TrendingUpIcon sx={{ fontSize: 28, color: "#f97316" }} />
-                </Box>
+        <DialogContent sx={{ p: 4 }}>
+          <form onSubmit={handleAddWorkspaceSubmit}>
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0f172a", mb: 1 }}>
+                Slack Workspace Name
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={newWorkspaceName}
+                onChange={(e) => setNewWorkspaceName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                slotProps={{
+                  input: {
+                    sx: { borderRadius: "10px", fontSize: 13.5 },
+                  },
+                }}
+              />
+            </Box>
 
-                {/* Main Headline */}
-                <Typography
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: 22,
-                    color: "#1d1c1d",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  Allow the "Rank Tracker" app to access Slack
-                </Typography>
+            <Box sx={{ mb: 4 }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0f172a", mb: 1 }}>
+                Notification Channel (Optional)
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder="e.g. rank-tracker-alerts"
+                slotProps={{
+                  input: {
+                    sx: { borderRadius: "10px", fontSize: 13.5 },
+                  },
+                }}
+              />
+            </Box>
 
-                {/* Slack Approved Badge */}
-                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mt: 0.5 }}>
-                  <CheckCircleIcon sx={{ fontSize: 18, color: "#007a5a", mt: 0.2 }} />
-                  <Box>
-                    <Typography sx={{ fontWeight: 600, fontSize: 13, color: "#007a5a" }}>
-                      App is approved by Slack
-                    </Typography>
-                    <Typography sx={{ fontSize: 12, color: "#616061", mt: 0.2, lineHeight: 1.4 }}>
-                      Apps are reviewed for quality before they are listed in the Slack Marketplace.
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {/* Dynamic Workspace Selector & Input */}
-                <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 600, fontSize: 13, color: "#1d1c1d", mb: 0.75 }}>
-                      Workspace
-                    </Typography>
-                    {integrations.length > 0 ? (
-                      <Select
-                        size="small"
-                        fullWidth
-                        value={newWorkspaceName}
-                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                        displayEmpty
-                        sx={{
-                          borderRadius: "8px",
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          bgcolor: "#ffffff",
-                          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#dddddd" },
-                        }}
-                      >
-                        {newWorkspaceName && !integrations.some((item) => item.workspace_name === newWorkspaceName) && (
-                          <MenuItem value={newWorkspaceName}>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Box
-                                sx={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: "5px",
-                                  background: "linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)",
-                                  color: "#fff",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {newWorkspaceName[0]?.toUpperCase() || "W"}
-                              </Box>
-                              <Typography sx={{ fontWeight: 600, fontSize: 13.5 }}>{newWorkspaceName}</Typography>
-                            </Box>
-                          </MenuItem>
-                        )}
-                        {integrations.map((item) => (
-                          <MenuItem key={item.id} value={item.workspace_name}>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Box
-                                sx={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: "5px",
-                                  background: "linear-gradient(135deg, #007a5a 0%, #00664b 100%)",
-                                  color: "#fff",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {item.workspace_name[0]?.toUpperCase() || "W"}
-                              </Box>
-                              <Typography sx={{ fontWeight: 600, fontSize: 13.5 }}>{item.workspace_name}</Typography>
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    ) : (
-                      <TextField
-                        size="small"
-                        fullWidth
-                        required
-                        value={newWorkspaceName}
-                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                        placeholder="Enter Slack Workspace Name..."
-                        slotProps={{
-                          input: {
-                            sx: {
-                              borderRadius: "8px",
-                              fontSize: 13.5,
-                              fontWeight: 600,
-                              bgcolor: "#ffffff",
-                              "& fieldset": { borderColor: "#dddddd" },
-                              "&:hover fieldset": { borderColor: "#bbbbbb" },
-                            },
-                            startAdornment: newWorkspaceName.trim() ? (
-                              <Box
-                                sx={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: "5px",
-                                  background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
-                                  color: "#fff",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  mr: 1,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {newWorkspaceName.trim()[0].toUpperCase()}
-                              </Box>
-                            ) : null,
-                          },
-                        }}
-                      />
-                    )}
-                  </Box>
-
-                  <Box>
-                    <Typography sx={{ fontWeight: 600, fontSize: 12.5, color: "#1d1c1d", mb: 0.5 }}>
-                      Notification Channel (Optional)
-                    </Typography>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      value={newChannelName}
-                      onChange={(e) => setNewChannelName(e.target.value)}
-                      placeholder="e.g. rank-alerts, general"
-                      slotProps={{
-                        input: {
-                          sx: {
-                            borderRadius: "8px",
-                            fontSize: 13,
-                            bgcolor: "#ffffff",
-                            "& fieldset": { borderColor: "#dddddd" },
-                          },
-                          startAdornment: (
-                            <Typography sx={{ color: "#9ca3af", fontSize: 13, mr: 0.5 }}>#</Typography>
-                          ),
-                        },
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Right Column: Review App Permissions Box */}
-              <Box
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
+              <Button
+                onClick={() => setIsAddDialogOpen(false)}
+                sx={{ color: "#64748b", textTransform: "none", fontWeight: 600 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={addingWorkspace || !newWorkspaceName.trim()}
                 sx={{
-                  bgcolor: "#f8f8f8",
-                  borderRadius: "12px",
-                  p: 3,
-                  border: "1px solid #ebebeb",
+                  bgcolor: "#0f172a",
+                  borderRadius: "9px",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  px: 3,
+                  "&:hover": { bgcolor: "#1e293b" },
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: "#1d1c1d" }}>
-                    Review app permissions
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: 12,
-                      color: "#1264a3",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      "&:hover": { textDecoration: "underline" },
-                    }}
-                  >
-                    Manage permissions
-                  </Typography>
-                </Box>
-
-                {/* Section 1 */}
-                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#616061", mb: 1 }}>
-                  Information "Rank Tracker" can view
-                </Typography>
-
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 3 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      p: 1.25,
-                      borderRadius: "8px",
-                      bgcolor: "#ffffff",
-                      border: "1px solid #ebebeb",
-                    }}
-                  >
-                    <Typography sx={{ fontSize: 12.5, color: "#1d1c1d", fontWeight: 500 }}>
-                      Content and info about channels & conversations
-                    </Typography>
-                    <Typography sx={{ color: "#9ca3af", fontSize: 14 }}>▸</Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      p: 1.25,
-                      borderRadius: "8px",
-                      bgcolor: "#ffffff",
-                      border: "1px solid #ebebeb",
-                    }}
-                  >
-                    <Typography sx={{ fontSize: 12.5, color: "#1d1c1d", fontWeight: 500 }}>
-                      Content and info about your workspace
-                    </Typography>
-                    <Typography sx={{ color: "#9ca3af", fontSize: 14 }}>▸</Typography>
-                  </Box>
-                </Box>
-
-                {/* Section 2 */}
-                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#616061", mb: 1 }}>
-                  Actions "Rank Tracker" can take
-                </Typography>
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    p: 1.25,
-                    borderRadius: "8px",
-                    bgcolor: "#ffffff",
-                    border: "1px solid #ebebeb",
-                  }}
-                >
-                  <Typography sx={{ fontSize: 12.5, color: "#1d1c1d", fontWeight: 500 }}>
-                    Perform actions in channels & conversations
-                  </Typography>
-                  <Typography sx={{ color: "#9ca3af", fontSize: 14 }}>▸</Typography>
-                </Box>
-              </Box>
+                {addingWorkspace ? "Connecting..." : "Authorize Workspace"}
+              </Button>
             </Box>
-
-            {/* Bottom Footer Section */}
-            <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid #ebebeb" }}>
-              <Typography sx={{ fontSize: 11.5, color: "#616061", lineHeight: 1.5, mb: 3 }}>
-                Slack will share your granted permissions with Rank Tracker. View Slack's privacy policy.
-                By agreeing to allow Rank Tracker to share your granted permissions, you are also agreeing
-                to Rank Tracker's privacy agreement and terms of service.
-              </Typography>
-
-              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
-                <Button
-                  onClick={() => setIsAddDialogOpen(false)}
-                  sx={{
-                    color: "#1d1c1d",
-                    border: "1px solid #dddddd",
-                    borderRadius: "6px",
-                    px: 2.5,
-                    py: 0.75,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    textTransform: "none",
-                    bgcolor: "#ffffff",
-                    "&:hover": { bgcolor: "#f8f8f8", borderColor: "#cccccc" },
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disableElevation
-                  disabled={addingWorkspace}
-                  sx={{
-                    bgcolor: "#007a5a",
-                    color: "#ffffff",
-                    borderRadius: "6px",
-                    px: 3.5,
-                    py: 0.75,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textTransform: "none",
-                    "&:hover": { bgcolor: "#00664b" },
-                  }}
-                >
-                  {addingWorkspace ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Allow"}
-                </Button>
-              </Box>
-            </Box>
-          </DialogContent>
-        </form>
+          </form>
+        </DialogContent>
       </Dialog>
     </Container>
   );
