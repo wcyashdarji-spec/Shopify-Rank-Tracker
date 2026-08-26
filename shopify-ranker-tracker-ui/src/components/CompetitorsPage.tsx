@@ -18,9 +18,12 @@ import {
   FormControl,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import RemoveIcon from "@mui/icons-material/RemoveCircleOutlined";
-import AddIcon from "@mui/icons-material/AddCircleOutlined";
-import CheckIcon from "@mui/icons-material/CheckCircleOutlined";
+import StarIcon from "@mui/icons-material/Star";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import AddIcon from "@mui/icons-material/AddCircle";
+import RemoveIcon from "@mui/icons-material/RemoveCircle";
 import { api, type App } from "../api";
 
 interface Competitor {
@@ -109,7 +112,7 @@ function alignLists(prev: string[], curr: string[]): AlignedRow[] {
     return prev.map((p, idx) => ({
       prev: p,
       curr: curr[idx],
-      isChanged: p !== curr[idx]
+      isChanged: p !== curr[idx],
     }));
   }
 
@@ -148,18 +151,37 @@ function alignLists(prev: string[], curr: string[]): AlignedRow[] {
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  PRICE: { bg: "#fff7ed", text: "#ea580c", border: "#ea580c" },
-  LISTING: { bg: "#f0f9ff", text: "#0284c7", border: "#0284c7" },
-  REVIEW: { bg: "#f0fdf4", text: "#16a34a", border: "#16a34a" },
-  CATEGORY: { bg: "#ecfeff", text: "#0891b2", border: "#0891b2" },
-  LANGUAGE: { bg: "#e0e7ff", text: "#4f46e5", border: "#4f46e5" },
-  TECHNICAL: { bg: "#f1f5f9", text: "#475569", border: "#475569" },
+  PRICE: { bg: "#fff7ed", text: "#ea580c", border: "#ffedd5" },
+  LISTING: { bg: "#f0f9ff", text: "#0284c7", border: "#e0f2fe" },
+  REVIEW: { bg: "#ecfdf5", text: "#059669", border: "#d1fae5" },
+  CATEGORY: { bg: "#ecfeff", text: "#0891b2", border: "#cffafe" },
+  LANGUAGE: { bg: "#e0e7ff", text: "#4f46e5", border: "#c7d2fe" },
+  TECHNICAL: { bg: "#f1f5f9", text: "#475569", border: "#e2e8f0" },
 };
 
-export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showToast }: CompetitorsPageProps) {
+export default function CompetitorsPage({
+  apps,
+  selectedApp,
+  onSelectApp,
+  showToast,
+}: CompetitorsPageProps) {
+  if (!selectedApp) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center", maxWidth: 500, mx: "auto", mt: 6 }}>
+        <Paper elevation={0} sx={{ p: 4, borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+          <Typography variant="h6" sx={{ color: "#0f172a", fontWeight: 800, mb: 1 }}>
+            No Tracked App Selected
+          </Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
+            Please add or select a Shopify application from the Home Overview page to view competitor intelligence.
+          </Typography>
+        </Paper>
+      </Box>
+    );
+  }
+
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Competitor H2H Selection State
   const [activeCompetitorId, setActiveCompetitorId] = useState<number | null>(null);
@@ -176,13 +198,10 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
   const [activeDetails, setActiveDetails] = useState<ActivityItem | null>(null);
 
   const loadData = async () => {
-    setIsLoading(true);
     try {
-      // 1. Fetch linked competitors
       const compData = await api.getCompetitors(selectedApp.id);
       setMainAppDetails(compData.main_app || null);
-      
-      // Map to list
+
       const mappedCompetitors = (compData.competitors || []).map((c: any) => ({
         id: c.id,
         name: c.name,
@@ -198,13 +217,10 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
         setActiveCompetitorId(null);
       }
 
-      // 2. Fetch activity logs
       const activityData = await api.getCompetitorsActivity(selectedApp.id);
       setActivities(activityData.activities || []);
     } catch (err: any) {
       showToast(err?.message || "Failed to load competitor activity feed", "error");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -249,15 +265,10 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
     });
   };
 
-  // Filter logs
   const filteredActivities = activities.filter((act) => {
-    // Type Filter
     if (selectedType !== "ALL" && act.type !== selectedType) return false;
-
-    // App Filter
     if (!selectedApps.includes("ALL")) {
-      const matchName = act.app_name;
-      if (!selectedApps.includes(matchName)) return false;
+      if (!selectedApps.includes(act.app_name)) return false;
     }
     return true;
   });
@@ -265,231 +276,273 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
   const getAvatarColor = (name: string) => {
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    const colors = ["#f97316", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#10b981", "#ef4444"];
+    const colors = ["#0f172a", "#10b981", "#f59e0b", "#0284c7", "#ec4899", "#3b82f6", "#ef4444"];
     return colors[Math.abs(hash) % colors.length];
   };
 
   return (
-    <Box sx={{ py: 3, px: 3 }}>
-      {/* Page Header */}
-      <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827", mb: 0.5 }}>
-            Competitors
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: "#6b7280" }}>
-            Compare performance and track day-over-day listing variations with competitors side-by-side.
-          </Typography>
-        </Box>
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <Select
-            value={selectedApp?.id || ""}
-            onChange={(e) => {
-              const app = apps.find((a) => a.id === e.target.value);
-              if (app) onSelectApp(app);
-            }}
-            sx={{
-              bgcolor: "#ffffff",
-              fontSize: 13.5,
-              fontWeight: 600,
-              borderRadius: "8px",
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e5e7eb" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#d1d5db" },
-              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#006e52" }
-            }}
-          >
-            {apps.map((app) => (
-              <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5 }}>
-                {app.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
-      {/* Competitors List Cards */}
-      <Box
+    <Box sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3, md: 4 }, maxWidth: 1200, mx: "auto" }}>
+      {/* 1. Header Bar with Application Switcher */}
+      <Paper
+        elevation={0}
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          p: 2.5,
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          bgcolor: "#ffffff",
+          mb: 3.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
           gap: 2,
-          mb: 4,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
         }}
       >
-        {/* Own App Card */}
-        <Paper
-          elevation={0}
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
+            Competitor Intelligence
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.25 }}>
+            Compare head-to-head performance metrics and track day-over-day ASO listing variations side-by-side.
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Select App:
+          </Typography>
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <Select
+              value={selectedApp?.id || ""}
+              onChange={(e) => {
+                const app = apps.find((a) => a.id === e.target.value);
+                if (app) onSelectApp(app);
+              }}
+              sx={{
+                bgcolor: "#ffffff",
+                fontSize: 13.5,
+                fontWeight: 700,
+                borderRadius: "10px",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#0f172a" },
+              }}
+            >
+              {apps.map((app) => (
+                <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
+                  {app.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      </Paper>
+
+      {/* 2. Tracked Apps & Competitor Cards Grid */}
+      <Box sx={{ mb: 3.5 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.75 }}>
+          Compare Apps
+        </Typography>
+        <Box
           sx={{
-            p: 2.5,
-            borderRadius: "12px",
-            border: "2px solid #006e52",
-            bgcolor: "#fff",
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-            position: "relative",
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+            gap: 2.5,
           }}
         >
-          <Chip
-            label="YOU"
-            size="small"
-            sx={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              bgcolor: "#006e52",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 10,
-              height: 20,
-            }}
-          />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar
-              sx={{
-                width: 44,
-                height: 44,
-                bgcolor: getAvatarColor(selectedApp.name),
-                fontSize: 18,
-                fontWeight: 700,
-              }}
-            >
-              {selectedApp.name[0]?.toUpperCase()}
-            </Avatar>
-            <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: 14.5, color: "#111827", pr: 4 }} noWrap>
-                {selectedApp.name}
-              </Typography>
-              <Typography sx={{ fontSize: 12, color: "#6b7280" }}>Your Tracked App</Typography>
-            </Box>
-          </Box>
-          <Divider />
-          <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
-            <Box>
-              <Typography sx={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", fontWeight: 600 }}>
-                Reviews
-              </Typography>
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                ★ {mainAppDetails?.rating || "4.8"} ({mainAppDetails?.reviews_count || "Active"})
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", fontWeight: 600 }}>
-                Starting Price
-              </Typography>
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                {mainAppDetails?.price_text || "Free tier"}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* Competitor Cards */}
-        {competitors.map((comp) => {
-          const isSelected = activeCompetitorId === comp.id;
-          const avatarColor = getAvatarColor(comp.name);
-          return (
-            <Paper
-              key={comp.id}
-              elevation={0}
-              onClick={() => {
-                setActiveCompetitorId(comp.id);
-                setActiveTab("compare");
-              }}
-              sx={{
-                p: 2.5,
-                borderRadius: "12px",
-                border: isSelected ? `2px solid ${avatarColor}` : "1px solid #e5e7eb",
-                bgcolor: "#fff",
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.5,
-                cursor: "pointer",
-                transition: "border 0.2s, box-shadow 0.2s",
-                "&:hover": { boxShadow: "0 4px 12px rgba(0,0,0,0.05)" },
-              }}
-            >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Avatar
-                sx={{
-                  width: 44,
-                  height: 44,
-                  bgcolor: getAvatarColor(comp.name),
-                  fontSize: 18,
-                  fontWeight: 700,
-                }}
-              >
-                {comp.name[0]?.toUpperCase()}
-              </Avatar>
-              <Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 14.5, color: "#111827" }} noWrap>
-                  {comp.name}
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: "#6b7280" }}>Competitor</Typography>
-              </Box>
-            </Box>
-            <Divider />
-            <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
-              <Box>
-                <Typography sx={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", fontWeight: 600 }}>
-                  Reviews
-                </Typography>
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                  ★ {comp.rating} ({comp.reviews_count})
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", fontWeight: 600 }}>
-                  Starting Price
-                </Typography>
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-                  {comp.price_text}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-          );
-        })}
-
-        {competitors.length === 0 && (
+          {/* Your Tracked App Card */}
           <Paper
             elevation={0}
             sx={{
               p: 2.5,
-              borderRadius: "12px",
-              border: "1px dashed #e5e7eb",
-              bgcolor: "#f9fafb",
+              borderRadius: "16px",
+              border: "2px solid #10b981",
+              bgcolor: "#ffffff",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 120,
-              gridColumn: "span 2",
+              flexDirection: "column",
+              gap: 1.75,
+              position: "relative",
+              boxShadow: "0 4px 16px rgba(16, 185, 129, 0.08)",
             }}
           >
-            <Typography sx={{ fontSize: 12.5, color: "#9ca3af", textAlign: "center" }}>
-              No competitors tracked yet. Add one in the dashboard Competitors Manager!
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: 1 }}>
+                <Avatar
+                  sx={{
+                    width: 42,
+                    height: 42,
+                    bgcolor: getAvatarColor(selectedApp.name),
+                    fontSize: 17,
+                    fontWeight: 800,
+                    flexShrink: 0,
+                  }}
+                >
+                  {selectedApp.name[0]?.toUpperCase()}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 15, color: "#0f172a", lineHeight: 1.35 }}>
+                    {selectedApp.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
+                    Your Primary Tracked App
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Chip
+                label="Your Store"
+                size="small"
+                sx={{
+                  bgcolor: "#ecfdf5",
+                  color: "#059669",
+                  border: "1px solid #a7f3d0",
+                  fontWeight: 800,
+                  fontSize: 10.5,
+                  height: 22,
+                  px: 0.5,
+                  flexShrink: 0,
+                }}
+              />
+            </Box>
+
+            <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+            <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
+              <Box>
+                <Typography sx={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
+                  Rating & Reviews
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <StarIcon sx={{ fontSize: 15, color: "#f59e0b" }} />
+                  {mainAppDetails?.rating || "4.8"} ({mainAppDetails?.reviews_count || "Active"})
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
+                  Starting Price
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                  {mainAppDetails?.price_text || "Free tier"}
+                </Typography>
+              </Box>
+            </Box>
           </Paper>
-        )}
+
+          {/* Competitor Cards */}
+          {competitors.map((comp) => {
+            const isSelected = activeCompetitorId === comp.id;
+            const avatarColor = getAvatarColor(comp.name);
+            return (
+              <Paper
+                key={comp.id}
+                elevation={0}
+                onClick={() => {
+                  setActiveCompetitorId(comp.id);
+                  setActiveTab("compare");
+                }}
+                sx={{
+                  p: 2.5,
+                  borderRadius: "16px",
+                  border: isSelected ? `2px solid ${avatarColor}` : "1px solid #e2e8f0",
+                  bgcolor: "#ffffff",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.75,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease-in-out",
+                  boxShadow: isSelected ? `0 8px 24px ${avatarColor}18` : "0 2px 8px rgba(0,0,0,0.02)",
+                  "&:hover": { borderColor: avatarColor, transform: "translateY(-2px)" },
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Avatar
+                    sx={{
+                      width: 42,
+                      height: 42,
+                      bgcolor: avatarColor,
+                      fontSize: 17,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {comp.name[0]?.toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: 15, color: "#0f172a", lineHeight: 1.35 }}>
+                      {comp.name}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                      Competitor App
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+                <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
+                      Rating & Reviews
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <StarIcon sx={{ fontSize: 15, color: "#f59e0b" }} />
+                      {comp.rating} ({comp.reviews_count})
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
+                      Starting Price
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                      {comp.price_text}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            );
+          })}
+
+          {competitors.length === 0 && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: "16px",
+                border: "1px dashed #cbd5e1",
+                bgcolor: "#f8fafc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 120,
+                gridColumn: "span 2",
+              }}
+            >
+              <Typography sx={{ fontSize: 13, color: "#64748b", fontWeight: 600, textAlign: "center" }}>
+                No competitor apps added yet. Manage competitors via the Dashboard to enable head-to-head analysis!
+              </Typography>
+            </Paper>
+          )}
+        </Box>
       </Box>
 
-      {/* View Selector Tabs */}
+      {/* 3. Navigation View Selector Tabs */}
       {activeCompetitorId !== null && (
-        <Box sx={{ display: "flex", gap: 1.5, mb: 4, borderBottom: "1px solid #e5e7eb", pb: 0.5 }}>
+        <Box sx={{ display: "flex", gap: 1.5, mb: 3, borderBottom: "1px solid #e2e8f0" }}>
           <Button
             size="small"
             variant="text"
+            startIcon={<CompareArrowsIcon sx={{ fontSize: 18 }} />}
             onClick={() => setActiveTab("compare")}
             sx={{
               textTransform: "none",
-              fontWeight: 700,
-              fontSize: 13.5,
-              color: activeTab === "compare" ? "#006e52" : "#6b7280",
-              borderBottom: activeTab === "compare" ? "3px solid #006e52" : "3px solid transparent",
+              fontWeight: 800,
+              fontSize: 14,
+              color: activeTab === "compare" ? "#0f172a" : "#64748b",
+              borderBottom: activeTab === "compare" ? "3px solid #0f172a" : "3px solid transparent",
               borderRadius: 0,
-              px: 1.5,
-              pb: 0.75,
-              "&:hover": { bgcolor: "transparent", color: "#006e52" }
+              px: 2,
+              pb: 1,
+              "&:hover": { bgcolor: "transparent", color: "#0f172a" },
             }}
           >
             Head-to-Head Compare
@@ -497,134 +550,188 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
           <Button
             size="small"
             variant="text"
+            startIcon={<TimelineIcon sx={{ fontSize: 18 }} />}
             onClick={() => setActiveTab("activity")}
             sx={{
               textTransform: "none",
-              fontWeight: 700,
-              fontSize: 13.5,
-              color: activeTab === "activity" ? "#006e52" : "#6b7280",
-              borderBottom: activeTab === "activity" ? "3px solid #006e52" : "3px solid transparent",
+              fontWeight: 800,
+              fontSize: 14,
+              color: activeTab === "activity" ? "#0f172a" : "#64748b",
+              borderBottom: activeTab === "activity" ? "3px solid #0f172a" : "3px solid transparent",
               borderRadius: 0,
-              px: 1.5,
-              pb: 0.75,
-              "&:hover": { bgcolor: "transparent", color: "#006e52" }
+              px: 2,
+              pb: 1,
+              "&:hover": { bgcolor: "transparent", color: "#0f172a" },
             }}
           >
-            ASO Activity Feed
+            ASO Activity Feed ({activities.length})
           </Button>
         </Box>
       )}
 
-      {/* Head-to-Head Section */}
+      {/* 4. Head-to-Head Comparison Table Section */}
       {activeTab === "compare" && activeCompetitorId !== null && (
-        <Box>
-          {/* Head-to-Head comparison table */}
-          <Paper
-            elevation={0}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
+            mb: 4,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.02)",
+          }}
+        >
+          <Typography sx={{ fontWeight: 800, fontSize: 16, mb: 3, color: "#0f172a" }}>
+            Head-to-Head Feature & Metric Comparison
+          </Typography>
+
+          {/* Table Header Row */}
+          <Box
             sx={{
-              p: 3,
-              borderRadius: "12px",
-              border: "1px solid #e5e7eb",
-              bgcolor: "#fff",
-              mb: 4,
+              display: "grid",
+              gridTemplateColumns: "1fr 160px 1fr",
+              gap: 2,
+              pb: 2,
+              borderBottom: "2px solid #e2e8f0",
+              alignItems: "center",
+              bgcolor: "#f8fafc",
+              p: 1.5,
+              borderRadius: "10px",
+              mb: 1,
             }}
           >
-            <Typography sx={{ fontWeight: 700, fontSize: 16, mb: 3, color: "#111827" }}>
-              Head-to-Head
-            </Typography>
-
-            {/* Header Row */}
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 180px 1fr", gap: 2, pb: 2, borderBottom: "2px solid #e5e7eb", alignItems: "center" }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#006e52", textAlign: "right" }}>
+            <Box sx={{ textAlign: "right", minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 14, color: "#10b981", lineHeight: 1.2 }}>
                 {selectedApp.name}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: 11, color: "#9ca3af", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                METRIC
-              </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: 14, color: "#ef4444", textAlign: "left" }}>
-                {competitors.find((c) => c.id === activeCompetitorId)?.name || "Competitor"}
-              </Typography>
+              <Chip
+                label="Your Store"
+                size="small"
+                sx={{ fontSize: 9.5, height: 18, bgcolor: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", mt: 0.25 }}
+              />
             </Box>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: 11,
+                color: "#64748b",
+                textAlign: "center",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              METRIC
+            </Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: 14, color: "#0f172a", textAlign: "left" }}>
+              {competitors.find((c) => c.id === activeCompetitorId)?.name || "Competitor"}
+            </Typography>
+          </Box>
 
-            {/* Metric Rows */}
-            {isLoadingH2H ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                <CircularProgress size={24} sx={{ color: "#111827" }} />
-              </Box>
-            ) : headToHead ? (
-              <Box>
-                {[
-                  { label: "REVIEWS", key: "reviews", youColor: "#374151", themColor: "#ef4444" },
-                  { label: "RATING", key: "rating", youColor: "#374151", themColor: "#ef4444" },
-                  { label: "PRICE", key: "price", youColor: "#374151", themColor: "#374151" },
-                  { label: "BFS BADGE", key: "bfs_badge", youColor: "#374151", themColor: "#374151" },
-                  { label: "SCREENSHOTS", key: "screenshots", youColor: "#006e52", themColor: "#374151" },
-                  { label: "VIDEO", key: "video", youColor: "#374151", themColor: "#374151" },
-                  { label: "LANGUAGES", key: "languages", youColor: "#006e52", themColor: "#374151" },
-                  { label: "FEATURES", key: "features", youColor: "#374151", themColor: "#374151" },
-                ].map((metric) => (
+          {/* Metric Comparison Rows */}
+          {isLoadingH2H ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress size={28} sx={{ color: "#0f172a" }} />
+            </Box>
+          ) : headToHead ? (
+            <Box sx={{ display: "flex", flexDirection: "column" }}>
+              {[
+                { label: "REVIEWS", key: "reviews", youColor: "#0f172a", themColor: "#64748b" },
+                { label: "RATING", key: "rating", youColor: "#0f172a", themColor: "#64748b" },
+                { label: "PRICE", key: "price", youColor: "#0f172a", themColor: "#0f172a" },
+                { label: "BFS BADGE", key: "bfs_badge", youColor: "#059669", themColor: "#64748b" },
+                { label: "SCREENSHOTS", key: "screenshots", youColor: "#059669", themColor: "#64748b" },
+                { label: "VIDEO", key: "video", youColor: "#0f172a", themColor: "#0f172a" },
+                { label: "LANGUAGES", key: "languages", youColor: "#059669", themColor: "#64748b" },
+                { label: "FEATURES", key: "features", youColor: "#0f172a", themColor: "#0f172a" },
+              ].map((metric) => {
+                const youVal = headToHead.you[metric.key];
+                const themVal = headToHead.them[metric.key];
+
+                return (
                   <Box
                     key={metric.label}
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 180px 1fr",
+                      gridTemplateColumns: "1fr 160px 1fr",
                       gap: 2,
                       py: 1.75,
-                      borderBottom: "1px solid #f3f4f6",
+                      px: 1.5,
+                      borderBottom: "1px solid #f1f5f9",
                       alignItems: "center",
+                      borderRadius: "8px",
+                      transition: "bgcolor 0.15s ease",
+                      "&:hover": { bgcolor: "#f8fafc" },
                     }}
                   >
-                    <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: metric.youColor, textAlign: "right" }}>
-                      {headToHead.you[metric.key]}
+                    <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: metric.youColor, textAlign: "right" }}>
+                      {typeof youVal === "boolean" ? (youVal ? "Yes" : "No") : youVal}
                     </Typography>
-                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textAlign: "center", letterSpacing: "0.05em" }}>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: "#64748b",
+                        textAlign: "center",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
                       {metric.label}
                     </Typography>
-                    <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: metric.themColor, textAlign: "left" }}>
-                      {headToHead.them[metric.key]}
+                    <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: metric.themColor, textAlign: "left" }}>
+                      {typeof themVal === "boolean" ? (themVal ? "Yes" : "No") : themVal}
                     </Typography>
                   </Box>
-                ))}
-              </Box>
-            ) : (
-              <Typography sx={{ py: 3, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
-                No comparison details loaded.
-              </Typography>
-            )}
-          </Paper>
-        </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography sx={{ py: 4, textAlign: "center", color: "#94a3b8", fontSize: 13.5, fontWeight: 600 }}>
+              No comparison metrics loaded for this competitor.
+            </Typography>
+          )}
+        </Paper>
       )}
 
-      {/* Activity Feed Section */}
+      {/* 5. ASO Activity Feed Section */}
       {(activeTab === "activity" || activeCompetitorId === null) && (
-        <Box>
-          {/* Activity Title */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "#111827", fontSize: 16 }}>
-              ACTIVITY
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
+            mb: 4,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.02)",
+          }}
+        >
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 17, letterSpacing: "-0.01em" }}>
+              ASO Activity Log Feed
             </Typography>
-            <Typography sx={{ fontSize: 12.5, color: "#6b7280" }}>
-              Your moves and your competitors', side by side.
+            <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.25 }}>
+              Track day-over-day price adjustments, listing description edits, reviews, and feature changes.
             </Typography>
           </Box>
 
           {/* Filter Toolbar */}
           <Box
             sx={{
-              bgcolor: "#f9fafb",
-              border: "1px solid #e5e7eb",
+              bgcolor: "#f8fafc",
+              border: "1px solid #e2e8f0",
               borderRadius: "12px",
               p: 2,
               mb: 3,
               display: "flex",
               flexDirection: "column",
-              gap: 1.5,
+              gap: 1.75,
             }}
           >
-            {/* Type Filter Buttons */}
+            {/* Filter by Change Type */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151", mr: 1 }}>
-                TYPE:
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", mr: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Filter Type:
               </Typography>
               <Button
                 size="small"
@@ -632,15 +739,15 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
                 onClick={() => setSelectedType("ALL")}
                 sx={{
                   textTransform: "none",
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fontSize: 11.5,
+                  fontWeight: 700,
                   borderRadius: "20px",
-                  py: 0.25,
-                  px: 1.5,
-                  bgcolor: selectedType === "ALL" ? "#111827" : "transparent",
-                  color: selectedType === "ALL" ? "#fff" : "#374151",
-                  borderColor: "#e5e7eb",
-                  "&:hover": { bgcolor: selectedType === "ALL" ? "#1f2937" : "#f3f4f6" },
+                  py: 0.3,
+                  px: 1.75,
+                  bgcolor: selectedType === "ALL" ? "#0f172a" : "#ffffff",
+                  color: selectedType === "ALL" ? "#ffffff" : "#475569",
+                  borderColor: selectedType === "ALL" ? "#0f172a" : "#cbd5e1",
+                  "&:hover": { bgcolor: selectedType === "ALL" ? "#1e293b" : "#f1f5f9" },
                 }}
               >
                 ALL
@@ -656,17 +763,15 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
                     onClick={() => handleTypeFilterClick(type)}
                     sx={{
                       textTransform: "none",
-                      fontSize: 11,
-                      fontWeight: 600,
+                      fontSize: 11.5,
+                      fontWeight: 700,
                       borderRadius: "20px",
-                      py: 0.25,
-                      px: 1.5,
-                      bgcolor: isActive ? colors.text : "transparent",
-                      color: isActive ? "#fff" : colors.text,
+                      py: 0.3,
+                      px: 1.75,
+                      bgcolor: isActive ? colors.text : "#ffffff",
+                      color: isActive ? "#ffffff" : colors.text,
                       borderColor: colors.border,
-                      "&:hover": {
-                        bgcolor: isActive ? colors.text : `${colors.bg}e6`,
-                      },
+                      "&:hover": { bgcolor: isActive ? colors.text : colors.bg },
                     }}
                   >
                     {type}
@@ -675,10 +780,10 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
               })}
             </Box>
 
-            {/* Apps Filter Buttons */}
+            {/* Filter by Application */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#374151", mr: 1 }}>
-                APPS:
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", mr: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Filter Apps:
               </Typography>
               <Button
                 size="small"
@@ -686,62 +791,57 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
                 onClick={() => handleAppFilterClick("ALL")}
                 sx={{
                   textTransform: "none",
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fontSize: 11.5,
+                  fontWeight: 700,
                   borderRadius: "20px",
-                  py: 0.25,
-                  px: 1.5,
-                  bgcolor: selectedApps.includes("ALL") ? "#111827" : "transparent",
-                  color: selectedApps.includes("ALL") ? "#fff" : "#374151",
-                  borderColor: "#e5e7eb",
-                  "&:hover": { bgcolor: selectedApps.includes("ALL") ? "#1f2937" : "#f3f4f6" },
+                  py: 0.3,
+                  px: 1.75,
+                  bgcolor: selectedApps.includes("ALL") ? "#0f172a" : "#ffffff",
+                  color: selectedApps.includes("ALL") ? "#ffffff" : "#475569",
+                  borderColor: selectedApps.includes("ALL") ? "#0f172a" : "#cbd5e1",
+                  "&:hover": { bgcolor: selectedApps.includes("ALL") ? "#1e293b" : "#f1f5f9" },
                 }}
               >
                 ALL
               </Button>
-
-              {/* Own App Filter button */}
               <Button
                 size="small"
                 variant={selectedApps.includes(selectedApp.name) ? "contained" : "outlined"}
                 onClick={() => handleAppFilterClick(selectedApp.name)}
                 sx={{
                   textTransform: "none",
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fontSize: 11.5,
+                  fontWeight: 700,
                   borderRadius: "20px",
-                  py: 0.25,
-                  px: 1.5,
-                  bgcolor: selectedApps.includes(selectedApp.name) ? "#006e52" : "transparent",
-                  color: selectedApps.includes(selectedApp.name) ? "#fff" : "#006e52",
-                  borderColor: "#006e52",
-                  "&:hover": { bgcolor: selectedApps.includes(selectedApp.name) ? "#00553f" : "#f0fdf4" },
+                  py: 0.3,
+                  px: 1.75,
+                  bgcolor: selectedApps.includes(selectedApp.name) ? "#10b981" : "#ffffff",
+                  color: selectedApps.includes(selectedApp.name) ? "#ffffff" : "#059669",
+                  borderColor: "#a7f3d0",
+                  "&:hover": { bgcolor: selectedApps.includes(selectedApp.name) ? "#059669" : "#ecfdf5" },
                 }}
               >
-                {selectedApp.name} (YOU)
+                {selectedApp.name}
               </Button>
-
-              {/* Competitor Filter buttons */}
               {competitors.map((comp) => {
-                const isSelected = selectedApps.includes(comp.name);
-                const avatarColor = getAvatarColor(comp.name);
+                const isActive = selectedApps.includes(comp.name);
                 return (
                   <Button
                     key={comp.id}
                     size="small"
-                    variant={isSelected ? "contained" : "outlined"}
+                    variant={isActive ? "contained" : "outlined"}
                     onClick={() => handleAppFilterClick(comp.name)}
                     sx={{
                       textTransform: "none",
-                      fontSize: 11,
-                      fontWeight: 600,
+                      fontSize: 11.5,
+                      fontWeight: 700,
                       borderRadius: "20px",
-                      py: 0.25,
-                      px: 1.5,
-                      bgcolor: isSelected ? avatarColor : "transparent",
-                      color: isSelected ? "#fff" : avatarColor,
-                      borderColor: avatarColor,
-                      "&:hover": { bgcolor: isSelected ? avatarColor : "#f9fafb" },
+                      py: 0.3,
+                      px: 1.75,
+                      bgcolor: isActive ? "#0f172a" : "#ffffff",
+                      color: isActive ? "#ffffff" : "#0f172a",
+                      borderColor: "#e2e8f0",
+                      "&:hover": { bgcolor: isActive ? "#1e293b" : "#f8fafc" },
                     }}
                   >
                     {comp.name}
@@ -751,63 +851,60 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
             </Box>
           </Box>
 
-          {/* Activity Logs Feed */}
-          {isLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-              <CircularProgress size={36} sx={{ color: "#111827" }} />
-            </Box>
-          ) : filteredActivities.length === 0 ? (
-            <Paper
-              elevation={0}
-              sx={{
-                p: 4,
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                bgcolor: "#fff",
-                textAlign: "center",
-              }}
-            >
-              <Typography sx={{ fontSize: 13, color: "#9ca3af" }}>
-                No activity matches the current filters.
-              </Typography>
-            </Paper>
-          ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {filteredActivities.map((act) => {
-                const colors = TYPE_COLORS[act.type] || { bg: "#f9fafb", text: "#374151", border: "#e5e7eb" };
-                return (
-                  <Paper
-                    key={act.id}
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: "8px",
-                      border: "1px solid #e5e7eb",
-                      borderLeft: `4px solid ${colors.border}`,
-                      bgcolor: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      transition: "transform 0.15s",
-                      "&:hover": { transform: "translateX(4px)" },
-                    }}
-                  >
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: "#111827" }}>
+          {/* Activity Logs Feed List */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }}>
+            {filteredActivities.map((act) => {
+              const colors = TYPE_COLORS[act.type] || TYPE_COLORS.TECHNICAL;
+              const isOwnApp = act.app_name === selectedApp.name;
+
+              return (
+                <Paper
+                  key={act.id}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    borderLeft: `4px solid ${colors.text}`,
+                    bgcolor: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 2,
+                    transition: "all 0.15s ease",
+                    "&:hover": { boxShadow: "0 4px 14px rgba(0,0,0,0.03)" },
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.75, flex: 1, minWidth: 0 }}>
+                    <Avatar
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        bgcolor: getAvatarColor(act.app_name),
+                        fontSize: 14,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {act.app_name[0]?.toUpperCase()}
+                    </Avatar>
+
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: "#0f172a" }}>
                           {act.app_name}
                         </Typography>
-                        {act.app_name === selectedApp.name && (
+                        {isOwnApp && (
                           <Chip
-                            label="YOU"
+                            label="Your Store"
                             size="small"
                             sx={{
-                              bgcolor: "#006e52",
-                              color: "#fff",
-                              fontWeight: 700,
-                              fontSize: 9,
-                              height: 16,
-                              px: 0.5,
+                              fontSize: 9.5,
+                              fontWeight: 800,
+                              height: 18,
+                              bgcolor: "#ecfdf5",
+                              color: "#059669",
+                              border: "1px solid #a7f3d0",
                             }}
                           />
                         )}
@@ -815,506 +912,358 @@ export default function CompetitorsPage({ apps, selectedApp, onSelectApp, showTo
                           label={act.type}
                           size="small"
                           sx={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            height: 18,
                             bgcolor: colors.bg,
                             color: colors.text,
-                            fontWeight: 700,
-                            fontSize: 9,
-                            height: 16,
-                            px: 0.5,
+                            border: `1px solid ${colors.border}`,
                           }}
                         />
-                        
-                        {/* View details / link */}
-                        {act.has_details ? (
-                          <Typography
-                            onClick={() => setActiveDetails(act)}
-                            sx={{
-                              fontSize: 11.5,
-                              color: "#3b82f6",
-                              cursor: "pointer",
-                              fontWeight: 600,
-                              "&:hover": { textDecoration: "underline" },
-                            }}
-                          >
-                            Click for details
-                          </Typography>
-                        ) : act.type === "REVIEW" ? (
-                          <Typography
-                            sx={{
-                              fontSize: 11.5,
-                              color: "#9ca3af",
-                              fontWeight: 500,
-                            }}
-                          >
-                            View newest reviews ↗
-                          </Typography>
-                        ) : null}
                       </Box>
 
-                      <Typography sx={{ fontSize: 13, color: "#4b5563" }}>{act.text}</Typography>
+                      <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                        {act.text}
+                      </Typography>
                     </Box>
+                  </Box>
 
-                    <Typography sx={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>
-                      {act.date}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                    {act.has_details && (
+                      <Button
+                        size="small"
+                        onClick={() => setActiveDetails(act)}
+                        sx={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#0284c7",
+                          textTransform: "none",
+                          "&:hover": { textDecoration: "underline", bgcolor: "transparent" },
+                        }}
+                      >
+                        Click for details →
+                      </Button>
+                    )}
+                    <Typography sx={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>
+                      {new Date(act.date).toLocaleDateString()}
                     </Typography>
-                  </Paper>
-                );
-              })}
-            </Box>
-          )}
-        </Box>
+                  </Box>
+                </Paper>
+              );
+            })}
+
+            {filteredActivities.length === 0 && (
+              <Box sx={{ py: 4, textAlign: "center" }}>
+                <Typography sx={{ fontSize: 13.5, color: "#94a3b8", fontWeight: 600 }}>
+                  No activity log entries match the selected filters.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
       )}
 
-      {/* Side-by-Side Comparison Details Modal */}
+      {/* Details Diff Dialog */}
       <Dialog
         open={!!activeDetails}
         onClose={() => setActiveDetails(null)}
         maxWidth="md"
         fullWidth
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: "16px",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.15)",
-              border: "1px solid #e5e7eb",
-              p: 1,
-            },
-          },
-        }}
+        slotProps={{ paper: { sx: { borderRadius: "18px", p: 1 } } }}
       >
         {activeDetails && (
           <>
-            <DialogTitle
-              sx={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                pb: 1.5,
-              }}
-            >
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700, fontSize: 17, color: "#111827" }}>
-                  {activeDetails.app_name}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-                  <Chip
-                    label={`${activeDetails.type} UPDATE`}
-                    size="small"
-                    sx={{
-                      bgcolor: TYPE_COLORS[activeDetails.type]?.bg,
-                      color: TYPE_COLORS[activeDetails.type]?.text,
-                      fontWeight: 700,
-                      fontSize: 10,
-                      height: 18,
-                    }}
-                  />
-                  <Typography sx={{ fontSize: 12.5, color: "#6b7280" }}>
-                    {activeDetails.details?.subtitle} • {activeDetails.date}
+            <DialogTitle sx={{ pb: 1.5, pt: 2, px: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 19 }}>
+                    {activeDetails.app_name}
                   </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
+                    <Chip
+                      label={`${activeDetails.type} UPDATE`}
+                      size="small"
+                      sx={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        bgcolor: TYPE_COLORS[activeDetails.type]?.bg || "#f1f5f9",
+                        color: TYPE_COLORS[activeDetails.type]?.text || "#475569",
+                        border: `1px solid ${TYPE_COLORS[activeDetails.type]?.border || "#e2e8f0"}`,
+                        height: 20,
+                        px: 0.5,
+                      }}
+                    />
+                    <Typography sx={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                      {activeDetails.details?.subtitle || activeDetails.text} • {new Date(activeDetails.date).toLocaleDateString()}
+                    </Typography>
+                  </Box>
                 </Box>
+                <IconButton size="small" onClick={() => setActiveDetails(null)} sx={{ color: "#64748b" }}>
+                  <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
               </Box>
-              <IconButton size="small" onClick={() => setActiveDetails(null)}>
-                <CloseIcon sx={{ fontSize: 20 }} />
-              </IconButton>
             </DialogTitle>
 
-            <DialogContent sx={{ pb: 3, pt: 1 }}>
-              {activeDetails.details?.subtitle === "Description" ? (
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 3,
-                  }}
-                >
-                  {/* PREVIOUS column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#b91c1c",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <RemoveIcon sx={{ fontSize: 16 }} />
-                      PREVIOUS
-                    </Typography>
-                    <Box
-                      sx={{
-                        p: 2.5,
-                        borderRadius: "12px",
-                        bgcolor: "#fff5f5",
-                        border: "1px solid #fecaca",
-                        color: "#4b5563",
-                        fontSize: 13.5,
-                        lineHeight: 1.65,
-                        whiteSpace: "pre-line",
-                      }}
-                    >
-                      {(() => {
-                        const prevText = activeDetails.details?.previous[0] || "";
-                        const currText = activeDetails.details?.current[0] || "";
-                        const parts = diffWords(prevText, currText);
-                        return parts.map((part, idx) => {
-                          if (part.type === "added") return null;
-                          if (part.type === "removed") {
-                            return (
-                              <span key={idx} style={{ backgroundColor: "#fecaca", color: "#991b1b", padding: "1px 3px", borderRadius: "3px" }}>
-                                {part.value}
-                              </span>
-                            );
-                          }
-                          return <span key={idx}>{part.value}</span>;
-                        });
-                      })()}
-                    </Box>
-                  </Box>
+            <Divider sx={{ borderColor: "#f1f5f9" }} />
 
-                  {/* CURRENT column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#0f766e",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: 16 }} />
-                      CURRENT
-                    </Typography>
-                    <Box
-                      sx={{
-                        p: 2.5,
-                        borderRadius: "12px",
-                        bgcolor: "#f0fdf4",
-                        border: "1px solid #bbf7d0",
-                        color: "#4b5563",
-                        fontSize: 13.5,
-                        lineHeight: 1.65,
-                        whiteSpace: "pre-line",
-                      }}
-                    >
-                      {(() => {
-                        const prevText = activeDetails.details?.previous[0] || "";
-                        const currText = activeDetails.details?.current[0] || "";
-                        const parts = diffWords(prevText, currText);
-                        return parts.map((part, idx) => {
-                          if (part.type === "removed") return null;
-                          if (part.type === "added") {
-                            return (
-                              <span key={idx} style={{ backgroundColor: "#a7f3d0", color: "#065f46", fontWeight: "bold", padding: "1px 3px", borderRadius: "3px" }}>
-                                {part.value}
-                              </span>
-                            );
-                          }
-                          return <span key={idx}>{part.value}</span>;
-                        });
-                      })()}
-                    </Box>
-                  </Box>
-                </Box>
-              ) : activeDetails.details?.subtitle === "Feature List" ? (
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 3,
-                  }}
-                >
-                  {/* PREVIOUS column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#b91c1c",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <RemoveIcon sx={{ fontSize: 16 }} />
-                      PREVIOUS ({activeDetails.details?.previous.length || 0})
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {alignLists(activeDetails.details?.previous || [], activeDetails.details?.current || []).map((row, idx) => {
-                        if (row.prev === null) {
-                          return (
-                            <Box
-                              key={idx}
-                              sx={{
-                                p: 1.25,
-                                borderRadius: "8px",
-                                bgcolor: "transparent",
-                                border: "1px dashed #e5e7eb",
-                                color: "#9ca3af",
-                                fontSize: 13,
-                                fontStyle: "italic",
-                                height: "42px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              -
-                            </Box>
-                          );
-                        }
-                        return (
-                          <Box
-                            key={idx}
-                            sx={{
-                              p: 1.25,
-                              borderRadius: "8px",
-                              bgcolor: row.isChanged ? "#fee2e2" : "#f9fafb",
-                              border: `1px solid ${row.isChanged ? "#fecaca" : "#e5e7eb"}`,
-                              color: row.isChanged ? "#b91c1c" : "#4b5563",
-                              fontSize: 13,
-                              fontWeight: row.isChanged ? 600 : 500,
-                              textDecoration: row.isChanged ? "line-through" : "none",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                            }}
-                          >
-                            <Box sx={{ display: "flex", flexGrow: 1, whiteSpace: "pre-line" }}>{row.prev}</Box>
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
+            <DialogContent sx={{ py: 3, px: 3, maxHeight: "70vh", overflowY: "auto" }}>
+              {activeDetails.details && (() => {
+                const prevList = activeDetails.details.previous || [];
+                const currList = activeDetails.details.current || [];
 
-                  {/* CURRENT column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#0f766e",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: 16 }} />
-                      CURRENT ({activeDetails.details?.current.length || 0})
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {alignLists(activeDetails.details?.previous || [], activeDetails.details?.current || []).map((row, idx) => {
-                        if (row.curr === null) {
-                          return (
-                            <Box
-                              key={idx}
-                              sx={{
-                                p: 1.25,
-                                borderRadius: "8px",
-                                bgcolor: "transparent",
-                                border: "1px dashed #e5e7eb",
-                                color: "#9ca3af",
-                                fontSize: 13,
-                                fontStyle: "italic",
-                                height: "42px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              -
-                            </Box>
-                          );
-                        }
-                        return (
-                          <Box
-                            key={idx}
-                            sx={{
-                              p: 1.25,
-                              borderRadius: "8px",
-                              bgcolor: row.isChanged ? "#d1fae5" : "#f9fafb",
-                              border: `1px solid ${row.isChanged ? "#a7f3d0" : "#e5e7eb"}`,
-                              color: row.isChanged ? "#065f46" : "#4b5563",
-                              fontSize: 13,
-                              fontWeight: row.isChanged ? 600 : 500,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                            }}
-                          >
-                            {row.isChanged && (
-                              <Chip
-                                label="NEW"
-                                size="small"
-                                sx={{
-                                  height: 16,
-                                  bgcolor: "#065f46",
-                                  color: "#fff",
-                                  fontSize: 9,
-                                  fontWeight: 700,
-                                  mr: 0.5,
-                                }}
-                              />
-                            )}
-                            <Box sx={{ display: "flex", flexGrow: 1, whiteSpace: "pre-line", fontWeight: row.isChanged ? 600 : 500 }}>{row.curr}</Box>
-                            {row.isChanged && <CheckIcon sx={{ fontSize: 15, color: "#065f46" }} />}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 3,
-                  }}
-                >
-                  {/* PREVIOUS column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#b91c1c",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <RemoveIcon sx={{ fontSize: 16 }} />
-                      PREVIOUS ({activeDetails.details?.previous.length || 0})
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {(activeDetails.details?.previous || []).map((item, idx) => {
-                        const isDeleted = !activeDetails.details?.current.includes(item);
-                        return (
-                          <Box
-                            key={idx}
-                            sx={{
-                              p: 1.25,
-                              borderRadius: "8px",
-                              bgcolor: isDeleted ? "#fef2f2" : "#f9fafb",
-                              border: `1px solid ${isDeleted ? "#fecaca" : "#e5e7eb"}`,
-                              color: isDeleted ? "#991b1b" : "#4b5563",
-                              fontSize: 13,
-                              fontWeight: isDeleted ? 600 : 500,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                            }}
-                          >
-                            <Box sx={{ display: "flex", flexGrow: 1, whiteSpace: "pre-line" }}>{item}</Box>
-                          </Box>
-                        );
-                      })}
-                      {activeDetails.details?.previous.length === 0 && (
-                        <Typography sx={{ fontSize: 12.5, color: "#9ca3af", fontStyle: "italic" }}>
-                          No items recorded.
+                const isSingleParagraphText =
+                  prevList.length === 1 &&
+                  currList.length === 1 &&
+                  (prevList[0].length > 60 || currList[0].length > 60);
+
+                if (isSingleParagraphText) {
+                  const prevText = prevList[0] || "";
+                  const currText = currList[0] || "";
+                  const diffs = diffWords(prevText, currText);
+
+                  return (
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
+                      {/* Previous Text Column */}
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: "14px",
+                          bgcolor: "#fff5f5",
+                          border: "1px solid #fee2e2",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.75 }}>
+                          <RemoveIcon sx={{ fontSize: 16, color: "#dc2626" }} />
+                          <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Previous
+                          </Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: 13.5, color: "#7f1d1d", lineHeight: 1.6 }}>
+                          {diffs.map((part, i) => {
+                            if (part.type === "removed") {
+                              return (
+                                <Box
+                                  key={i}
+                                  component="span"
+                                  sx={{
+                                    bgcolor: "#fecdd3",
+                                    color: "#9f1239",
+                                    fontWeight: 700,
+                                    px: 0.6,
+                                    py: 0.2,
+                                    borderRadius: "4px",
+                                    mx: 0.2,
+                                  }}
+                                >
+                                  {part.value}
+                                </Box>
+                              );
+                            }
+                            if (part.type === "equal") {
+                              return <span key={i}>{part.value}</span>;
+                            }
+                            return null;
+                          })}
                         </Typography>
-                      )}
-                    </Box>
-                  </Box>
+                      </Box>
 
-                  {/* CURRENT column */}
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#0f766e",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1.5,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: 16 }} />
-                      CURRENT ({activeDetails.details?.current.length || 0})
-                    </Typography>
+                      {/* Current Text Column */}
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: "14px",
+                          bgcolor: "#f0fdf4",
+                          border: "1px solid #d1fae5",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.75 }}>
+                          <AddIcon sx={{ fontSize: 16, color: "#059669" }} />
+                          <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Current
+                          </Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: 13.5, color: "#047857", lineHeight: 1.6 }}>
+                          {diffs.map((part, i) => {
+                            if (part.type === "added") {
+                              return (
+                                <Box
+                                  key={i}
+                                  component="span"
+                                  sx={{
+                                    bgcolor: "#a7f3d0",
+                                    color: "#047857",
+                                    fontWeight: 700,
+                                    px: 0.6,
+                                    py: 0.2,
+                                    borderRadius: "4px",
+                                    mx: 0.2,
+                                  }}
+                                >
+                                  {part.value}
+                                </Box>
+                              );
+                            }
+                            if (part.type === "equal") {
+                              return <span key={i}>{part.value}</span>;
+                            }
+                            return null;
+                          })}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                }
+
+                const aligned = alignLists(prevList, currList);
+
+                return (
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                    {/* Previous List Items Column */}
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {(activeDetails.details?.current || []).map((item, idx) => {
-                        const isNew = !activeDetails.details?.previous.includes(item);
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }}>
+                        PREVIOUS ({prevList.length})
+                      </Typography>
+                      {aligned.map((row, idx) => {
+                        const item = row.prev;
+                        const isRemoved = item && !row.curr;
+
+                        if (!item) {
+                          return (
+                            <Box
+                              key={idx}
+                              sx={{
+                                p: 1.5,
+                                borderRadius: "10px",
+                                bgcolor: "#f8fafc",
+                                border: "1px dashed #e2e8f0",
+                                minHeight: 44,
+                                opacity: 0.4,
+                              }}
+                            />
+                          );
+                        }
+
                         return (
-                          <Box
+                          <Paper
                             key={idx}
+                            elevation={0}
                             sx={{
-                              p: 1.25,
-                              borderRadius: "8px",
-                              bgcolor: isNew ? "#f0fdf4" : "#f9fafb",
-                              border: `1px solid ${isNew ? "#bbf7d0" : "#e5e7eb"}`,
-                              color: isNew ? "#0f766e" : "#4b5563",
-                              fontSize: 13,
-                              fontWeight: isNew ? 600 : 500,
+                              p: 1.5,
+                              px: 2,
+                              borderRadius: "10px",
+                              border: isRemoved ? "1px solid #fee2e2" : "1px solid #e2e8f0",
+                              bgcolor: isRemoved ? "#fef2f2" : "#ffffff",
                               display: "flex",
                               alignItems: "center",
-                              gap: 1,
+                              justifyContent: "space-between",
                             }}
                           >
+                            <Typography
+                              sx={{
+                                fontSize: 13.5,
+                                fontWeight: isRemoved ? 700 : 600,
+                                color: isRemoved ? "#dc2626" : "#334155",
+                              }}
+                            >
+                              {item}
+                            </Typography>
+                          </Paper>
+                        );
+                      })}
+                    </Box>
+
+                    {/* Current List Items Column */}
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }}>
+                        CURRENT ({currList.length})
+                      </Typography>
+                      {aligned.map((row, idx) => {
+                        const item = row.curr;
+                        const isNew = item && !row.prev;
+
+                        if (!item) {
+                          return (
+                            <Box
+                              key={idx}
+                              sx={{
+                                p: 1.5,
+                                borderRadius: "10px",
+                                bgcolor: "#f8fafc",
+                                border: "1px dashed #e2e8f0",
+                                minHeight: 44,
+                                opacity: 0.4,
+                              }}
+                            />
+                          );
+                        }
+
+                        return (
+                          <Paper
+                            key={idx}
+                            elevation={0}
+                            sx={{
+                              p: 1.5,
+                              px: 2,
+                              borderRadius: "10px",
+                              border: isNew ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
+                              bgcolor: isNew ? "#ecfdf5" : "#ffffff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: 13.5,
+                                fontWeight: isNew ? 700 : 600,
+                                color: isNew ? "#059669" : "#334155",
+                              }}
+                            >
+                              {item}
+                            </Typography>
+
                             {isNew && (
-                              <Chip
-                                label="NEW"
-                                size="small"
-                                sx={{
-                                  height: 16,
-                                  bgcolor: "#0f766e",
-                                  color: "#fff",
-                                  fontSize: 9,
-                                  fontWeight: 700,
-                                  mr: 0.5,
-                                }}
-                              />
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                <Chip
+                                  label="NEW"
+                                  size="small"
+                                  sx={{
+                                    fontSize: 9.5,
+                                    fontWeight: 800,
+                                    height: 18,
+                                    bgcolor: "#059669",
+                                    color: "#ffffff",
+                                  }}
+                                />
+                                <CheckCircleIcon sx={{ fontSize: 16, color: "#059669" }} />
+                              </Box>
                             )}
-                            <Box sx={{ display: "flex", flexGrow: 1, whiteSpace: "pre-line" }}>{item}</Box>
-                            {isNew && <CheckIcon sx={{ fontSize: 15, color: "#0f766e" }} />}
-                          </Box>
+                          </Paper>
                         );
                       })}
-                      {activeDetails.details?.current.length === 0 && (
-                        <Typography sx={{ fontSize: 12.5, color: "#9ca3af", fontStyle: "italic" }}>
-                          No items recorded.
-                        </Typography>
-                      )}
                     </Box>
                   </Box>
-                </Box>
-              )}
+                );
+              })()}
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+            <DialogActions sx={{ px: 3, py: 2 }}>
               <Button
-                variant="outlined"
-                size="small"
                 onClick={() => setActiveDetails(null)}
+                variant="outlined"
                 sx={{
-                  borderRadius: "8px",
-                  borderColor: "#d1d5db",
-                  color: "#4b5563",
+                  borderColor: "#cbd5e1",
+                  color: "#475569",
+                  bgcolor: "#ffffff",
                   textTransform: "none",
-                  fontWeight: 600,
-                  "&:hover": { borderColor: "#9ca3af" },
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderRadius: "8px",
+                  px: 2.5,
+                  py: 0.6,
+                  "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
                 }}
               >
                 Close details

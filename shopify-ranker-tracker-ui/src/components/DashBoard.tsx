@@ -19,6 +19,7 @@ import ExtensionIcon from "@mui/icons-material/Extension";
 import PeopleIcon from "@mui/icons-material/People";
 import SearchIcon from "@mui/icons-material/Search";
 import StorefrontIcon from "@mui/icons-material/Storefront";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 // API
 import { api } from "../api";
@@ -400,7 +401,7 @@ export default function Dashboard({
                 </Box>
                 <Box>
                   <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Active Keywords</Typography>
-                  <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#6366f1" }}>{portfolioStats.totalKeywords}</Typography>
+                  <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#0284c7" }}>{portfolioStats.totalKeywords}</Typography>
                 </Box>
                 <Box>
                   <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Auto Daily Scans</Typography>
@@ -434,7 +435,7 @@ export default function Dashboard({
                   bgcolor: "#ffffff",
                 }}
               >
-                <Box sx={{ width: 56, height: 56, borderRadius: "14px", bgcolor: "#f1f5f9", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#6366f1", mb: 2 }}>
+                <Box sx={{ width: 56, height: 56, borderRadius: "14px", bgcolor: "#f1f5f9", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#0f172a", mb: 2 }}>
                   <StorefrontIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Typography sx={{ fontWeight: 700, fontSize: 17, color: "#0f172a", mb: 1 }}>
@@ -650,21 +651,76 @@ export default function Dashboard({
       ) : (
         /* APP DETAIL DASHBOARD (When an app is selected) */
         <Container maxWidth="xl" sx={{ py: 3, px: 3 }}>
-          <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+          {/* Single App Control Header Bar */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              px: 2.5,
+              borderRadius: "14px",
+              border: "1px solid #e2e8f0",
+              bgcolor: "#ffffff",
+              mb: 3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 2,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Avatar
+                sx={{
+                  width: 34,
+                  height: 34,
+                  fontSize: 14,
+                  fontWeight: 800,
+                  bgcolor: getAvatarColor(selectedApp.name),
+                  color: "#ffffff",
+                }}
+              >
+                {selectedApp.name[0]?.toUpperCase()}
+              </Avatar>
+              <Box>
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+                  {selectedApp.name}
+                </Typography>
+                <Typography
+                  component="a"
+                  href={selectedApp.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    fontSize: 12,
+                    color: "#0284c7",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    "&:hover": { textDecoration: "underline" },
+                  }}
+                >
+                  {selectedApp.url} <LaunchIcon sx={{ fontSize: 11 }} />
+                </Typography>
+              </Box>
+            </Box>
+
             <Chip
-              label={selectedApp.name}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: 12.5, fontWeight: 500, borderColor: "#e5e7eb", color: "#374151", bgcolor: "#fff", height: 28, px: 0.5 }}
-            />
-            <Chip
-              icon={<Box component="span" sx={{ fontSize: 12, mr: -0.5 }}>📅</Box>}
               label={daysLabel}
               size="small"
-              variant="outlined"
-              sx={{ fontSize: 12.5, fontWeight: 500, borderColor: "#e5e7eb", color: "#374151", bgcolor: "#fff", height: 28, px: 0.5 }}
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                bgcolor: "#f8fafc",
+                color: "#475569",
+                border: "1px solid #e2e8f0",
+                height: 28,
+                px: 1,
+              }}
             />
-          </Box>
+          </Paper>
 
           <MetricCards
             totalKeywords={dashboardStats.totalKeywords}

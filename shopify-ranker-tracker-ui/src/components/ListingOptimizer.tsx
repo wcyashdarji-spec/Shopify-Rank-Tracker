@@ -2,8 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   CircularProgress,
   Typography,
   Collapse,
@@ -14,7 +12,10 @@ import {
   MenuItem,
   FormControl,
   Chip,
-  Alert
+  Alert,
+  Paper,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -31,6 +32,9 @@ import TechIcon from "@mui/icons-material/DeveloperMode";
 import CategoryIcon from "@mui/icons-material/Category";
 import DescIcon from "@mui/icons-material/Description";
 import StarIcon from "@mui/icons-material/Star";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import LaunchIcon from "@mui/icons-material/Launch";
 import { api, type App } from "../api";
 
 interface ListingOptimizerProps {
@@ -40,7 +44,27 @@ interface ListingOptimizerProps {
   showToast: (message: string, severity: "success" | "error" | "info") => void;
 }
 
-export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showToast }: ListingOptimizerProps) {
+export default function ListingOptimizer({
+  apps,
+  selectedApp,
+  onSelectApp,
+  showToast,
+}: ListingOptimizerProps) {
+  if (!selectedApp) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center", maxWidth: 500, mx: "auto", mt: 6 }}>
+        <Paper elevation={0} sx={{ p: 4, borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+          <Typography variant="h6" sx={{ color: "#0f172a", fontWeight: 800, mb: 1 }}>
+            No Tracked App Selected
+          </Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
+            Please add or select a Shopify application from the Home Overview page to run ASO listing audits.
+          </Typography>
+        </Paper>
+      </Box>
+    );
+  }
+
   const appId = selectedApp.id;
   const appName = selectedApp.name;
   const appUrl = selectedApp.url;
@@ -48,6 +72,7 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
   const [loading, setLoading] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
   const lastFetchedId = useRef<number | null>(null);
 
   const fetchAudit = async (forceRefresh = false) => {
@@ -56,13 +81,13 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
       let data;
       if (forceRefresh) {
         data = await api.runListingAudit(appId);
-        showToast("Audit completed successfully!", "success");
+        showToast("Optimization audit completed successfully!", "success");
       } else {
         data = await api.getListingAudit(appId);
       }
       setAuditData(data);
     } catch (err: any) {
-      console.error(err);
+      console.error("Listing audit fetch error:", err);
       showToast(err?.message || "Failed to load listing audit data.", "error");
     } finally {
       setLoading(false);
@@ -92,13 +117,23 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 2.5 }}>
-        <CircularProgress size={52} sx={{ color: "#006e52" }} />
-        <Typography sx={{ color: "#374151", fontWeight: 600, fontSize: 16 }}>
-          Running optimization audit for your app & competitors...
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 450,
+          gap: 2.5,
+          p: 4,
+        }}
+      >
+        <CircularProgress size={48} sx={{ color: "#0f172a" }} />
+        <Typography sx={{ color: "#0f172a", fontWeight: 700, fontSize: 16 }}>
+          Auditing App Store Listing for "{appName}"...
         </Typography>
-        <Typography sx={{ color: "#6b7280", fontSize: 13.5 }}>
-          Syncing Shopify listings and analyzing SEO metadata. This may take up to 20 seconds.
+        <Typography sx={{ color: "#64748b", fontSize: 13.5, maxWidth: 420, textAlign: "center" }}>
+          Analyzing keyword density, title character counts, visual assets, technical signals, and discoverability factors.
         </Typography>
       </Box>
     );
@@ -108,112 +143,81 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
     const isLimitReached = auditData?.remaining_audits === 0 && auditData?.daily_audit_limit;
 
     return (
-      <Box sx={{ p: 4, bgcolor: "#f9fafb", minHeight: "100vh", fontFamily: "'Inter', sans-serif" }}>
-        {/* Header welcome */}
-        <Box sx={{ maxWidth: 800, mx: "auto", textAlign: "center", mt: 6, mb: 6 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: "#004b3a", mb: 2, letterSpacing: "-0.02em" }}>
+      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 1000, mx: "auto" }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, sm: 5 },
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
+            textAlign: "center",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
+            mb: 4,
+          }}
+        >
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: "14px",
+              bgcolor: "#f1f5f9",
+              color: "#0f172a",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 2,
+            }}
+          >
+            <AssessmentIcon sx={{ fontSize: 32 }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 1, letterSpacing: "-0.02em" }}>
             Shopify Listing Optimizer
           </Typography>
-          <Typography variant="subtitle1" sx={{ color: "#4b5563", maxWidth: 640, mx: "auto", mb: 4, lineHeight: 1.6, fontSize: 15 }}>
-            Run an AI-powered ASO (App Store Optimization) audit on <strong>{appName}</strong>. We sync the live App Store listing, evaluate keyword coverage, visual layouts, technical parameters, and log benchmarks for your ASO Activity Feed.
+          <Typography variant="body2" sx={{ color: "#64748b", maxWidth: 600, mx: "auto", mb: 3.5, lineHeight: 1.6, fontSize: 14 }}>
+            Run an AI-powered ASO (App Store Optimization) audit on <strong>{appName}</strong>. We evaluate live Shopify App Store listings, title keyword density, media counts, localization, and technical ASO signals.
           </Typography>
-          <Button 
-            variant="contained" 
-            onClick={handleReRunAudit} 
+          <Button
+            variant="contained"
+            onClick={handleReRunAudit}
             disabled={loading || isLimitReached}
             startIcon={<RefreshIcon />}
-            sx={{ 
-              bgcolor: isLimitReached ? "#9ca3af" : "#006e52", 
+            sx={{
+              bgcolor: isLimitReached ? "#94a3b8" : "#0f172a",
+              color: "#ffffff",
               textTransform: "none",
               borderRadius: "10px",
               px: 4,
-              py: 1.75,
-              fontSize: 14.5,
-              fontWeight: 600,
-              boxShadow: isLimitReached ? "none" : "0 4px 14px rgba(0, 110, 82, 0.2)",
-              transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-              "&:hover": { 
-                bgcolor: isLimitReached ? "#9ca3af" : "#005a44",
-                transform: isLimitReached ? "none" : "translateY(-1px)",
-                boxShadow: isLimitReached ? "none" : "0 6px 20px rgba(0, 110, 82, 0.3)"
-              } 
+              py: 1.25,
+              fontSize: 14,
+              fontWeight: 700,
+              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
+              "&:hover": {
+                bgcolor: isLimitReached ? "#94a3b8" : "#1e293b",
+              },
             }}
           >
             Start Optimization Audit
           </Button>
-          
+
           {isLimitReached ? (
-            <Alert severity="warning" sx={{ mt: 3, maxWidth: 480, mx: "auto", borderRadius: "8px", textAlign: "left" }}>
+            <Alert severity="warning" sx={{ mt: 3, maxWidth: 500, mx: "auto", borderRadius: "10px", textAlign: "left" }}>
               Daily re-audit limit of <strong>{auditData.daily_audit_limit}</strong> audits reached for this application. Please try again tomorrow.
             </Alert>
           ) : (
             auditData?.daily_audit_limit && (
-              <Typography variant="body2" sx={{ color: "#6b7280", mt: 2, fontSize: 13 }}>
+              <Typography variant="body2" sx={{ color: "#94a3b8", mt: 2, fontSize: 12.5 }}>
                 Daily limit remaining: <strong>{auditData.remaining_audits}</strong> of <strong>{auditData.daily_audit_limit}</strong> audits left today.
               </Typography>
             )
           )}
-        </Box>
-
-        {/* Feature Grid */}
-        <Box sx={{ maxWidth: 900, mx: "auto" }}>
-          <Typography variant="subtitle2" sx={{ color: "#4b5563", fontWeight: 700, mb: 3.5, textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "center", fontSize: 12 }}>
-            What We Analyze
-          </Typography>
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
-            gap: 3
-          }}>
-            {[
-              { key: "title_optimization", desc: "Title character length, brand prefix matching, and keyword positioning checks." },
-              { key: "visual_assets", desc: "Screenshot quality benchmarks, media counts, contrast, and image search alt tags." },
-              { key: "languages", desc: "Localization support checking for presence of high-value languages in target regions." },
-              { key: "technical_signals", desc: "Built for Shopify badge checks, privacy policy links, FAQs, and developer docs." },
-              { key: "categories_discoverability", desc: "Store category indexing, integration compatibility, and ASO feature tags." },
-              { key: "description_content", desc: "Semantic keyword density, Meta descriptions, value promises, and feature lists." }
-            ].map((feat) => (
-              <Card key={feat.key} sx={{
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.02)",
-                display: "flex",
-                flexDirection: "column",
-                p: 3,
-                bgcolor: "#ffffff",
-                transition: "transform 0.2s",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  borderColor: "#d1d5db"
-                }
-              }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.75 }}>
-                  <Box sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "#e6f1ee",
-                    borderRadius: "8px",
-                    p: 1.25
-                  }}>
-                    {getMetricIcon(feat.key)}
-                  </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14.5, color: "#111827" }}>
-                    {getMetricTitle(feat.key)}
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontSize: 13, color: "#4b5563", lineHeight: 1.55 }}>
-                  {feat.desc}
-                </Typography>
-              </Card>
-            ))}
-          </Box>
-        </Box>
+        </Paper>
       </Box>
     );
   }
 
-  const { overall_score, rating_val, reviews_text } = auditData;
+  const { overall_score = 0, rating_val, reviews_text } = auditData;
   const categories: Record<string, any> =
     auditData.categories && !Array.isArray(auditData.categories) && typeof auditData.categories === "object"
       ? auditData.categories
@@ -222,33 +226,33 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
   function renderIcon(type: string) {
     switch (type) {
       case "check_circle":
-        return <CheckCircleIcon sx={{ color: "#006e52", fontSize: 20 }} />;
+        return <CheckCircleIcon sx={{ color: "#059669", fontSize: 18 }} />;
       case "cancel":
-        return <CancelIcon sx={{ color: "#d97706", fontSize: 20 }} />; // Dark orange/red
+        return <CancelIcon sx={{ color: "#dc2626", fontSize: 18 }} />;
       case "warning":
-        return <WarningIcon sx={{ color: "#f59e0b", fontSize: 20 }} />;
+        return <WarningIcon sx={{ color: "#d97706", fontSize: 18 }} />;
       case "info":
       default:
-        return <InfoIcon sx={{ color: "#2563eb", fontSize: 20 }} />;
+        return <InfoIcon sx={{ color: "#0284c7", fontSize: 18 }} />;
     }
   }
 
   function getMetricIcon(key: string) {
     switch (key) {
       case "title_optimization":
-        return <TitleIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <TitleIcon sx={{ fontSize: 18 }} />;
       case "visual_assets":
-        return <ImageIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <ImageIcon sx={{ fontSize: 18 }} />;
       case "languages":
-        return <LanguageIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <LanguageIcon sx={{ fontSize: 18 }} />;
       case "technical_signals":
-        return <TechIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <TechIcon sx={{ fontSize: 18 }} />;
       case "categories_discoverability":
-        return <CategoryIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <CategoryIcon sx={{ fontSize: 18 }} />;
       case "description_content":
-        return <DescIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <DescIcon sx={{ fontSize: 18 }} />;
       default:
-        return <InfoIcon sx={{ color: "#111827", fontSize: 20 }} />;
+        return <InfoIcon sx={{ fontSize: 18 }} />;
     }
   }
 
@@ -260,18 +264,50 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
   }
 
   function getScoreColor(score: number) {
-    if (score >= 90) return "#006e52"; // Emerald green
-    if (score >= 70) return "#f59e0b"; // Amber
-    return "#ef4444"; // Red
+    if (score >= 80) return "#059669"; // Emerald green
+    if (score >= 60) return "#d97706"; // Amber
+    return "#dc2626"; // Red
   }
 
+  function getScoreBg(score: number) {
+    if (score >= 80) return "#ecfdf5";
+    if (score >= 60) return "#fffbeb";
+    return "#fef2f2";
+  }
+
+  // Filter categories based on active tab
+  const categoryKeys = Object.keys(categories);
+  const filteredKeys = categoryKeys.filter((key) => {
+    if (activeTab === "title") return key === "title_optimization" || key === "description_content";
+    if (activeTab === "media") return key === "visual_assets";
+    if (activeTab === "tech") return key === "technical_signals" || key === "languages" || key === "categories_discoverability";
+    return true;
+  });
+
   return (
-    <Box sx={{ p: 4, bgcolor: "#f9fafb", minHeight: "100vh", fontFamily: "'Inter', sans-serif" }}>
-      {/* Top Header Bar */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, "@media print": { display: "none" } }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <Typography sx={{ fontSize: 22, fontWeight: 700, color: "#004b3a", letterSpacing: "-0.02em" }}>
-            LISTING OPTIMIZER
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1080, mx: "auto" }}>
+      {/* 1. Unified Control Header Bar (All Controls in One Sleek Card) */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          p: 2.5,
+          bgcolor: "#ffffff",
+          mb: 3,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 2,
+          "@media print": { display: "none" },
+        }}
+      >
+        {/* App Switcher Dropdown & Info */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Application:
           </Typography>
           <FormControl size="small" sx={{ minWidth: 220 }}>
             <Select
@@ -283,34 +319,57 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
               sx={{
                 bgcolor: "#ffffff",
                 fontSize: 13.5,
-                fontWeight: 600,
-                borderRadius: "8px",
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e5e7eb" },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#d1d5db" },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#006e52" }
+                fontWeight: 700,
+                borderRadius: "10px",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#0f172a" },
               }}
             >
               {apps.map((app) => (
-                <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5 }}>
+                <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
                   {app.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+
+          {auditData.audit_last_synced_at && (
+            <Chip
+              icon={<ScheduleIcon sx={{ fontSize: 13 }} />}
+              label={`Synced: ${new Date(auditData.audit_last_synced_at).toLocaleDateString()}`}
+              size="small"
+              sx={{ color: "#475569", bgcolor: "#f8fafc", border: "1px solid #e2e8f0", fontWeight: 600, fontSize: 11.5, height: 26 }}
+            />
+          )}
+
+          {auditData.daily_audit_limit !== null && auditData.daily_audit_limit !== undefined && (
+            <Chip
+              label={`${auditData.remaining_audits} of ${auditData.daily_audit_limit} audits left`}
+              color={auditData.remaining_audits === 0 ? "error" : "success"}
+              size="small"
+              sx={{ fontWeight: 700, fontSize: 11.5, height: 26 }}
+            />
+          )}
         </Box>
-        <Box sx={{ display: "flex", gap: 2 }}>
+
+        {/* Action Buttons */}
+        <Box sx={{ display: "flex", gap: 1.25 }}>
           <Button
             variant="outlined"
             onClick={handleExportPdf}
-            startIcon={<PdfIcon />}
+            startIcon={<PdfIcon sx={{ fontSize: 16 }} />}
             sx={{
-              borderColor: "#e5e7eb",
-              color: "#374151",
+              borderColor: "#e2e8f0",
+              color: "#475569",
               textTransform: "none",
-              fontWeight: 500,
+              fontWeight: 700,
+              fontSize: 12.5,
               borderRadius: "8px",
               bgcolor: "#ffffff",
-              "&:hover": { borderColor: "#d1d5db", bgcolor: "#f9fafb" }
+              px: 1.75,
+              py: 0.6,
+              "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" },
             }}
           >
             Export PDF
@@ -319,249 +378,328 @@ export default function ListingOptimizer({ apps, selectedApp, onSelectApp, showT
             variant="contained"
             onClick={handleReRunAudit}
             disabled={loading || auditData?.remaining_audits === 0}
-            startIcon={loading ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <RefreshIcon />}
+            startIcon={loading ? <CircularProgress size={13} sx={{ color: "#ffffff" }} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
             sx={{
-              bgcolor: auditData?.remaining_audits === 0 ? "#9ca3af" : "#006e52",
+              bgcolor: auditData?.remaining_audits === 0 ? "#94a3b8" : "#0f172a",
               color: "#ffffff",
               textTransform: "none",
-              fontWeight: 500,
+              fontWeight: 700,
+              fontSize: 12.5,
               borderRadius: "8px",
-              "&:hover": { bgcolor: auditData?.remaining_audits === 0 ? "#9ca3af" : "#005a44" }
+              px: 2,
+              py: 0.6,
+              boxShadow: "0 2px 6px rgba(15, 23, 42, 0.15)",
+              "&:hover": { bgcolor: auditData?.remaining_audits === 0 ? "#94a3b8" : "#1e293b" },
             }}
           >
             {loading ? "Auditing..." : "Re-run Audit"}
           </Button>
         </Box>
-      </Box>
+      </Paper>
 
-      {/* Sync Status & Limits Bar */}
-      {auditData && auditData.status !== "not_run" && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", mb: 3, "@media print": { display: "none" } }}>
-          {auditData.audit_last_synced_at && (
-            <Chip
-              label={`Last synced: ${new Date(auditData.audit_last_synced_at).toLocaleString()}`}
-              size="small"
-              variant="outlined"
-              sx={{ color: "#374151", borderColor: "#e5e7eb", bgcolor: "#ffffff", fontWeight: 500, px: 0.5 }}
-            />
-          )}
-          {auditData.daily_audit_limit !== null && auditData.daily_audit_limit !== undefined && (
-            <Chip
-              label={
-                auditData.remaining_audits === 0 
-                  ? `Daily Limit Reached (0 of ${auditData.daily_audit_limit} left)` 
-                  : `Daily Audits: ${auditData.remaining_audits} of ${auditData.daily_audit_limit} left today`
-              }
-              color={auditData.remaining_audits === 0 ? "error" : auditData.remaining_audits === 1 ? "warning" : "success"}
-              size="small"
-              sx={{ fontWeight: 600, px: 0.5 }}
-            />
-          )}
-        </Box>
-      )}
-
-      {/* Limit Exceeded Alert */}
-      {auditData?.remaining_audits === 0 && auditData?.daily_audit_limit && (
-        <Alert severity="warning" sx={{ mb: 3, borderRadius: "12px", border: "1px solid #ffeeba" }}>
-          You have reached your daily optimization limit of <strong>{auditData.daily_audit_limit}</strong> audits for this application. Re-run button is disabled and will reset tomorrow.
-        </Alert>
-      )}
-
-      {/* Header Info Displayed Only on Print */}
-      <Box sx={{ display: "none", "@media print": { display: "block", mb: 4 } }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: "#004b3a" }}>
-          Shopify Store Listing Audit Report
-        </Typography>
-        <Typography variant="subtitle1" sx={{ color: "#6b7280" }}>
-          Generated for: {appName} ({appUrl})
-        </Typography>
-      </Box>
-
-      {/* Main Score Header Card */}
-      <Card
+      {/* 2. Hero Overview & Quick Action Plan Card */}
+      <Paper
+        elevation={0}
         sx={{
           borderRadius: "16px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.03)",
-          border: "1px solid #e5e7eb",
-          mb: 4,
-          overflow: "visible",
-          background: "#ffffff"
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)",
+          border: "1px solid #e2e8f0",
+          mb: 3,
+          p: { xs: 3, sm: 4 },
+          bgcolor: "#ffffff",
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "240px 1fr" },
+            gap: 4,
+            alignItems: "center",
+          }}
+        >
+          {/* Left Column: Overall Score Circular Gauge */}
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
+              flexDirection: "column",
               alignItems: "center",
-              gap: 4
+              justifyContent: "center",
+              py: 1,
             }}
           >
-            {/* Circular score gauge */}
-            <Box sx={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
-              <Box sx={{ position: "relative", display: "inline-flex" }}>
-                <CircularProgress
-                  variant="determinate"
-                  value={100}
-                  size={120}
-                  thickness={5}
-                  sx={{ color: "#f3f4f6" }}
-                />
-                <CircularProgress
-                  variant="determinate"
-                  value={overall_score}
-                  size={120}
-                  thickness={5}
-                  sx={{
-                    color: getScoreColor(overall_score),
-                    position: "absolute",
-                    left: 0,
-                    strokeLinecap: "round"
-                  }}
-                />
-                <Box
-                  sx={{
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    right: 0,
-                    position: "absolute",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  <Typography sx={{ fontSize: 32, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
-                    {overall_score}
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#6b7280", mt: 0.5 }}>
-                    / 100
-                  </Typography>
-                </Box>
+            <Box sx={{ position: "relative", display: "inline-flex", mb: 1.75 }}>
+              <CircularProgress
+                variant="determinate"
+                value={100}
+                size={110}
+                thickness={6}
+                sx={{ color: "#f1f5f9" }}
+              />
+              <CircularProgress
+                variant="determinate"
+                value={overall_score}
+                size={110}
+                thickness={6}
+                sx={{
+                  color: getScoreColor(overall_score),
+                  position: "absolute",
+                  left: 0,
+                  strokeLinecap: "round",
+                }}
+              />
+              <Box
+                sx={{
+                  inset: 0,
+                  position: "absolute",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography sx={{ fontSize: 32, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
+                  {overall_score}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", mt: 0.25 }}>
+                  out of 100
+                </Typography>
               </Box>
             </Box>
 
-            {/* App name and general review info */}
-            <Box sx={{ flexGrow: 1, textAlign: { xs: "center", sm: "left" } }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827", mb: 1 }}>
+            <Chip
+              label={
+                overall_score >= 80
+                  ? "● Great Listing Health"
+                  : overall_score >= 60
+                  ? "● Needs Minor Optimization"
+                  : "● Requires ASO Improvements"
+              }
+              size="small"
+              sx={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                bgcolor: getScoreBg(overall_score),
+                color: getScoreColor(overall_score),
+                height: 24,
+                px: 0.5,
+              }}
+            />
+          </Box>
+
+          {/* Right Column: App Header & Priority Action Plan Cards */}
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
                 {appName}
               </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: { xs: "center", sm: "flex-start" }, gap: 0.5 }}>
-                <StarIcon sx={{ color: "#f59e0b", fontSize: 18 }} />
-                <Typography sx={{ fontSize: 14, color: "#4b5563", fontWeight: 500 }}>
-                  {typeof rating_val === "number" ? `${rating_val.toFixed(1)} stars` : "0.0 stars"}
-                </Typography>
-                <Typography sx={{ fontSize: 14, color: "#9ca3af", mx: 1 }}>•</Typography>
-                <Typography sx={{ fontSize: 14, color: "#4b5563", fontWeight: 500 }}>
-                  {(() => {
-                    if (!reviews_text) return "0 reviews";
-                    const cleaned = reviews_text.trim();
-                    if (cleaned.toLowerCase().includes("reviews") || cleaned.toLowerCase().includes("ratings")) {
-                      return cleaned;
-                    }
-                    const numMatch = cleaned.match(/\d+/);
-                    return numMatch ? `${numMatch[0]} reviews` : `${cleaned} reviews`;
-                  })()}
-                </Typography>
-              </Box>
+              <Button
+                component="a"
+                href={appUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                size="small"
+                variant="outlined"
+                endIcon={<LaunchIcon sx={{ fontSize: 12 }} />}
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  borderColor: "#e2e8f0",
+                  bgcolor: "#f8fafc",
+                  borderRadius: "7px",
+                  textTransform: "none",
+                  py: 0.3,
+                  px: 1.25,
+                  "&:hover": { borderColor: "#0f172a", bgcolor: "#f1f5f9" },
+                }}
+              >
+                View in App Store
+              </Button>
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <StarIcon sx={{ color: "#f59e0b", fontSize: 17 }} />
+              <Typography sx={{ fontSize: 13.5, color: "#334155", fontWeight: 700 }}>
+                {typeof rating_val === "number" ? `${rating_val.toFixed(1)} stars` : "0.0 stars"}
+              </Typography>
+              <Typography sx={{ fontSize: 13.5, color: "#cbd5e1" }}>•</Typography>
+              <Typography sx={{ fontSize: 13.5, color: "#64748b", fontWeight: 600 }}>
+                {(() => {
+                  if (!reviews_text) return "0 reviews";
+                  const cleaned = reviews_text.trim();
+                  if (cleaned.toLowerCase().includes("reviews") || cleaned.toLowerCase().includes("ratings")) {
+                    return cleaned;
+                  }
+                  const numMatch = cleaned.match(/\d+/);
+                  return numMatch ? `${numMatch[0]} reviews` : `${cleaned} reviews`;
+                })()}
+              </Typography>
             </Box>
           </Box>
-        </CardContent>
-      </Card>
+        </Box>
+      </Paper>
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 3
-        }}
-      >
-        {Object.entries(categories).map(([key, data]: [string, any]) => {
+      {/* 3. Organized Filter Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: "#e2e8f0", mb: 2.5 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, val) => setActiveTab(val)}
+          textColor="primary"
+          indicatorColor="primary"
+          sx={{
+            minHeight: 40,
+            "& .MuiTab-root": {
+              fontSize: 13,
+              fontWeight: 700,
+              textTransform: "none",
+              minHeight: 40,
+              py: 1,
+              px: 2,
+              color: "#64748b",
+              "&.Mui-selected": { color: "#0f172a" },
+            },
+            "& .MuiTabs-indicator": { bgcolor: "#0f172a", height: 3 },
+          }}
+        >
+          <Tab value="all" label={`All Audit Areas (${categoryKeys.length})`} />
+          <Tab value="title" label="Title & Description" />
+          <Tab value="media" label="Visual Media" />
+          <Tab value="tech" label="Technical & Discoverability" />
+        </Tabs>
+      </Box>
+
+      {/* 4. Organized Audit List */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {filteredKeys.map((key) => {
+          const data = categories[key] || {};
           const isExpanded = expandedCard === key;
-          const score = data.score;
+          const score = data.score || 0;
           const progressColor = getScoreColor(score);
 
           return (
-            <Box key={key}>
-              <Card
-                sx={{
-                  borderRadius: "12px",
-                  boxShadow: isExpanded ? "0 10px 30px rgba(0, 0, 0, 0.05)" : "0 4px 12px rgba(0, 0, 0, 0.02)",
-                  border: isExpanded ? "1px solid #006e52" : "1px solid #e5e7eb",
-                  bgcolor: "#ffffff",
-                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                  cursor: "pointer",
-                  "&:hover": {
-                    borderColor: isExpanded ? "#006e52" : "#d1d5db",
-                    transform: "translateY(-1px)"
-                  }
-                }}
+            <Paper
+              key={key}
+              elevation={0}
+              sx={{
+                borderRadius: "14px",
+                border: isExpanded ? "1.5px solid #0f172a" : "1px solid #e2e8f0",
+                bgcolor: "#ffffff",
+                transition: "all 0.2s ease",
+                overflow: "hidden",
+                boxShadow: isExpanded ? "0 8px 24px rgba(15, 23, 42, 0.08)" : "0 2px 8px rgba(0,0,0,0.02)",
+              }}
+            >
+              {/* Card Header Bar (Clickable) */}
+              <Box
                 onClick={() => toggleExpand(key)}
+                sx={{
+                  p: 2.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  bgcolor: isExpanded ? "#f8fafc" : "#ffffff",
+                  "&:hover": { bgcolor: "#f8fafc" },
+                }}
               >
-                <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
-                  {/* Category Header */}
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                      {getMetricIcon(key)}
-                      <Typography sx={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>
-                        {getMetricTitle(key)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography sx={{ fontWeight: 800, fontSize: 18, color: progressColor }}>
-                        {score}
-                      </Typography>
-                      <IconButton size="small" sx={{ p: 0.25 }}>
-                        {isExpanded ? <ArrowUpIcon sx={{ fontSize: 18 }} /> : <ArrowDownIcon sx={{ fontSize: 18 }} />}
-                      </IconButton>
-                    </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1, minWidth: 0, mr: 2 }}>
+                  <Box
+                    sx={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: "10px",
+                      bgcolor: getScoreBg(score),
+                      color: progressColor,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {getMetricIcon(key)}
                   </Box>
 
-                  {/* Horizontal Linear Progress Bar */}
-                  <Box sx={{ width: "100%", mb: 1.5 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5, flexWrap: "wrap" }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>
+                        {getMetricTitle(key)}
+                      </Typography>
+                      <Chip
+                        label={score >= 80 ? "Pass" : score >= 60 ? "Warning" : "Action Needed"}
+                        size="small"
+                        sx={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          height: 20,
+                          bgcolor: getScoreBg(score),
+                          color: progressColor,
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: 12.5, color: "#64748b" }} noWrap>
+                      {data.subtext}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Score Dial & Expand Arrow */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                  <Box sx={{ width: 100, textAlign: "right", display: { xs: "none", sm: "block" } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5, mb: 0.5 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: 16, color: progressColor }}>
+                        {score}
+                      </Typography>
+                      <Typography sx={{ fontSize: 11, color: "#94a3b8" }}>/ 100</Typography>
+                    </Box>
                     <LinearProgress
                       variant="determinate"
                       value={score}
                       sx={{
-                        height: 6,
+                        height: 5,
                         borderRadius: 3,
-                        bgcolor: "#f3f4f6",
-                        "& .MuiLinearProgress-bar": {
-                          bgcolor: progressColor,
-                          borderRadius: 3
-                        }
+                        bgcolor: "#f1f5f9",
+                        "& .MuiLinearProgress-bar": { bgcolor: progressColor, borderRadius: 3 },
                       }}
                     />
                   </Box>
 
-                  {/* Summary Subtext */}
-                  <Typography sx={{ fontSize: 13, color: "#4b5563", lineHeight: 1.4 }}>
-                    {data.subtext}
-                  </Typography>
+                  <IconButton size="small" sx={{ color: "#64748b" }}>
+                    {isExpanded ? <ArrowUpIcon sx={{ fontSize: 20 }} /> : <ArrowDownIcon sx={{ fontSize: 20 }} />}
+                  </IconButton>
+                </Box>
+              </Box>
 
-                  {/* Accordion / Expandable Detailed Checklist */}
-                  <Collapse in={isExpanded} timeout="auto" unmountOnExit onClick={(e) => e.stopPropagation()}>
-                    <Divider sx={{ my: 2 }} />
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {(data.items || []).map((item: any, idx: number) => (
-                        <Box key={idx} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-                          <Box sx={{ mt: 0.25, display: "flex" }}>{renderIcon(item.type)}</Box>
-                          <Box>
-                            <Typography sx={{ fontWeight: 600, fontSize: 13.5, color: "#111827" }}>
-                              {item.title}
-                            </Typography>
-                            <Typography sx={{ fontSize: 12.5, color: "#4b5563", mt: 0.25, lineHeight: 1.4 }}>
-                              {item.desc}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      ))}
+              {/* Expandable Checklist Details */}
+              <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                <Divider sx={{ borderColor: "#e2e8f0" }} />
+                <Box sx={{ p: 3, bgcolor: "#ffffff", display: "flex", flexDirection: "column", gap: 2 }}>
+                  {(data.items || []).map((item: any, idx: number) => (
+                    <Box
+                      key={idx}
+                      sx={{
+                        display: "flex",
+                        gap: 1.5,
+                        alignItems: "flex-start",
+                        p: 1.75,
+                        borderRadius: "10px",
+                        bgcolor: "#f8fafc",
+                        border: "1px solid #f1f5f9",
+                      }}
+                    >
+                      <Box sx={{ mt: 0.25, display: "flex", flexShrink: 0 }}>{renderIcon(item.type)}</Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: "#0f172a" }}>
+                          {item.title}
+                        </Typography>
+                        <Typography sx={{ fontSize: 12.5, color: "#64748b", mt: 0.25, lineHeight: 1.5 }}>
+                          {item.desc}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Collapse>
-                </CardContent>
-              </Card>
-            </Box>
+                  ))}
+                </Box>
+              </Collapse>
+            </Paper>
           );
         })}
       </Box>

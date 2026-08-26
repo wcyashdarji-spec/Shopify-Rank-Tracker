@@ -704,7 +704,7 @@ export default function HistoryLog({
                       {selectedApp?.name || "Your Store"}
                     </Typography>
                     <Chip
-                      label="You"
+                      label="Your Store"
                       size="small"
                       sx={{
                         bgcolor: "#eff6ff",

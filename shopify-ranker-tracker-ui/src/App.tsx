@@ -114,6 +114,12 @@ export default function App() {
     }
   };
 
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setSelectedApp(null);
+    setPage("dashboard");
+  };
+
   const handleLogout = async () => {
     try {
       await api.logout();
@@ -163,7 +169,7 @@ export default function App() {
     }
 
     if (isAuthenticated) {
-      fetchApps(true);
+      fetchApps(false);
       fetchInvitations();
     }
   }, [isAuthenticated]);
@@ -187,6 +193,13 @@ export default function App() {
   const handleAppSelect = (app: AppType | null) => {
     setSelectedApp(app);
     setPage("dashboard");
+  };
+
+  const handleNavigate = (newPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => {
+    if ((newPage === "optimizer" || newPage === "competitors") && !selectedApp && apps.length > 0) {
+      setSelectedApp(apps[0]);
+    }
+    setPage(newPage);
   };
 
   // const handleSaveSettings = (url: string) => {
@@ -302,8 +315,8 @@ export default function App() {
                     bgcolor: "#ffffff",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                     "&:hover": {
-                      borderColor: "#6366f1",
-                      color: "#6366f1",
+                      borderColor: "#0f172a",
+                      color: "#0f172a",
                       bgcolor: "#f8fafc",
                     },
                   }}
@@ -314,7 +327,7 @@ export default function App() {
 
               <Button
                 size="small"
-                startIcon={<HelpOutlineIcon sx={{ fontSize: 15, color: "#6366f1" }} />}
+                startIcon={<HelpOutlineIcon sx={{ fontSize: 15, color: "#0f172a" }} />}
                 onClick={() => showToast("Contact support at support@shopifyranktracker.com", "info")}
                 sx={{
                   fontSize: 12.5,
@@ -393,7 +406,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       {!isAuthenticated ? (
-        <LoginRegister onLoginSuccess={() => setIsAuthenticated(true)} />
+        <LoginRegister onLoginSuccess={handleLoginSuccess} />
       ) : (
         <Layout
           apps={apps}
@@ -404,7 +417,7 @@ export default function App() {
           onDeleteApp={handleDeleteApp}
           isLoadingApps={isLoadingApps}
           currentPage={page}
-          onNavigate={setPage}
+          onNavigate={handleNavigate}
           headerContent={headerContent}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
@@ -434,21 +447,21 @@ export default function App() {
                 showToast={showToast}
                 apps={apps}
                 onSelectApp={handleAppSelect}
-                onNavigate={setPage}
+                onNavigate={handleNavigate}
               />
             ) : page === "history" ? (
               <HistoryPage />
-            ) : page === "optimizer" && selectedApp ? (
+            ) : page === "optimizer" ? (
               <ListingOptimizer
                 apps={apps}
-                selectedApp={selectedApp}
+                selectedApp={selectedApp || apps[0]}
                 onSelectApp={setSelectedApp}
                 showToast={showToast}
               />
-            ) : page === "competitors" && selectedApp ? (
+            ) : page === "competitors" ? (
               <CompetitorsPage
                 apps={apps}
-                selectedApp={selectedApp}
+                selectedApp={selectedApp || apps[0]}
                 onSelectApp={setSelectedApp}
                 showToast={showToast}
               />
