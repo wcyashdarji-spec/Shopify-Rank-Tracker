@@ -6,7 +6,7 @@ import { Box, Chip, Container, Typography } from "@mui/material";
 
 // API
 import { api } from "../api";
-import type { App, KeywordHistory } from "../api";
+import type { App, Competitor, KeywordHistory } from "../api";
 
 // Components
 import HistoryLog from "./HistoryLog";
@@ -14,7 +14,6 @@ import KeywordsDialog from "./KeywordsDialog";
 import MetricCards from "./MetricCards";
 import RankChart from "./RankChart";
 import ScreenshotDialog from "./ScreenshotDialog";
-import CompetitorManager from "./CompetitorManager";
 
 interface DashboardProps {
   selectedApp: App | null;
@@ -32,6 +31,7 @@ export default function Dashboard({
   showToast,
 }: DashboardProps) {
   const [historyData, setHistoryData] = useState<KeywordHistory[]>([]);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [selectedKeywords, setSelectedKeywords] = useState<number[]>([]);
   const [daysRange, setDaysRange] = useState<number>(30);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -40,13 +40,42 @@ export default function Dashboard({
   const [keywordsDialogOpen, setKeywordsDialogOpen] = useState(false);
   const [listingScore, setListingScore] = useState<number | null>(null);
 
+  const fetchCompetitors = async () => {
+    if (!selectedApp) return;
+    try {
+      const data = await api.getCompetitors(selectedApp.id);
+      setCompetitors(data.competitors || []);
+    } catch (err) {
+      console.error("Failed to load competitors", err);
+    }
+  };
+
+  const handleAddCompetitor = async (name: string, url: string) => {
+    if (!selectedApp) return;
+    await api.addCompetitor(selectedApp.id, name, url);
+    showToast(`Added competitor: ${name}`, "success");
+    await fetchCompetitors();
+    await fetchHistory();
+  };
+
+  const handleDeleteCompetitor = async (comp: Competitor) => {
+    if (!selectedApp) return;
+    await api.removeCompetitor(selectedApp.id, comp.id);
+    showToast(`Removed competitor: ${comp.name}`, "success");
+    await fetchCompetitors();
+    await fetchHistory();
+  };
+
   useEffect(() => {
     if (!selectedApp) {
       setListingScore(null);
       setHistoryData([]);
       setSelectedKeywords([]);
+      setCompetitors([]);
       return;
     }
+
+    fetchCompetitors();
 
     let isMounted = true;
     setIsLoadingHistory(true);
@@ -284,15 +313,15 @@ export default function Dashboard({
             onManageKeywords={() => setKeywordsDialogOpen(true)}
           />
 
-          <CompetitorManager
-            appId={selectedApp.id}
-            onRefresh={fetchHistory}
-            showToast={showToast}
-          />
-
           <HistoryLog
-            tableRows={tableRows}
+            selectedApp={selectedApp}
+            historyData={historyData}
+            competitors={competitors}
+            onAddCompetitor={handleAddCompetitor}
+            onDeleteCompetitor={handleDeleteCompetitor}
             onViewScreenshot={(path) => setViewScreenshotPath(getScreenshotUrl(path))}
+            tableRows={tableRows}
+            onRefresh={fetchHistory}
           />
         </Container>
       )}

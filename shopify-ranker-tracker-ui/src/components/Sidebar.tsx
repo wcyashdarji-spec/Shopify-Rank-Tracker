@@ -92,7 +92,6 @@ export default function Sidebar({
   const [historyExpanded,] = useState(false);
   const [, setLastSyncs] = useState<AppLastSync[]>([]);
   const [, setLoadingHistory] = useState(false);
-  const [reportsOpen, setReportsOpen] = useState(false);
 
   const showSyncButton = useMemo(() => {
     if (!apps || apps.length === 0) return false;
@@ -248,7 +247,7 @@ export default function Sidebar({
         <List dense disablePadding>
           <ListItem disablePadding>
             <ListItemButton
-                  sx={navItemSx(currentPage === "dashboard")}
+                  sx={navItemSx(currentPage === "dashboard" && !selectedApp)}
                   onClick={() => onNavigate("dashboard")}
             >
               <ListItemIcon sx={{ minWidth: 28 }}>
@@ -283,44 +282,6 @@ export default function Sidebar({
               </ListItem>
             </>
           )}
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(reportsOpen || currentPage === "dashboard")}
-              onClick={() => setReportsOpen((prev) => !prev)}
-            >
-              <ListItemIcon sx={{ minWidth: 28 }}>
-                <BarChartIcon sx={{ fontSize: 16, color: "inherit" }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }} primary="Reports" />
-              {reportsOpen ? <ExpandLessIcon  sx={{ fontSize: 18 }} /> : <ExpandMoreIcon  sx={{ fontSize: 18 }} />}
-            </ListItemButton>
-          </ListItem>
-
-          <Collapse in={reportsOpen} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding>
-              {apps.map((app) => (
-                <ListItem key={app.id} disablePadding>
-                  <ListItemButton
-                    sx={{ ...navItemSx(selectedApp?.id === app.id && (currentPage === "dashboard" || currentPage === "optimizer")), pl: 5 }}
-                    onClick={() => {
-                      onSelectApp(app);
-                      onNavigate("dashboard");
-                    }}
-                  >
-                    <ListItemText
-                      slotProps={{ primary: { sx: { fontSize: 12.5 } } }}
-                      primary={app.name}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-              {apps.length === 0 && (
-                <Typography sx={{ fontSize: 12, color: "#9ca3af", pl: 5, py: 1 }}>
-                  No apps tracked yet
-                </Typography>
-              )}
-            </List>
-          </Collapse>
           <ListItem disablePadding>
             <ListItemButton
                   sx={navItemSx(currentPage === "history")}
@@ -404,7 +365,7 @@ export default function Sidebar({
         <Collapse in={appsExpanded}>
           <List dense disablePadding>
             {filteredApps.map((app) => {
-              const isSelected = selectedApp?.id === app.id;
+              const isSelected = currentPage === "dashboard" && selectedApp?.id === app.id;
               const color = getAvatarColor(app.name);
               return (
                 <ListItem disablePadding key={app.id}>
@@ -415,7 +376,10 @@ export default function Sidebar({
                       bgcolor: isSelected ? `${color}12` : "transparent",
                       color: isSelected ? color : "#374151",
                     }}
-                    onClick={() => onSelectApp(app)}
+                    onClick={() => {
+                      onSelectApp(app);
+                      onNavigate("dashboard");
+                    }}
                   >
                     <Avatar
                       sx={{
