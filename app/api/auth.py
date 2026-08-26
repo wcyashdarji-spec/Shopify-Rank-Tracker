@@ -1,14 +1,20 @@
+import requests
+import jwt
+import httpx
+from urllib.parse import quote
 from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.db import get_db
-from app.db.models.user import User, UserActivity
 from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
-from app.schemas.request import UserCreate, UserLogin, UserUpdate
-from app.core.security import hash_password, verify_password, create_access_token
 from app.core.logging_route import LoggingRoute
+from app.db.models.user import User, UserActivity
+from fastapi.responses import HTMLResponse, RedirectResponse
+from app.core.security import hash_password, verify_password, create_access_token
+from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+from app.schemas.request import UserCreate, UserLogin, UserUpdate, GoogleOAuthCallbackRequest
 
 logger = get_logger(__name__)
 
@@ -51,7 +57,7 @@ async def register(request: UserCreate, db: Session = Depends(get_db)):
             )
             
         hashed = hash_password(password)
-        new_user = User(email=email, hashed_password=hashed)
+        new_user = User(email=email, hashed_password=hashed, auth_provider="email")
         
         db.add(new_user)
         db.commit()
@@ -104,6 +110,13 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
+        if not user.hashed_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This account was created using Google Sign-In. Please sign in with Google.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         if not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -135,6 +148,292 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to authenticate user"
+        )
+
+
+@router.get("/google/url")
+async def get_google_auth_url(redirect_uri: str = None):
+    """
+    Generate a Google OAuth 2.0 authorization URL.
+
+    Builds a Google authorization URL using the configured OAuth client
+    credentials and redirect URI. The generated URL requests OpenID, email,
+    and profile scopes and prompts the user to select a Google account.
+
+    Args:
+        redirect_uri: Optional OAuth callback URI. When omitted, the
+            configured GOOGLE_REDIRECT_URI is used.
+
+    Returns:
+        A dictionary containing the Google authorization URL, client ID,
+        and redirect URI.
+
+    Raises:
+        HTTPException: If GOOGLE_CLIENT_ID is not configured or an unexpected
+            error occurs while generating the authorization URL.
+    """
+    try:
+        if not GOOGLE_CLIENT_ID:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="GOOGLE_CLIENT_ID is not configured on the server."
+            )
+
+        target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
+        url = (
+            "https://accounts.google.com/o/oauth2/v2/auth"
+            f"?client_id={GOOGLE_CLIENT_ID}"
+            f"&redirect_uri={quote(target_redirect, safe=':/')}"
+            "&response_type=code"
+            "&scope=openid+email+profile"
+            "&prompt=select_account"
+        )
+        return {
+            "url": url,
+            "client_id": GOOGLE_CLIENT_ID,
+            "redirect_uri": target_redirect,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "[Google OAuth] Failed to generate authorization URL: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate Google OAuth authorization URL.",
+        )
+
+async def _process_google_code_exchange(code: str, target_redirect: str, db: Session):
+    """
+    Exchange a Google OAuth 2.0 authorization code and authenticate the user.
+
+    Exchanges the authorization code for Google tokens, retrieves the
+    authenticated user's profile, validates the returned email address,
+    creates the user if necessary, generates an application access token,
+    and records the login activity.
+
+    Args:
+        code: Google OAuth 2.0 authorization code.
+        target_redirect: Redirect URI used during the Google authorization
+            code exchange.
+        db: Active database session.
+
+    Returns:
+        A tuple containing the application access token and authenticated user.
+
+    Raises:
+        HTTPException: If the authorization code is missing, Google OAuth
+            credentials are unavailable, the token exchange fails, the user
+            profile cannot be retrieved, or an unexpected processing error
+            occurs.
+    """
+    try:
+        if not code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Authorization code is required"
+            )
+
+        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google OAuth client credentials are not configured on the server."
+            )
+
+        async with httpx.AsyncClient() as client:
+            try:
+                token_resp = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "code": code,
+                        "client_id": GOOGLE_CLIENT_ID,
+                        "client_secret": GOOGLE_CLIENT_SECRET,
+                        "redirect_uri": target_redirect,
+                        "grant_type": "authorization_code",
+                    },
+                    timeout=10.0,
+                )
+                if token_resp.status_code != 200:
+                    logger.error(f"Google token exchange failed: {token_resp.text}")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Google token exchange failed"
+                    )
+
+                token_data = token_resp.json()
+                access_token = token_data.get("access_token")
+                if not access_token:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="No access token returned by Google"
+                    )
+
+                userinfo_resp = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=10.0,
+                )
+                if userinfo_resp.status_code != 200:
+                    logger.error(f"Google userinfo fetch failed: {userinfo_resp.text}")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Failed to fetch user profile from Google"
+                    )
+
+                userinfo = userinfo_resp.json()
+                email = userinfo.get("email")
+                if not email:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Google profile did not contain an email address"
+                    )
+                
+                email = email.strip().lower()
+
+            except httpx.RequestError as exc:
+                logger.error(f"HTTP communication error with Google: {exc}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to communicate with Google OAuth services"
+                )
+
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            user = User(
+                email=email,
+                hashed_password=None,
+                auth_provider="google"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"[OAuth2.0] Auto-registered new Google user: {email}")
+        else:
+            logger.info(f"[OAuth2.0] Existing user authenticated with Google: {email}")
+
+        token = create_access_token(subject=user.id)
+        
+        activity = UserActivity(user_id=user.id, login_at=datetime.utcnow())
+        db.add(activity)
+        db.commit()
+        db.refresh(activity)
+        logger.info(f"Recorded UserActivity login entry (id={activity.id}) for user_id={user.id} ({user.email})")
+
+        return token, user
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "[Google OAuth] Unexpected code exchange error: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process Google OAuth authorization.",
+        )
+
+
+@router.get("/google/callback")
+async def google_oauth_callback_get(
+    code: str = None,
+    error: str = None,
+    redirect_uri: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Handle the Google OAuth 2.0 browser redirect callback.
+
+    Processes the authorization code returned by Google, authenticates or
+    registers the user, generates an application JWT access token, and
+    redirects the browser to the configured frontend application.
+
+    Args:
+        code: Google OAuth authorization code.
+        error: Optional OAuth error returned by Google.
+        redirect_uri: Optional redirect URI used during authorization.
+        db: Active database session.
+
+    Returns:
+        A redirect to the frontend containing the generated access token.
+
+    Raises:
+        HTTPException: If Google OAuth processing fails.
+    """
+    try:
+        from app.core.config import FRONTEND_URL
+        if error:
+            logger.error(f"Google OAuth redirect error: {error}")
+            return HTMLResponse(
+                f"<h2>Google Sign-In Error</h2><p>{error}</p><a href='{FRONTEND_URL}'>Return to Login</a>",
+                status_code=400
+            )
+
+        target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
+        token, user = await _process_google_code_exchange(code, target_redirect, db)
+
+        return RedirectResponse(url=f"{FRONTEND_URL}?token={token}", status_code=307)
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "[Google OAuth] Unexpected GET callback error: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process Google OAuth callback.",
+        )
+
+@router.post("/google/callback")
+async def google_oauth_callback_post(request: GoogleOAuthCallbackRequest, db: Session = Depends(get_db)):
+    """
+    Handle Google OAuth 2.0 authorization code exchange through the API.
+
+    Accepts the Google authorization code as a JSON request, exchanges it
+    with Google, authenticates or registers the user, and returns the
+    application access token together with basic user information.
+
+    Args:
+        request: Request containing the Google authorization code and optional
+            redirect URI.
+        db: Active database session.
+
+    Returns:
+        A dictionary containing the bearer access token and authenticated
+        user's ID and email.
+
+    Raises:
+        HTTPException: If the authorization code exchange or authentication
+            process fails.
+    """
+    try:
+        target_redirect = request.redirect_uri or GOOGLE_REDIRECT_URI
+        token, user = await _process_google_code_exchange(request.code, target_redirect, db)
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "email": user.email
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "[Google OAuth] Unexpected POST callback error: %s",
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process Google OAuth callback.",
         )
 
 

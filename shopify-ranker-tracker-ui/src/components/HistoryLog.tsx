@@ -4,10 +4,12 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -943,49 +945,147 @@ export default function HistoryLog({
       {/* Add Competitor Dialog */}
       <Dialog
         open={addDialogOpen}
-        onClose={() => setAddDialogOpen(false)}
-        maxWidth="xs"
+        onClose={() => !isSubmitting && setAddDialogOpen(false)}
+        maxWidth="sm"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: "12px", p: 1 } } }}
+        slotProps={{ paper: { sx: { borderRadius: "18px", p: 1.5, boxShadow: "0 20px 40px rgba(0,0,0,0.12)" } } }}
       >
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography sx={{ fontWeight: 700, fontSize: 16 }}>Add Competitor</Typography>
-          <IconButton size="small" onClick={() => setAddDialogOpen(false)}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
+        <DialogTitle sx={{ pb: 1.5, pt: 2, px: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "12px",
+                  bgcolor: "#f1f5f9",
+                  color: "#0f172a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <StorefrontIcon sx={{ fontSize: 24 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 18, lineHeight: 1.2 }}>
+                  Add Competitor App
+                </Typography>
+                <Typography sx={{ fontSize: 12.5, color: "#64748b", mt: 0.5, fontWeight: 500 }}>
+                  Track side-by-side keyword positions and day-over-day ASO updates.
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton size="small" onClick={() => setAddDialogOpen(false)} disabled={isSubmitting} sx={{ color: "#64748b" }}>
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          <TextField
-            size="small"
-            label="Competitor Name"
-            value={newCompName}
-            onChange={(e) => setNewCompName(e.target.value)}
-            disabled={isSubmitting}
-            fullWidth
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            size="small"
-            label="Shopify URL"
-            placeholder="https://apps.shopify.com/..."
-            value={newCompUrl}
-            onChange={(e) => setNewCompUrl(e.target.value)}
-            disabled={isSubmitting}
-            fullWidth
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
+
+        <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+        <DialogContent sx={{ py: 3, px: 3, display: "flex", flexDirection: "column", gap: 2.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155", mb: 0.75 }}>
+              Competitor App Name <Typography component="span" sx={{ color: "#ef4444" }}>*</Typography>
+            </Typography>
+            <TextField
+              placeholder="e.g. Wishlist King or Judge.me Reviews"
+              value={newCompName}
+              onChange={(e) => setNewCompName(e.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  bgcolor: "#ffffff",
+                  fontSize: 14,
+                  "& fieldset": { borderColor: "#cbd5e1" },
+                  "&:hover fieldset": { borderColor: "#94a3b8" },
+                  "&.Mui-focused fieldset": { borderColor: "#0f172a" },
+                },
+              }}
+            />
+          </Box>
+
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#334155", mb: 0.75 }}>
+              Shopify App Store URL <Typography component="span" sx={{ color: "#ef4444" }}>*</Typography>
+            </Typography>
+            <TextField
+              placeholder="https://apps.shopify.com/app-name"
+              value={newCompUrl}
+              onChange={(e) => setNewCompUrl(e.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  bgcolor: "#ffffff",
+                  fontSize: 14,
+                  "& fieldset": { borderColor: "#cbd5e1" },
+                  "&:hover fieldset": { borderColor: "#94a3b8" },
+                  "&.Mui-focused fieldset": { borderColor: "#0f172a" },
+                },
+              }}
+            />
+            <Typography sx={{ fontSize: 11.5, color: "#64748b", mt: 0.75 }}>
+              Paste the public Shopify App Store listing URL to crawl keywords and daily metadata.
+            </Typography>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setAddDialogOpen(false)} sx={{ textTransform: "none", color: "#6b7280" }}>
+
+        <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+          <Button
+            onClick={() => setAddDialogOpen(false)}
+            disabled={isSubmitting}
+            variant="outlined"
+            sx={{
+              borderColor: "#cbd5e1",
+              color: "#475569",
+              bgcolor: "#ffffff",
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13,
+              borderRadius: "9px",
+              px: 2.5,
+              py: 0.7,
+              "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+            }}
+          >
             Cancel
           </Button>
           <Button
             variant="contained"
             disabled={isSubmitting || !newCompName.trim() || !newCompUrl.trim()}
             onClick={handleAddSubmit}
-            sx={{ bgcolor: "#111827", textTransform: "none", fontWeight: 600, borderRadius: "8px", "&:hover": { bgcolor: "#1f2937" } }}
+            sx={{
+              bgcolor: "#0f172a",
+              color: "#ffffff",
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13,
+              borderRadius: "9px",
+              px: 3,
+              py: 0.7,
+              boxShadow: "none",
+              "&:hover": { bgcolor: "#1e293b", boxShadow: "none" },
+              "&.Mui-disabled": { bgcolor: "#e2e8f0", color: "#94a3b8" },
+            }}
           >
-            Add Competitor
+            {isSubmitting ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={16} sx={{ color: "#ffffff" }} />
+                <span>Adding...</span>
+              </Box>
+            ) : (
+              "Add Competitor"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

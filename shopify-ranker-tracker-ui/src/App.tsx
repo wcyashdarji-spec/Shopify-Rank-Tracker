@@ -9,7 +9,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 // API
-import { api, getApiBaseUrl, getToken, logout, type App as AppType } from "./api";
+import { api, getApiBaseUrl, getToken, setToken, logout, type App as AppType } from "./api";
 
 // Core Components
 import Layout from "./components/Layout";
@@ -155,8 +155,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Check for Slack OAuth redirect query params and clean URL bar
+    // Check for Google or generic OAuth token redirect query params
     const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get("token");
+    if (urlToken) {
+      setToken(urlToken);
+      setIsAuthenticated(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      showToast("Successfully signed in with Google!", "success");
+    }
+
+    // Check for Slack OAuth redirect query params and clean URL bar
     if (params.get("slack_connected") === "true") {
       const ws = params.get("workspace") || "Slack Workspace";
       showToast(`🎉 Backend OAuth2 Authorization complete! Connected to '${ws}'.`, "success");
