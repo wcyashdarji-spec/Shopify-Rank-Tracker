@@ -667,6 +667,9 @@ async def get_competitors_activity(
                         }
                     })
 
+                prev_feats = prev_data.get("key_features", [])
+                curr_feats = curr_data.get("key_features", [])
+
                 if prev_desc != curr_desc:
                     activity_logs.append({
                         "id": f"desc_{curr_entry.id}",
@@ -680,12 +683,12 @@ async def get_competitors_activity(
                             "title": "Description Change",
                             "subtitle": "Description",
                             "previous": [prev_desc] if prev_desc else [],
-                            "current": [curr_desc] if curr_desc else []
+                            "current": [curr_desc] if curr_desc else [],
+                            "previous_features": prev_feats,
+                            "current_features": curr_feats
                         }
                     })
 
-                prev_feats = prev_data.get("key_features", [])
-                curr_feats = curr_data.get("key_features", [])
                 if prev_feats != curr_feats:
                     activity_logs.append({
                         "id": f"feats_{curr_entry.id}",
@@ -829,6 +832,7 @@ async def get_head_to_head(
 
         competitor = db.query(AppModel).filter(
             AppModel.id == competitor_id,
+            AppModel.user_id == current_user.id,
             AppModel.is_deleted == False
         ).first()
         if not competitor:

@@ -592,6 +592,15 @@ class AuditService:
                     if _idx > 100:
                         desc_text = desc_text[:_idx].strip()
                         break
+
+                if key_features and desc_text:
+                    clean_desc = desc_text
+                    for feat in key_features:
+                        if feat and feat in clean_desc:
+                            clean_desc = clean_desc.replace(feat, "").strip()
+                    if clean_desc and len(clean_desc) > 30:
+                        desc_text = clean_desc
+
                 scraped["description_text"] = desc_text
 
                 meta_desc = page.locator("meta[name='description']").first

@@ -209,6 +209,24 @@ export const api = {
     return res;
   },
 
+  // Get Google OAuth 2.0 redirect URL
+  async getGoogleAuthUrl(redirect_uri?: string): Promise<{ url: string; client_id: string; redirect_uri: string }> {
+    const params = new URLSearchParams();
+    if (redirect_uri) params.append("redirect_uri", redirect_uri);
+    return request<{ url: string; client_id: string; redirect_uri: string }>(`/auth/google/url?${params.toString()}`);
+  },
+
+  // Handle Google OAuth 2.0 authorization code exchange
+  async googleOAuthCallback(code: string, redirect_uri?: string): Promise<{ access_token: string; token_type: string; user: { id: number; email: string } }> {
+    const res = await request<{ access_token: string; token_type: string; user: { id: number; email: string } }>("/auth/google/callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, redirect_uri }),
+    });
+    setToken(res.access_token);
+    return res;
+  },
+
   // Log out of existing session
   async logout(): Promise<{ message: string }> {
     try {

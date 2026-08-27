@@ -25,6 +25,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleOAuthCallbackRequest(BaseModel):
+    code: str
+    redirect_uri: Optional[str] = None
+
+
 class CompetitorCreateRequest(BaseModel):
     name: str
     url: HttpUrl

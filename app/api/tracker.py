@@ -129,6 +129,7 @@ async def get_apps_last_sync(
     """
     try:
         apps = RankingRepository.get_apps_last_sync(db, user_id=current_user.id)
+        competitors = RankingRepository.get_competitors_last_sync(db, user_id=current_user.id)
 
         return {
             "apps": [
@@ -149,7 +150,20 @@ async def get_apps_last_sync(
                     "sync_status": app.sync_status,
                 }
                 for app in apps
-            ]
+            ],
+            "competitors": [
+                {
+                    "id": comp.id,
+                    "name": comp.name,
+                    "url": comp.url,
+                    "last_synced_at": (
+                        comp.last_synced_at.isoformat()
+                        if comp.last_synced_at
+                        else None
+                    ),
+                }
+                for comp in competitors
+            ],
         }
 
     except Exception as e:

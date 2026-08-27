@@ -577,9 +577,24 @@ export default function RankChart({
         )}
       </Box>
 
-      {/* Legend */}
+      {/* Scrollable Legend Container */}
       {series.length > 0 && (
-        <Box sx={{ px: 3, pb: 2, display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+        <Box
+          sx={{
+            px: 3,
+            pb: 2.5,
+            pt: 1,
+            display: "flex",
+            gap: 1.25,
+            flexWrap: "wrap",
+            justifyContent: "flex-start",
+            maxHeight: 110,
+            overflowY: "auto",
+            borderTop: "1px solid #f1f5f9",
+            "&::-webkit-scrollbar": { width: 5, height: 5 },
+            "&::-webkit-scrollbar-thumb": { bgcolor: "#cbd5e1", borderRadius: 4 },
+          }}
+        >
           {series.map((s) => {
             const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
             const isHidden = hiddenLabels.includes(s.label);
@@ -592,28 +607,30 @@ export default function RankChart({
                   alignItems: "center",
                   gap: 0.75,
                   cursor: "pointer",
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  opacity: isHidden ? 0.35 : 1,
-                  textDecoration: isHidden ? "line-through" : "none",
-                  transition: "all .15s",
-                  "&:hover": { bgcolor: "#f5f5f5" },
+                  px: 1.25,
+                  py: 0.4,
+                  borderRadius: "6px",
+                  bgcolor: isHidden ? "#f1f5f9" : "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  opacity: isHidden ? 0.45 : 1,
+                  transition: "all .15s ease",
+                  "&:hover": { borderColor: color, bgcolor: "#f8fafc" },
                 }}
               >
                 <Box
                   sx={{
-                    width: 24,
-                    height: s.isCompetitor ? 0 : 2,
+                    width: 14,
+                    height: 3,
                     bgcolor: s.isCompetitor ? "transparent" : color,
                     borderBottom: s.isCompetitor ? `2.5px dashed ${color}` : "none",
-                    borderRadius: 1
+                    borderRadius: 1,
                   }}
                 />
                 <Typography
                   sx={{
                     fontSize: 11.5,
-                    color: isHidden ? "#9ca3af" : "#6b7280",
+                    fontWeight: 600,
+                    color: isHidden ? "#94a3b8" : "#334155",
                     textDecoration: isHidden ? "line-through" : "none",
                   }}
                 >

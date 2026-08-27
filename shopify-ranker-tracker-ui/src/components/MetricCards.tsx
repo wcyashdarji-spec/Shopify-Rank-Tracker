@@ -1,4 +1,4 @@
-// Material UI
+import React from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/CheckCircleOutlined";
 import TrophyIcon from "@mui/icons-material/EmojiEvents";
@@ -17,8 +17,10 @@ interface MetricCardsProps {
 interface CardDef {
   label: string;
   value: string | number;
+  subtext: string;
   icon: React.ReactNode;
   accent: string;
+  bg: string;
 }
 
 export default function MetricCards({
@@ -32,32 +34,42 @@ export default function MetricCards({
     {
       label: "Tracked Keywords",
       value: totalKeywords,
-      icon: <SearchIcon sx={{ fontSize: 18 }} />,
-      accent: "#6366f1",
+      subtext: "Search queries",
+      icon: <SearchIcon sx={{ fontSize: 20 }} />,
+      accent: "#0284c7",
+      bg: "#e0f2fe",
     },
     {
       label: "Avg. Position",
       value: currentAvgRank,
-      icon: <TrendingUpIcon sx={{ fontSize: 18 }} />,
-      accent: "#14b8a6",
+      subtext: "Rank placement",
+      icon: <TrendingUpIcon sx={{ fontSize: 20 }} />,
+      accent: "#10b981",
+      bg: "#ecfdf5",
     },
     {
       label: "Found Rate",
       value: successRate,
-      icon: <CheckIcon sx={{ fontSize: 18 }} />,
+      subtext: "Index coverage",
+      icon: <CheckIcon sx={{ fontSize: 20 }} />,
       accent: "#f59e0b",
+      bg: "#fffbeb",
     },
     {
       label: "Top 5 Hits",
       value: topPositions,
-      icon: <TrophyIcon sx={{ fontSize: 18 }} />,
+      subtext: "High ranking terms",
+      icon: <TrophyIcon sx={{ fontSize: 20 }} />,
       accent: "#ec4899",
+      bg: "#fce7f3",
     },
     {
       label: "Listing Score",
-      value: listingScore !== null ? listingScore : "--",
-      icon: <StarIcon sx={{ fontSize: 18 }} />,
-      accent: "#006e52",
+      value: listingScore !== null ? `${listingScore}/100` : "--",
+      subtext: "ASO health audit",
+      icon: <StarIcon sx={{ fontSize: 20 }} />,
+      accent: "#0f172a",
+      bg: "#f1f5f9",
     },
   ];
 
@@ -70,8 +82,8 @@ export default function MetricCards({
           sm: "repeat(2, 1fr)",
           md: "repeat(5, 1fr)",
         },
-        gap: 2,
-        mb: 3,
+        gap: 2.5,
+        mb: 3.5,
       }}
     >
       {cards.map((card) => (
@@ -79,38 +91,49 @@ export default function MetricCards({
           key={card.label}
           elevation={0}
           sx={{
-            p: 2,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
-            bgcolor: "#fff",
+            p: 2.25,
+            borderRadius: "14px",
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
             display: "flex",
-            alignItems: "flex-start",
-            gap: 1.5,
-            transition: "box-shadow 0.2s",
-            "&:hover": { boxShadow: "0 4px 16px rgba(0,0,0,0.06)" },
+            flexDirection: "column",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.02)",
+            transition: "all 0.2s ease-in-out",
+            "&:hover": {
+              transform: "translateY(-2px)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
+              borderColor: card.accent,
+            },
           }}
         >
-          <Box
-            sx={{
-              width: 36,
-              height: 36,
-              borderRadius: "10px",
-              bgcolor: `${card.accent}14`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: card.accent,
-              flexShrink: 0,
-            }}
-          >
-            {card.icon}
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: 11.5, color: "#6b7280", fontWeight: 500, mb: 0.25 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.03em" }}>
               {card.label}
             </Typography>
-            <Typography sx={{ fontSize: 22, fontWeight: 700, color: "#111827", lineHeight: 1.2 }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: "10px",
+                bgcolor: card.bg,
+                color: card.accent,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {card.icon}
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#0f172a", lineHeight: 1.1 }}>
               {card.value}
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: "#94a3b8", mt: 0.5, fontWeight: 500 }}>
+              {card.subtext}
             </Typography>
           </Box>
         </Paper>

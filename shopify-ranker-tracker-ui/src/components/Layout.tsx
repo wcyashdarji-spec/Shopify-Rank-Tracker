@@ -15,7 +15,7 @@ import type { App } from "../api";
 interface LayoutProps {
   apps: App[];
   selectedApp: App | null;
-  onSelectApp: (app: App) => void;
+  onSelectApp: (app: App | null) => void;
   onRunAllSaved: () => void;
   onTrackApp: (name: string, url: string, keywordsList: string[]) => void;
   onDeleteApp: (appId: number) => void;
