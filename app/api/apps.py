@@ -832,6 +832,7 @@ async def get_head_to_head(
 
         competitor = db.query(AppModel).filter(
             AppModel.id == competitor_id,
+            AppModel.user_id == current_user.id,
             AppModel.is_deleted == False
         ).first()
         if not competitor:

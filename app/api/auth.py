@@ -1,10 +1,12 @@
-import requests
-import jwt
+import time
 import httpx
-from urllib.parse import quote
+import secrets
+import requests
+from html import escape
 from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException, status
+from urllib.parse import quote, urlencode
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_db
 from app.core.logger import get_logger
@@ -17,6 +19,33 @@ from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIR
 from app.schemas.request import UserCreate, UserLogin, UserUpdate, GoogleOAuthCallbackRequest
 
 logger = get_logger(__name__)
+
+_google_state_store: dict[str, float] = {}
+
+_auth_code_store: dict[str, tuple[str, float]] = {}
+
+
+def _issue_google_state() -> str:
+    """Generate and store a short-lived CSRF state token for Google OAuth."""
+    state = secrets.token_urlsafe(32)
+    _google_state_store[state] = time.time() + 600
+    return state
+
+
+def _validate_google_state(state: str | None) -> bool:
+    """Return True and consume the state token if valid; False otherwise."""
+    if not state:
+        return False
+    expires_at = _google_state_store.pop(state, None)
+    return expires_at is not None and time.time() < expires_at
+
+
+def _issue_auth_code(jwt_token: str) -> str:
+    """Wrap a JWT in a short-lived one-time code for the redirect URL."""
+    code = secrets.token_urlsafe(32)
+    _auth_code_store[code] = (jwt_token, time.time() + 120)
+    return code
+
 
 router = APIRouter(
     prefix="/auth",
@@ -106,7 +135,7 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
+                detail="Invalid email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
@@ -120,7 +149,7 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
         if not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect password",
+                detail="Invalid email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
@@ -180,14 +209,16 @@ async def get_google_auth_url(redirect_uri: str = None):
             )
 
         target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
-        url = (
-            "https://accounts.google.com/o/oauth2/v2/auth"
-            f"?client_id={GOOGLE_CLIENT_ID}"
-            f"&redirect_uri={quote(target_redirect, safe=':/')}"
-            "&response_type=code"
-            "&scope=openid+email+profile"
-            "&prompt=select_account"
-        )
+        state = _issue_google_state()
+        params = {
+            "client_id": GOOGLE_CLIENT_ID,
+            "redirect_uri": target_redirect,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "prompt": "select_account",
+            "state": state,
+        }
+        url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
         return {
             "url": url,
             "client_id": GOOGLE_CLIENT_ID,
@@ -341,41 +372,65 @@ async def _process_google_code_exchange(code: str, target_redirect: str, db: Ses
 async def google_oauth_callback_get(
     code: str = None,
     error: str = None,
+    state: str = None,
     redirect_uri: str = None,
     db: Session = Depends(get_db)
 ):
     """
     Handle the Google OAuth 2.0 browser redirect callback.
 
-    Processes the authorization code returned by Google, authenticates or
-    registers the user, generates an application JWT access token, and
-    redirects the browser to the configured frontend application.
+    Validates the OAuth state parameter to protect against CSRF attacks,
+    processes the authorization code returned by Google, authenticates or
+    registers the user, and issues a short-lived one-time authentication code.
+
+    The JWT access token is never exposed directly in the browser redirect URL.
+    Instead, the token is stored behind a temporary one-time authentication code
+    that is returned to the frontend.
 
     Args:
-        code: Google OAuth authorization code.
+        code: Google OAuth 2.0 authorization code returned by Google.
         error: Optional OAuth error returned by Google.
-        redirect_uri: Optional redirect URI used during authorization.
-        db: Active database session.
+        state: OAuth state value used to validate the authorization request.
+        redirect_uri: Optional redirect URI used during the Google OAuth flow.
+            Falls back to GOOGLE_REDIRECT_URI when not provided.
+        db: Active database session used for user authentication and persistence.
 
     Returns:
-        A redirect to the frontend containing the generated access token.
+        RedirectResponse: Redirects the authenticated browser to FRONTEND_URL
+        with a short-lived one-time authentication code.
+
+        HTMLResponse: Returns a user-friendly error page when Google returns
+        an OAuth error or the state validation fails.
 
     Raises:
-        HTTPException: If Google OAuth processing fails.
+        HTTPException: If an unexpected error occurs while processing the
+        Google OAuth callback.
     """
     try:
         from app.core.config import FRONTEND_URL
         if error:
-            logger.error(f"Google OAuth redirect error: {error}")
+            logger.error("Google OAuth redirect error: %s", error)
             return HTMLResponse(
-                f"<h2>Google Sign-In Error</h2><p>{error}</p><a href='{FRONTEND_URL}'>Return to Login</a>",
+                f"<h2>Google Sign-In Error</h2><p>{escape(str(error))}</p>"
+                f"<a href='{escape(FRONTEND_URL)}'>Return to Login</a>",
+                status_code=400
+            )
+
+        if not _validate_google_state(state):
+            logger.warning("Google OAuth callback: invalid or missing state token.")
+            return HTMLResponse(
+                "<h2>Authentication Error</h2><p>Invalid or expired request. Please try signing in again.</p>",
                 status_code=400
             )
 
         target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
         token, user = await _process_google_code_exchange(code, target_redirect, db)
 
-        return RedirectResponse(url=f"{FRONTEND_URL}?token={token}", status_code=307)
+        auth_code = _issue_auth_code(token)
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}?{urlencode({'auth_code': auth_code})}",
+            status_code=307,
+        )
 
     except HTTPException:
         raise
@@ -435,6 +490,33 @@ async def google_oauth_callback_post(request: GoogleOAuthCallbackRequest, db: Se
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process Google OAuth callback.",
         )
+
+
+@router.get("/token/exchange")
+async def exchange_auth_code(code: str = Query(...)):
+    """
+    Exchange a short-lived one-time auth code for a JWT access token.
+
+    The frontend calls this immediately after the Google OAuth redirect
+    to obtain the real JWT without it being exposed in browser history.
+
+    Args:
+        code: One-time code received via the ?auth_code= redirect parameter.
+
+    Returns:
+        JWT access token and token type.
+
+    Raises:
+        HTTPException 400: If the code is missing, invalid, or expired.
+    """
+    entry = _auth_code_store.pop(code, None)
+    if not entry or time.time() > entry[1]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired authentication code.",
+        )
+    jwt_token, _ = entry
+    return {"access_token": jwt_token, "token_type": "bearer"}
 
 
 @router.get("/me")

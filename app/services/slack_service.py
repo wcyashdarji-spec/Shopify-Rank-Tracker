@@ -113,28 +113,36 @@ class SlackService:
         blocks = cls._build_blocks(results)
 
         if getattr(integration, "webhook_url", None):
-            try:
-                resp = requests.post(
+            allowed_prefix = os.getenv("ALLOWED_SLACK_WEBHOOK_PREFIX")
+            if not integration.webhook_url.startswith(allowed_prefix):
+                logger.error(
+                    "Rejected webhook URL that does not match allowed prefix '%s': %s",
+                    allowed_prefix,
                     integration.webhook_url,
-                    json={
-                        "text": f"📊 Rank Tracking Report for {user_email}",
-                        "blocks": blocks,
-                    },
-                    timeout=15,
                 )
-                if resp.status_code == 200:
-                    logger.info(
-                        "Sent Slack notification via Webhook URL to workspace '%s'.",
-                        getattr(integration, "workspace_name", "Slack"),
+            else:
+                try:
+                    resp = requests.post(
+                        integration.webhook_url,
+                        json={
+                            "text": f"📊 Rank Tracking Report for {user_email}",
+                            "blocks": blocks,
+                        },
+                        timeout=15,
                     )
-                    return True
-                logger.warning("Slack webhook returned status %d: %s", resp.status_code, resp.text)
-            except Exception as exc:
-                logger.exception(
-                    "Exception posting to Slack webhook for workspace '%s': %s",
-                    getattr(integration, "workspace_name", "Slack"),
-                    exc,
-                )
+                    if resp.status_code == 200:
+                        logger.info(
+                            "Sent Slack notification via Webhook URL to workspace '%s'.",
+                            getattr(integration, "workspace_name", "Slack"),
+                        )
+                        return True
+                    logger.warning("Slack webhook returned status %d: %s", resp.status_code, resp.text)
+                except Exception as exc:
+                    logger.exception(
+                        "Exception posting to Slack webhook for workspace '%s': %s",
+                        getattr(integration, "workspace_name", "Slack"),
+                        exc,
+                    )
 
         token = getattr(integration, "bot_token", None) or _bot_token()
         if token:

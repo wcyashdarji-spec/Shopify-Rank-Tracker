@@ -192,6 +192,8 @@ class TrackerService:
                         if self.db and db_app:
                             db_app.sync_status = "idle"
                             RankingRepository.update_last_synced(self.db, db_app)
+                            for comp in competitors:
+                                RankingRepository.update_last_synced(self.db, comp)
                     except Exception:
                         if self.db and db_app:
                             try:

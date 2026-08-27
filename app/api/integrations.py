@@ -1,4 +1,6 @@
 import os
+import time
+import secrets
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -16,6 +18,16 @@ from app.schemas.request import SlackIntegrationCreate, SlackIntegrationSaveRequ
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
+
+
+_slack_state_store: dict[str, tuple[int, float]] = {}
+
+def _mask_token(token: str | None) -> str | None:
+    """Return a masked representation of a Slack token suitable for API responses."""
+    if not token:
+        return None
+    visible = token[:6] if len(token) >= 6 else token
+    return f"{visible}****{token[-4:] if len(token) >= 10 else ''}"
 
 
 @router.get("/slack")
@@ -63,7 +75,7 @@ def get_slack_integrations(
                     "id": item.id,
                     "workspace_name": item.workspace_name,
                     "webhook_url": item.webhook_url,
-                    "bot_token": item.bot_token,
+                    "bot_token": _mask_token(item.bot_token),
                     "channel_name": item.channel_name,
                     "is_active": item.is_active,
                     "created_at": item.created_at.isoformat() if item.created_at else None,
@@ -215,14 +227,16 @@ def get_slack_authorize_url(
         redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 
         scopes = "chat:write,users:read,users:read.email,channels:read,incoming-webhook"
-        state_payload = f"user_{current_user.id}"
+
+        state_token = secrets.token_urlsafe(32)
+        _slack_state_store[state_token] = (current_user.id, time.time() + 600)
 
         if client_id:
             params = {
                 "client_id": client_id,
                 "scope": scopes,
                 "redirect_uri": redirect_uri,
-                "state": state_payload,
+                "state": state_token,
             }
             oauth_url = f"https://slack.com/oauth/v2/authorize?{urlencode(params)}"
             return {
@@ -276,7 +290,7 @@ def slack_oauth_callback(
 
         if error:
             logger.error("Slack OAuth authorization error: %s", error)
-            return RedirectResponse(url=f"{frontend_url}/?slack_error={error}")
+            return RedirectResponse(url=f"{frontend_url}/?{urlencode({'slack_error': error})}")
 
         if not code:
             raise HTTPException(
@@ -284,52 +298,62 @@ def slack_oauth_callback(
                 detail="Authorization code missing from callback.",
             )
 
+        state_entry = _slack_state_store.pop(state, None)
+        if not state_entry or time.time() > state_entry[1]:
+            logger.warning("Slack OAuth callback: invalid or expired state token.")
+            return RedirectResponse(
+                url=f"{frontend_url}/?{urlencode({'slack_error': 'invalid_state'})}"
+            )
+        user_id = state_entry[0]
+
+        user_record = db.query(User).filter(User.id == user_id).first()
+        if not user_record:
+            logger.error("Slack OAuth callback: user_id=%d not found.", user_id)
+            return RedirectResponse(
+                url=f"{frontend_url}/?{urlencode({'slack_error': 'user_not_found'})}"
+            )
+
         client_id = os.getenv("SLACK_CLIENT_ID", "").strip()
         client_secret = os.getenv("SLACK_CLIENT_SECRET", "").strip()
         redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 
-        user_id = 1
-        if state and state.startswith("user_"):
-            try:
-                user_id = int(state.replace("user_", ""))
-            except ValueError:
-                pass
+        if not client_secret:
+            logger.error("SLACK_CLIENT_SECRET is not configured; cannot complete OAuth exchange.")
+            return RedirectResponse(
+                url=f"{frontend_url}/?{urlencode({'slack_error': 'server_not_configured'})}"
+            )
 
-        workspace_name = "Slack Workspace"
-        bot_token = f"xoxb-oauth-{code[:8]}"
-        webhook_url = f"https://hooks.slack.com/services/oauth/{code[:8]}"
-        channel_name = "general"
+        resp = requests.post(
+            "https://slack.com/api/oauth.v2.access",
+            data={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+                "redirect_uri": redirect_uri,
+            },
+            timeout=15,
+        )
+        data = resp.json()
 
-        if client_secret:
-            try:
-                resp = requests.post(
-                    "https://slack.com/api/oauth.v2.access",
-                    data={
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "code": code,
-                        "redirect_uri": redirect_uri,
-                    },
-                    timeout=15,
-                )
-                data = resp.json()
+        if not data.get("ok"):
+            err_msg = data.get("error", "Failed to exchange OAuth token with Slack")
+            logger.error("Slack OAuth token exchange failed: %s", err_msg)
+            return RedirectResponse(
+                url=f"{frontend_url}/?{urlencode({'slack_error': err_msg})}"
+            )
 
-                if not data.get("ok"):
-                    err_msg = data.get("error", "Failed to exchange OAuth token with Slack")
-                    logger.error("Slack OAuth token exchange failed: %s", err_msg)
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+        team_info = data.get("team", {})
+        workspace_name = team_info.get("name", "Slack Workspace")
+        bot_token = data.get("access_token")
+        incoming_webhook = data.get("incoming_webhook", {})
+        webhook_url = incoming_webhook.get("url")
+        channel_name = incoming_webhook.get("channel", "general")
 
-                team_info = data.get("team", {})
-                if team_info.get("name"):
-                    workspace_name = team_info.get("name")
-                bot_token = data.get("access_token") or bot_token
-                incoming_webhook = data.get("incoming_webhook", {})
-                if incoming_webhook.get("url"):
-                    webhook_url = incoming_webhook.get("url")
-                if incoming_webhook.get("channel"):
-                    channel_name = incoming_webhook.get("channel")
-            except Exception as exc:
-                logger.warning("Slack OAuth token exchange exception: %s", exc)
+        if not bot_token:
+            logger.error("Slack OAuth exchange returned no access_token for user_id=%d", user_id)
+            return RedirectResponse(
+                url=f"{frontend_url}/?{urlencode({'slack_error': 'no_token_returned'})}"
+            )
 
         db.query(SlackIntegration).filter(SlackIntegration.user_id == user_id).update({"is_active": False})
 
@@ -346,14 +370,16 @@ def slack_oauth_callback(
         db.refresh(new_integration)
 
         logger.info(
-            "Successfully authorized Slack workspace '%s' via Backend OAuth2 for user_id=%d",
+            "Successfully authorized Slack workspace '%s' via OAuth2 for user_id=%d",
             workspace_name,
             user_id,
         )
 
-        return RedirectResponse(url=f"{frontend_url}/?slack_connected=true&workspace={workspace_name}")
+        return RedirectResponse(
+            url=f"{frontend_url}/?{urlencode({'slack_connected': 'true', 'workspace': workspace_name})}"
+        )
     except Exception as e:
-        logger.error("slack_oauth_callback", e)
+        logger.error("slack_oauth_callback failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to Handle the Slack OAuth callback and save the authorized integration.",
@@ -425,7 +451,7 @@ def simulate_slack_oauth_exchange(
                 "id": new_integration.id,
                 "workspace_name": new_integration.workspace_name,
                 "webhook_url": new_integration.webhook_url,
-                "bot_token": new_integration.bot_token,
+                "bot_token": _mask_token(new_integration.bot_token),
                 "channel_name": new_integration.channel_name,
                 "is_active": new_integration.is_active,
                 "created_at": new_integration.created_at.isoformat() if new_integration.created_at else None,
@@ -435,7 +461,7 @@ def simulate_slack_oauth_exchange(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("simulate_slack_oauth_exchange", e)
+        logger.error("simulate_slack_oauth_exchange failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to Simulate a Slack OAuth2 authorization and create a test integration.",
@@ -558,7 +584,7 @@ def create_slack_integration(
                 "id": new_integration.id,
                 "workspace_name": new_integration.workspace_name,
                 "webhook_url": new_integration.webhook_url,
-                "bot_token": new_integration.bot_token,
+                "bot_token": _mask_token(new_integration.bot_token),
                 "channel_name": new_integration.channel_name,
                 "is_active": new_integration.is_active,
                 "created_at": new_integration.created_at.isoformat() if new_integration.created_at else None,

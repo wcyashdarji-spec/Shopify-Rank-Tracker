@@ -1,3 +1,4 @@
+import hmac
 import hashlib
 import os
 import jwt
@@ -20,13 +21,13 @@ def hash_password(password: str) -> str:
     return f"{salt.hex()}:{hash_bytes.hex()}"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password by checking its hash against stored hash."""
+    """Verify password using constant-time comparison to prevent timing attacks."""
     try:
         salt_hex, hash_hex = hashed_password.split(':')
         salt = bytes.fromhex(salt_hex)
         hash_bytes = bytes.fromhex(hash_hex)
         new_hash = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt, 100000)
-        return new_hash == hash_bytes
+        return hmac.compare_digest(new_hash, hash_bytes)
     except Exception:
         return False
 

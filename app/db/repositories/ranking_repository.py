@@ -631,6 +631,47 @@ class RankingRepository:
             raise
 
     @staticmethod
+    def get_competitors_last_sync(db: Session, user_id: Optional[int] = None) -> List[App]:
+        """
+        Retrieve all active competitor applications linked to the user's primary apps,
+        along with their last synchronization timestamp.
+
+        Args:
+            db (Session): Database session.
+            user_id: Optional User ID to scope to.
+
+        Returns:
+            List[App]: List of competitor App records ordered by name.
+
+        Raises:
+            Exception: If the query fails.
+        """
+        try:
+            from app.db.models.ranking import app_competitors
+            query = (
+                db.query(App)
+                .join(app_competitors, App.id == app_competitors.c.competitor_id)
+                .join(App.__table__.alias("parent"), App.__table__.alias("parent").c.id == app_competitors.c.app_id, isouter=False)
+                .filter(App.is_competitor == True, App.is_deleted == False)
+            )
+            if user_id is not None:
+                parent_alias = App.__table__.alias("parent_filter")
+                query = (
+                    db.query(App)
+                    .join(app_competitors, App.id == app_competitors.c.competitor_id)
+                    .join(parent_alias, parent_alias.c.id == app_competitors.c.app_id)
+                    .filter(
+                        App.is_competitor == True,
+                        App.is_deleted == False,
+                        parent_alias.c.user_id == user_id,
+                    )
+                )
+            return query.order_by(App.name.asc()).distinct().all()
+        except Exception as e:
+            logger.exception(f"Failed to retrieve competitor last sync details: {str(e)}")
+            raise
+
+    @staticmethod
     def add_competitor_to_app(db: Session, app: App, name: str, url: str) -> App:
         """
         Create or associate a competitor with a primary application.
