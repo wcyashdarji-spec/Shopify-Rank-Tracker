@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   Avatar,
   Box,
-  Button,
   Chip,
   CircularProgress,
   IconButton,
@@ -53,8 +52,20 @@ function getSyncStatus(row: AppLastSync): SyncStatus {
   if (row.sync_status === "syncing") return "syncing";
   const dateStr = row.last_synced_at;
   if (!dateStr) return "never";
-  const hoursSince = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60);
-  return hoursSince <= 48 ? "synced" : "stale";
+
+  const syncDate = new Date(dateStr);
+  const now = new Date();
+
+  // Synced today means same calendar day (year, month, date) or synced within last 12 hours
+  const isSameDay =
+    syncDate.getFullYear() === now.getFullYear() &&
+    syncDate.getMonth() === now.getMonth() &&
+    syncDate.getDate() === now.getDate();
+
+  const hoursAgo = (now.getTime() - syncDate.getTime()) / (1000 * 60 * 60);
+  const isSyncedToday = isSameDay || (hoursAgo >= 0 && hoursAgo <= 12);
+
+  return isSyncedToday ? "synced" : "stale";
 }
 
 const AVATAR_COLORS = [
@@ -83,7 +94,7 @@ const STATUS_CONFIG: Record<
     icon: <SyncedIcon sx={{ fontSize: 14 }} />,
   },
   stale: {
-    label: "Needs Sync",
+    label: "Needs Refresh",
     color: "#d97706",
     bg: "#fffbeb",
     icon: <StaleIcon sx={{ fontSize: 14 }} />,
@@ -104,19 +115,16 @@ const STATUS_CONFIG: Record<
 
 export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [syncingAppId, setSyncingAppId] = useState<number | null>(null);
   const [rows, setRows] = useState<AppLastSync[]>([]);
   const [search, setSearch] = useState("");
 
-  const load = async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
+  const load = async () => {
+    setLoading(true);
     try {
       const data = await api.getAppsLastSync();
       setRows(data.apps || []);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -154,30 +162,6 @@ export default function HistoryPage() {
     const syncing = rows.filter((r) => getSyncStatus(r) === "syncing").length;
     return { total: rows.length, synced, stale, never, syncing, needsRefresh: stale + never };
   }, [rows]);
-
-  const handleSyncSingleApp = async (appRow: AppLastSync) => {
-    setSyncingAppId(appRow.id);
-    try {
-      await api.runTracker(appRow.name, appRow.url, (appRow as any).keywords || []);
-      await load(true);
-    } catch (err) {
-      console.error("Single app sync error", err);
-    } finally {
-      setSyncingAppId(null);
-    }
-  };
-
-  const handleRunAllSync = async () => {
-    setRefreshing(true);
-    try {
-      await api.runSavedApps();
-      await load(true);
-    } catch (err) {
-      console.error("Run all sync error", err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const columns: GridColDef<AppLastSync>[] = [
     {
@@ -293,48 +277,6 @@ export default function HistoryPage() {
         );
       },
     },
-    {
-      field: "actions",
-      headerName: "Actions",
-      flex: 0.7,
-      minWidth: 110,
-      sortable: false,
-      align: "right",
-      headerAlign: "right",
-      renderCell: (params) => {
-        const isCurrentSyncing = syncingAppId === params.row.id || params.row.sync_status === "syncing";
-        return (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", height: "100%", width: "100%" }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleSyncSingleApp(params.row)}
-              disabled={isCurrentSyncing}
-              startIcon={
-                isCurrentSyncing ? (
-                  <CircularProgress size={12} sx={{ color: "#6366f1" }} />
-                ) : (
-                  <RefreshIcon sx={{ fontSize: 13 }} />
-                )
-              }
-              sx={{
-                fontSize: 11.5,
-                fontWeight: 700,
-                textTransform: "none",
-                borderRadius: "6px",
-                borderColor: "#e2e8f0",
-                color: "#475569",
-                py: 0.3,
-                px: 1.2,
-                "&:hover": { borderColor: "#6366f1", color: "#6366f1", bgcolor: "#f8fafc" },
-              }}
-            >
-              {isCurrentSyncing ? "Syncing" : "Sync"}
-            </Button>
-          </Box>
-        );
-      },
-    },
   ];
 
   return (
@@ -396,7 +338,7 @@ export default function HistoryPage() {
             </Box>
           </Paper>
 
-          {/* Card 3: Needs Refresh / Sync Action */}
+          {/* Card 3: Needs Refresh */}
           <Paper
             elevation={0}
             sx={{
@@ -418,32 +360,25 @@ export default function HistoryPage() {
                 {summary.needsRefresh}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<RefreshIcon sx={{ fontSize: 16, animation: refreshing ? "spin 1s linear infinite" : "none" }} />}
-              onClick={handleRunAllSync}
-              disabled={refreshing}
+            <Box
               sx={{
-                bgcolor: summary.needsRefresh > 0 ? "#d97706" : "#0f172a",
-                color: "#ffffff",
-                borderRadius: "8px",
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: "none",
-                px: 1.75,
-                py: 0.75,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                "&:hover": { bgcolor: summary.needsRefresh > 0 ? "#b45309" : "#1e293b" },
+                width: 44,
+                height: 44,
+                borderRadius: "12px",
+                bgcolor: summary.needsRefresh > 0 ? "#fef3c7" : "#f1f5f9",
+                color: summary.needsRefresh > 0 ? "#d97706" : "#64748b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              Re-sync All
-            </Button>
+              <StaleIcon sx={{ fontSize: 24 }} />
+            </Box>
           </Paper>
         </Box>
       )}
 
-      {/* Control Bar: Search & Refresh */}
+      {/* Control Bar: Search & Reload */}
       {!loading && rows.length > 0 && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
           <TextField
@@ -480,8 +415,8 @@ export default function HistoryPage() {
 
           <Tooltip title="Reload Sync Status">
             <IconButton
-              onClick={() => load(true)}
-              disabled={loading || refreshing}
+              onClick={() => load()}
+              disabled={loading}
               sx={{
                 border: "1px solid #e2e8f0",
                 borderRadius: "10px",
@@ -493,7 +428,7 @@ export default function HistoryPage() {
                 "&:hover": { bgcolor: "#f8fafc", borderColor: "#6366f1", color: "#6366f1" },
               }}
             >
-              <RefreshIcon sx={{ fontSize: 18, animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+              <RefreshIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
         </Box>

@@ -195,43 +195,54 @@ def send_ranking_email(to_email: str, results: list[dict]) -> bool:
 
     now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    grouped: dict[str, list[dict]] = defaultdict(list)
+    main_apps: dict[str, list[dict]] = defaultdict(list)
+    comp_apps: dict[str, list[dict]] = defaultdict(list)
     for r in results:
-        if not r.get("is_competitor"):
-            grouped[r["app_name"]].append(r)
+        if r.get("is_competitor"):
+            comp_apps[r["app_name"]].append(r)
+        else:
+            main_apps[r["app_name"]].append(r)
 
-    app_sections = ""
-    for app_name, app_results in grouped.items():
-        rows = ""
-        for r in app_results:
-            keyword = r.get("keyword", "—")
-            if r.get("found"):
-                rank_cell = f"#{r.get('rank', '?')} &nbsp;<span style=\"color:#6c757d;font-size:12px\">(Page {r.get('page', '?')})</span>"
-            else:
+    def _render_group_table(grouped_dict: dict[str, list[dict]], icon: str) -> str:
+        html = ""
+        for app_name, app_results in grouped_dict.items():
+            rows = ""
+            for r in app_results:
+                keyword = r.get("keyword", "—")
+                if r.get("found"):
+                    rank_cell = f"#{r.get('rank', '?')} &nbsp;<span style=\"color:#6c757d;font-size:12px\">(Page {r.get('page', '?')})</span>"
+                else:
+                    rows += (
+                        f"<tr>"
+                        f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{keyword}</td>"
+                        f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#dc3545'>❌ Not found</td>"
+                        f"</tr>"
+                    )
+                    continue
                 rows += (
                     f"<tr>"
                     f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{keyword}</td>"
-                    f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#dc3545'>❌ Not found</td>"
+                    f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{rank_cell}</td>"
                     f"</tr>"
                 )
-                continue
-            rows += (
-                f"<tr>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{keyword}</td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{rank_cell}</td>"
-                f"</tr>"
-            )
-        app_sections += f"""
-        <h3 style="margin:24px 0 8px;color:#343a40">🏪 {app_name}</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-            <thead>
-                <tr style="background:#f8f9fa">
-                    <th style="text-align:left;padding:8px 12px;border-bottom:2px solid #dee2e6">Keyword</th>
-                    <th style="text-align:left;padding:8px 12px;border-bottom:2px solid #dee2e6">Rank</th>
-                </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-        </table>"""
+            html += f"""
+            <h4 style="margin:18px 0 6px;color:#343a40">{icon} {app_name}</h4>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+                <thead>
+                    <tr style="background:#f8f9fa">
+                        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid #dee2e6">Keyword</th>
+                        <th style="text-align:left;padding:8px 12px;border-bottom:2px solid #dee2e6">Rank</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>"""
+        return html
+
+    app_sections = ""
+    if main_apps:
+        app_sections += "<h3 style='margin:20px 0 10px;color:#0f172a;'>📱 Primary Applications</h3>" + _render_group_table(main_apps, "🏪")
+    if comp_apps:
+        app_sections += "<h3 style='margin:24px 0 10px;color:#0f172a;'>⚔️ Competitor Applications</h3>" + _render_group_table(comp_apps, "🥊")
 
     subject = f"📊 Rank Tracking Report — {now}"
     html_body = f"""
@@ -247,10 +258,9 @@ def send_ranking_email(to_email: str, results: list[dict]) -> bool:
     </html>
     """
     text_body = f"📊 Rank Tracking Report — {now}\n\n" + "\n".join(
-        f"{r['app_name']} | {r.get('keyword','—')} | "
+        f"{'Competitor: ' if r.get('is_competitor') else ''}{r['app_name']} | {r.get('keyword','—')} | "
         + (f"Rank #{r.get('rank')} (Page {r.get('page')})" if r.get("found") else "Not found")
         for r in results
-        if not r.get("is_competitor")
     )
 
     logger.info(f"Preparing to send ranking summary email via AgentMail to {to_email}...")

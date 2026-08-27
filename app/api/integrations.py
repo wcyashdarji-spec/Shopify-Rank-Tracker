@@ -484,7 +484,15 @@ def send_test_slack_notification(
             "page": 1,
             "found": True,
             "is_competitor": False,
-        }
+        },
+        {
+            "app_name": "Competitor Checkout Plus",
+            "keyword": "checkout customization",
+            "rank": 4,
+            "page": 1,
+            "found": True,
+            "is_competitor": True,
+        },
     ]
 
     from app.services.slack_service import SlackService

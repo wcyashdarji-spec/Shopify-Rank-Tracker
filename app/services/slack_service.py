@@ -274,9 +274,8 @@ class SlackService:
         """
         Build a Slack Block Kit payload from the tracking results.
 
-        Groups results by ``app_name`` and creates one section per app listing
-        each keyword with its rank and page, or a ❌ if not found.
-        Competitor results are excluded.
+        Groups results by ``app_name`` for primary applications and competitor applications,
+        creating sections for each app listing each keyword with its rank and page, or a ❌ if not found.
 
         Args:
             results: List of tracker result dicts.
@@ -286,10 +285,14 @@ class SlackService:
         """
         from collections import defaultdict
 
-        grouped: dict[str, list[dict]] = defaultdict(list)
+        main_apps: dict[str, list[dict]] = defaultdict(list)
+        comp_apps: dict[str, list[dict]] = defaultdict(list)
+
         for r in results:
-            if not r.get("is_competitor"):
-                grouped[r["app_name"]].append(r)
+            if r.get("is_competitor"):
+                comp_apps[r["app_name"]].append(r)
+            else:
+                main_apps[r["app_name"]].append(r)
 
         now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -311,31 +314,83 @@ class SlackService:
             {"type": "divider"},
         ]
 
-        for app_name, app_results in grouped.items():
+        if main_apps:
             blocks.append(
                 {
                     "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"*🏪 {app_name}*"},
+                    "text": {"type": "mrkdwn", "text": "*📱 Primary Applications*"},
                 }
             )
+            for app_name, app_results in main_apps.items():
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*🏪 {app_name}*"},
+                    }
+                )
 
-            lines = []
-            for r in app_results:
-                keyword = r.get("keyword", "—")
-                if r.get("found"):
-                    rank = r.get("rank", "?")
-                    page = r.get("page", "?")
-                    lines.append(f"• `{keyword}` → *Rank #{rank}* (Page {page})")
-                else:
-                    lines.append(f"• `{keyword}` → ❌ Not found")
+                lines = []
+                for r in app_results:
+                    keyword = r.get("keyword", "—")
+                    if r.get("found"):
+                        rank = r.get("rank", "?")
+                        page = r.get("page", "?")
+                        lines.append(f"• `{keyword}` → *Rank #{rank}* (Page {page})")
+                    else:
+                        lines.append(f"• `{keyword}` → ❌ Not Captured ")
 
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\n".join(lines) or "_No keywords tracked._",
+                        },
+                    }
+                )
+            blocks.append({"type": "divider"})
+
+        if comp_apps:
             blocks.append(
                 {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\n".join(lines) or "_No keywords tracked._",
-                    },
+                    "text": {"type": "mrkdwn", "text": "*⚔️ Competitor Applications*"},
+                }
+            )
+            for app_name, app_results in comp_apps.items():
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*🥊 {app_name} (Competitor)*"},
+                    }
+                )
+
+                lines = []
+                for r in app_results:
+                    keyword = r.get("keyword", "—")
+                    if r.get("found"):
+                        rank = r.get("rank", "?")
+                        page = r.get("page", "?")
+                        lines.append(f"• `{keyword}` → *Rank #{rank}* (Page {page})")
+                    else:
+                        lines.append(f"• `{keyword}` → ❌ Not Captured")
+
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\n".join(lines) or "_No keywords tracked._",
+                        },
+                    }
+                )
+            blocks.append({"type": "divider"})
+
+        if not main_apps and not comp_apps:
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "_No app rankings recorded._"},
                 }
             )
             blocks.append({"type": "divider"})

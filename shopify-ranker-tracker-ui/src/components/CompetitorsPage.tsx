@@ -48,6 +48,8 @@ interface ActivityItem {
     subtitle: string;
     previous: string[];
     current: string[];
+    previous_features?: string[];
+    current_features?: string[];
   };
 }
 
@@ -148,6 +150,162 @@ function alignLists(prev: string[], curr: string[]): AlignedRow[] {
     }
   }
   return rows;
+}
+
+interface ParsedListingData {
+  desc: string;
+  bullets: string[];
+}
+
+function parseDescriptionAndListing(
+  rawText: string,
+  explicitFeatures?: string[]
+): ParsedListingData {
+  if (!rawText) return { desc: "", bullets: explicitFeatures || [] };
+
+  const bullets: string[] = explicitFeatures ? [...explicitFeatures] : [];
+  let desc = rawText;
+
+  // 1. If explicit features exist, clean them from desc
+  if (bullets.length > 0) {
+    for (const feat of bullets) {
+      if (feat && desc.includes(feat)) {
+        desc = desc.replace(feat, "").trim();
+      }
+    }
+    desc = desc.replace(/\s+/g, " ").trim();
+    return { desc, bullets };
+  }
+
+  // 2. Split on newlines if present
+  const lines = rawText.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length > 1) {
+    const descLines: string[] = [];
+    const bulletLines: string[] = [];
+    for (const line of lines) {
+      if (line.startsWith("•") || line.startsWith("-") || line.startsWith("*")) {
+        bulletLines.push(line.replace(/^[•\-\*]\s*/, ""));
+      } else {
+        descLines.push(line);
+      }
+    }
+    if (bulletLines.length > 0) {
+      return { desc: descLines.join(" "), bullets: bulletLines };
+    }
+  }
+
+  // 3. Sentence heuristics for merged continuous text
+  const sentences = rawText.match(/[^.!?]+[.!?]+/g) || [rawText];
+  if (sentences.length >= 4) {
+    const descSentences: string[] = [];
+    const bulletSentences: string[] = [];
+    const bulletVerbs = /^(collect|customize|display|launch|import|run|manage|track|boost|automate|sync|create|build|add|setup|generate|integrate|offer|drive|increase|grow|maximize|optimize|streamline|transform|deliver|send|showcase|highlight|capture|enable|export)\b/i;
+
+    let foundBullets = false;
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i].trim();
+      if (!foundBullets && i >= 3 && bulletVerbs.test(sentence) && sentence.length < 180) {
+        foundBullets = true;
+      }
+
+      if (foundBullets) {
+        bulletSentences.push(sentence);
+      } else {
+        descSentences.push(sentence);
+      }
+    }
+
+    if (bulletSentences.length > 0) {
+      return {
+        desc: descSentences.join(" ").trim(),
+        bullets: bulletSentences,
+      };
+    }
+  }
+
+  return { desc: rawText.trim(), bullets: [] };
+}
+
+interface RenderDiffTextProps {
+  prevText: string;
+  currText: string;
+  mode: "previous" | "current";
+}
+
+function RenderDiffText({ prevText, currText, mode }: RenderDiffTextProps) {
+  if (!prevText && !currText) return null;
+  if (!prevText) {
+    return mode === "current" ? (
+      <Box component="span" sx={{ bgcolor: "#a7f3d0", color: "#047857", fontWeight: 700, px: 0.6, py: 0.2, borderRadius: "4px", mx: 0.2 }}>
+        {currText}
+      </Box>
+    ) : null;
+  }
+  if (!currText) {
+    return mode === "previous" ? (
+      <Box component="span" sx={{ bgcolor: "#fecdd3", color: "#9f1239", fontWeight: 700, px: 0.6, py: 0.2, borderRadius: "4px", mx: 0.2 }}>
+        {prevText}
+      </Box>
+    ) : null;
+  }
+
+  const diffs = diffWords(prevText, currText);
+
+  return (
+    <>
+      {diffs.map((part, i) => {
+        if (mode === "previous") {
+          if (part.type === "removed") {
+            return (
+              <Box
+                key={i}
+                component="span"
+                sx={{
+                  bgcolor: "#fecdd3",
+                  color: "#9f1239",
+                  fontWeight: 700,
+                  px: 0.6,
+                  py: 0.2,
+                  borderRadius: "4px",
+                  mx: 0.2,
+                }}
+              >
+                {part.value}
+              </Box>
+            );
+          }
+          if (part.type === "equal") {
+            return <span key={i}>{part.value}</span>;
+          }
+          return null;
+        } else {
+          if (part.type === "added") {
+            return (
+              <Box
+                key={i}
+                component="span"
+                sx={{
+                  bgcolor: "#a7f3d0",
+                  color: "#047857",
+                  fontWeight: 700,
+                  px: 0.6,
+                  py: 0.2,
+                  borderRadius: "4px",
+                  mx: 0.2,
+                }}
+              >
+                {part.value}
+              </Box>
+            );
+          }
+          if (part.type === "equal") {
+            return <span key={i}>{part.value}</span>;
+          }
+          return null;
+        }
+      })}
+    </>
+  );
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -1011,104 +1169,245 @@ export default function CompetitorsPage({
                 const prevList = activeDetails.details.previous || [];
                 const currList = activeDetails.details.current || [];
 
+                const subtitle = (activeDetails.details?.subtitle || "").toLowerCase();
+                const actText = (activeDetails.text || "").toLowerCase();
+                const isDescOnly = (subtitle.includes("description") || actText.includes("description text")) && !subtitle.includes("feature");
+                const isFeatureOnly = (subtitle.includes("feature list") || actText.includes("feature list")) && !subtitle.includes("description");
+
                 const isSingleParagraphText =
                   prevList.length === 1 &&
                   currList.length === 1 &&
                   (prevList[0].length > 60 || currList[0].length > 60);
 
-                if (isSingleParagraphText) {
+                if (isSingleParagraphText || isDescOnly) {
                   const prevText = prevList[0] || "";
                   const currText = currList[0] || "";
-                  const diffs = diffWords(prevText, currText);
+
+                  const prevParsed = parseDescriptionAndListing(
+                    prevText,
+                    activeDetails.details.previous_features
+                  );
+                  const currParsed = parseDescriptionAndListing(
+                    currText,
+                    activeDetails.details.current_features
+                  );
+
+                  const alignedBullets = alignLists(prevParsed.bullets, currParsed.bullets);
+                  const showDescSection = !isFeatureOnly;
+                  const showBulletsSection = !isDescOnly && (prevParsed.bullets.length > 0 || currParsed.bullets.length > 0);
 
                   return (
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
-                      {/* Previous Text Column */}
+                      {/* Previous Column */}
                       <Box
                         sx={{
                           p: 2.5,
                           borderRadius: "14px",
                           bgcolor: "#fff5f5",
                           border: "1px solid #fee2e2",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2.5,
                         }}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.75 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <RemoveIcon sx={{ fontSize: 16, color: "#dc2626" }} />
                           <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                             Previous
                           </Typography>
                         </Box>
-                        <Typography sx={{ fontSize: 13.5, color: "#7f1d1d", lineHeight: 1.6 }}>
-                          {diffs.map((part, i) => {
-                            if (part.type === "removed") {
-                              return (
-                                <Box
-                                  key={i}
-                                  component="span"
-                                  sx={{
-                                    bgcolor: "#fecdd3",
-                                    color: "#9f1239",
-                                    fontWeight: 700,
-                                    px: 0.6,
-                                    py: 0.2,
-                                    borderRadius: "4px",
-                                    mx: 0.2,
-                                  }}
-                                >
-                                  {part.value}
-                                </Box>
-                              );
-                            }
-                            if (part.type === "equal") {
-                              return <span key={i}>{part.value}</span>;
-                            }
-                            return null;
-                          })}
-                        </Typography>
+
+                        {/* Description Section */}
+                        {showDescSection && (
+                          <Box sx={{ bgcolor: "#ffffff", p: 2, borderRadius: "10px", border: "1px solid #fecdd3" }}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
+                              Description Text
+                            </Typography>
+                            <Typography sx={{ fontSize: 13.5, color: "#7f1d1d", lineHeight: 1.6 }}>
+                              <RenderDiffText prevText={prevParsed.desc} currText={currParsed.desc} mode="previous" />
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Listing / Features Section */}
+                        {showBulletsSection && (
+                          <Box sx={{ bgcolor: "#ffffff", p: 2, borderRadius: "10px", border: "1px solid #fecdd3" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                Listing (Key Features) ({prevParsed.bullets.length})
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                              {alignedBullets.map((row, idx) => {
+                                const item = row.prev;
+                                const isRemoved = item && !row.curr;
+
+                                if (!item) {
+                                  return (
+                                    <Box
+                                      key={idx}
+                                      sx={{
+                                        p: 1.25,
+                                        borderRadius: "8px",
+                                        bgcolor: "#f8fafc",
+                                        border: "1px dashed #e2e8f0",
+                                        minHeight: 38,
+                                        opacity: 0.4,
+                                      }}
+                                    />
+                                  );
+                                }
+
+                                return (
+                                  <Paper
+                                    key={idx}
+                                    elevation={0}
+                                    sx={{
+                                      p: 1.25,
+                                      px: 1.5,
+                                      borderRadius: "8px",
+                                      border: isRemoved ? "1px solid #fee2e2" : "1px solid #e2e8f0",
+                                      bgcolor: isRemoved ? "#fef2f2" : "#ffffff",
+                                      display: "flex",
+                                      alignItems: "flex-start",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    <Typography sx={{ color: isRemoved ? "#dc2626" : "#64748b", fontWeight: 800, fontSize: 15, lineHeight: 1.3 }}>
+                                      •
+                                    </Typography>
+                                    <Typography
+                                      sx={{
+                                        fontSize: 13,
+                                        fontWeight: isRemoved ? 700 : 500,
+                                        color: isRemoved ? "#dc2626" : "#334155",
+                                        lineHeight: 1.5,
+                                      }}
+                                    >
+                                      <RenderDiffText prevText={row.prev || ""} currText={row.curr || ""} mode="previous" />
+                                    </Typography>
+                                  </Paper>
+                                );
+                              })}
+                            </Box>
+                          </Box>
+                        )}
                       </Box>
 
-                      {/* Current Text Column */}
+                      {/* Current Column */}
                       <Box
                         sx={{
                           p: 2.5,
                           borderRadius: "14px",
                           bgcolor: "#f0fdf4",
                           border: "1px solid #d1fae5",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2.5,
                         }}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.75 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <AddIcon sx={{ fontSize: 16, color: "#059669" }} />
                           <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                             Current
                           </Typography>
                         </Box>
-                        <Typography sx={{ fontSize: 13.5, color: "#047857", lineHeight: 1.6 }}>
-                          {diffs.map((part, i) => {
-                            if (part.type === "added") {
-                              return (
-                                <Box
-                                  key={i}
-                                  component="span"
-                                  sx={{
-                                    bgcolor: "#a7f3d0",
-                                    color: "#047857",
-                                    fontWeight: 700,
-                                    px: 0.6,
-                                    py: 0.2,
-                                    borderRadius: "4px",
-                                    mx: 0.2,
-                                  }}
-                                >
-                                  {part.value}
-                                </Box>
-                              );
-                            }
-                            if (part.type === "equal") {
-                              return <span key={i}>{part.value}</span>;
-                            }
-                            return null;
-                          })}
-                        </Typography>
+
+                        {/* Description Section */}
+                        {showDescSection && (
+                          <Box sx={{ bgcolor: "#ffffff", p: 2, borderRadius: "10px", border: "1px solid #a7f3d0" }}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
+                              Description Text
+                            </Typography>
+                            <Typography sx={{ fontSize: 13.5, color: "#047857", lineHeight: 1.6 }}>
+                              <RenderDiffText prevText={prevParsed.desc} currText={currParsed.desc} mode="current" />
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Listing / Features Section */}
+                        {showBulletsSection && (
+                          <Box sx={{ bgcolor: "#ffffff", p: 2, borderRadius: "10px", border: "1px solid #a7f3d0" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                              <Typography sx={{ fontSize: 11, fontWeight: 800, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                Listing (Key Features) ({currParsed.bullets.length})
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                              {alignedBullets.map((row, idx) => {
+                                const item = row.curr;
+                                const isNew = item && !row.prev;
+
+                                if (!item) {
+                                  return (
+                                    <Box
+                                      key={idx}
+                                      sx={{
+                                        p: 1.25,
+                                        borderRadius: "8px",
+                                        bgcolor: "#f8fafc",
+                                        border: "1px dashed #e2e8f0",
+                                        minHeight: 38,
+                                        opacity: 0.4,
+                                      }}
+                                    />
+                                  );
+                                }
+
+                                return (
+                                  <Paper
+                                    key={idx}
+                                    elevation={0}
+                                    sx={{
+                                      p: 1.25,
+                                      px: 1.5,
+                                      borderRadius: "8px",
+                                      border: isNew ? "1px solid #a7f3d0" : "1px solid #e2e8f0",
+                                      bgcolor: isNew ? "#ecfdf5" : "#ffffff",
+                                      display: "flex",
+                                      alignItems: "flex-start",
+                                      justifyContent: "space-between",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                                      <Typography sx={{ color: isNew ? "#059669" : "#64748b", fontWeight: 800, fontSize: 15, lineHeight: 1.3 }}>
+                                        •
+                                      </Typography>
+                                      <Typography
+                                        sx={{
+                                          fontSize: 13,
+                                          fontWeight: isNew ? 700 : 500,
+                                          color: isNew ? "#059669" : "#334155",
+                                          lineHeight: 1.5,
+                                        }}
+                                      >
+                                        <RenderDiffText prevText={row.prev || ""} currText={row.curr || ""} mode="current" />
+                                      </Typography>
+                                    </Box>
+
+                                    {isNew && (
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, mt: 0.2 }}>
+                                        <Chip
+                                          label="NEW"
+                                          size="small"
+                                          sx={{
+                                            fontSize: 9.5,
+                                            fontWeight: 800,
+                                            height: 18,
+                                            bgcolor: "#059669",
+                                            color: "#ffffff",
+                                          }}
+                                        />
+                                        <CheckCircleIcon sx={{ fontSize: 15, color: "#059669" }} />
+                                      </Box>
+                                    )}
+                                  </Paper>
+                                );
+                              })}
+                            </Box>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   );
@@ -1165,7 +1464,7 @@ export default function CompetitorsPage({
                                 color: isRemoved ? "#dc2626" : "#334155",
                               }}
                             >
-                              {item}
+                              <RenderDiffText prevText={row.prev || ""} currText={row.curr || ""} mode="previous" />
                             </Typography>
                           </Paper>
                         );
@@ -1219,7 +1518,7 @@ export default function CompetitorsPage({
                                 color: isNew ? "#059669" : "#334155",
                               }}
                             >
-                              {item}
+                              <RenderDiffText prevText={row.prev || ""} currText={row.curr || ""} mode="current" />
                             </Typography>
 
                             {isNew && (
