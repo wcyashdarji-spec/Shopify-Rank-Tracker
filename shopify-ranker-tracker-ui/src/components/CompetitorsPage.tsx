@@ -440,6 +440,14 @@ export default function CompetitorsPage({
     return colors[Math.abs(hash) % colors.length];
   };
 
+  const getAppIconUrl = (appName: string) => {
+    if (appName === selectedApp.name) {
+      return mainAppDetails?.icon_url || selectedApp.icon_url || undefined;
+    }
+    const matchedComp = competitors.find((c) => c.name === appName);
+    return matchedComp?.icon_url || undefined;
+  };
+
   return (
     <Box sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3, md: 4 }, maxWidth: 1200, mx: "auto" }}>
       {/* 1. Header Bar with Application Switcher */}
@@ -1040,6 +1048,7 @@ export default function CompetitorsPage({
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.75, flex: 1, minWidth: 0 }}>
                     <Avatar
+                      src={getAppIconUrl(act.app_name)}
                       sx={{
                         width: 36,
                         height: 36,
@@ -1138,9 +1147,23 @@ export default function CompetitorsPage({
             <DialogTitle sx={{ pb: 1.5, pt: 2, px: 3 }}>
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 19 }}>
-                    {activeDetails.app_name}
-                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Avatar
+                      src={getAppIconUrl(activeDetails.app_name)}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        bgcolor: getAvatarColor(activeDetails.app_name),
+                        fontSize: 13,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {activeDetails.app_name[0]?.toUpperCase()}
+                    </Avatar>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 19 }}>
+                      {activeDetails.app_name}
+                    </Typography>
+                  </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
                     <Chip
                       label={`${activeDetails.type} UPDATE`}
@@ -1187,14 +1210,28 @@ export default function CompetitorsPage({
                   const prevText = prevList[0] || "";
                   const currText = currList[0] || "";
 
-                  const prevParsed = parseDescriptionAndListing(
-                    prevText,
-                    activeDetails.details.previous_features
-                  );
-                  const currParsed = parseDescriptionAndListing(
-                    currText,
-                    activeDetails.details.current_features
-                  );
+                  // When this is purely a description update, diff the full raw text
+                  // directly instead of going through parseDescriptionAndListing.
+                  // The sentence-heuristic parser can split the text differently for
+                  // prev vs curr (or exclude the changed sentences into a hidden
+                  // bullets section), making both "desc" portions look identical even
+                  // when the underlying texts differ.
+                  let prevParsed: ParsedListingData;
+                  let currParsed: ParsedListingData;
+
+                  if (isDescOnly) {
+                    prevParsed = { desc: prevText, bullets: [] };
+                    currParsed = { desc: currText, bullets: [] };
+                  } else {
+                    prevParsed = parseDescriptionAndListing(
+                      prevText,
+                      activeDetails.details.previous_features
+                    );
+                    currParsed = parseDescriptionAndListing(
+                      currText,
+                      activeDetails.details.current_features
+                    );
+                  }
 
                   const alignedBullets = alignLists(prevParsed.bullets, currParsed.bullets);
                   const showDescSection = !isFeatureOnly;

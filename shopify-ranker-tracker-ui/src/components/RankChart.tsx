@@ -2,8 +2,34 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 
 // Material UI
-import { Box, Button, CircularProgress, Paper, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import RemoveIcon from "@mui/icons-material/Remove";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import PushPinIcon from "@mui/icons-material/PushPin";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Types
 import type { Keyword, KeywordHistory } from "../api";
@@ -19,7 +45,7 @@ interface RankChartProps {
   onManageKeywords: () => void;
 }
 
-// Smooth bezier curve path
+// Smooth bezier curve path helper
 function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
   const n = pts.length;
   if (n === 0) return "";
@@ -80,8 +106,8 @@ function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
   return d;
 }
 
-
 const RANGE_OPTIONS = [
+  { label: "Today", days: 1 },
   { label: "7D", days: 7 },
   { label: "30D", days: 30 },
   { label: "90D", days: 90 },
@@ -89,22 +115,105 @@ const RANGE_OPTIONS = [
   { label: "All", days: 9999 },
 ];
 
-const LINE_COLORS = [
-  "#f59e0b", "#14b8a6", "#ca8a04", "#3b82f6",
-  "#7c3aed", "#ec4899", "#10b981", "#ef4444",
+// Rich curated vibrant color palette ensuring zero duplicate colors across series
+const VIBRANT_COLOR_PALETTE = [
+  "#10b981", // Emerald Green
+  "#3b82f6", // Royal Blue
+  "#f59e0b", // Amber Gold
+  "#ec4899", // Deep Pink
+  "#8b5cf6", // Bright Purple
+  "#06b6d4", // Cyan
+  "#f97316", // Bright Orange
+  "#ef4444", // Crimson Red
+  "#14b8a6", // Teal
+  "#6366f1", // Indigo
+  "#a855f7", // Violet
+  "#d97706", // Dark Amber
+  "#0284c7", // Sky Blue
+  "#e11d48", // Rose Red
+  "#059669", // Dark Emerald
+  "#7c3aed", // Dark Violet
+  "#ca8a04", // Mustard
+  "#2563eb", // Intense Blue
+  "#db2777", // Magenta
+  "#0891b2", // Dark Cyan
+  "#ea580c", // Deep Orange
+  "#dc2626", // Red
+  "#0d9488", // Dark Teal
+  "#4f46e5", // Dark Indigo
 ];
+
+function getUniqueSeriesColor(index: number): string {
+  if (index < VIBRANT_COLOR_PALETTE.length) {
+    return VIBRANT_COLOR_PALETTE[index];
+  }
+  // Fallback to Golden Ratio HSL for unlimited non-repeating colors
+  const hue = (index * 137.508) % 360;
+  const lightness = 42 + (index % 4) * 5;
+  return `hsl(${hue.toFixed(1)}, 82%, ${lightness}%)`;
+}
+
+function getRankBadgeBg(rank: number): { bg: string; color: string } {
+  if (rank <= 10) return { bg: "#ecfdf5", color: "#047857" };
+  if (rank <= 30) return { bg: "#eff6ff", color: "#1d4ed8" };
+  if (rank <= 67) return { bg: "#fffbeb", color: "#b45309" };
+  return { bg: "#fef2f2", color: "#b91c1c" };
+}
+
+function getSummaryHeaders(daysRange: number) {
+  switch (daysRange) {
+    case 1:
+      return {
+        startHeader: "Yesterday Rank",
+        endHeader: "Today Rank",
+        changeHeader: "24H Change (Δ)",
+      };
+    case 7:
+      return {
+        startHeader: "7D Start Rank",
+        endHeader: "Current Rank",
+        changeHeader: "7D Change (Δ)",
+      };
+    case 30:
+      return {
+        startHeader: "30D Start Rank",
+        endHeader: "Current Rank",
+        changeHeader: "30D Change (Δ)",
+      };
+    case 90:
+      return {
+        startHeader: "90D Start Rank",
+        endHeader: "Current Rank",
+        changeHeader: "90D Change (Δ)",
+      };
+    case 365:
+      return {
+        startHeader: "1Y Start Rank",
+        endHeader: "Current Rank",
+        changeHeader: "1Y Change (Δ)",
+      };
+    case 9999:
+    default:
+      return {
+        startHeader: "Initial Rank",
+        endHeader: "Current Rank",
+        changeHeader: "All-Time Change (Δ)",
+      };
+  }
+}
 
 export default function RankChart({
   historyData,
   selectedKeywords,
-  // onToggleKeyword,
   daysRange,
   onRangeChange,
-  keywords,
+  keywords: _keywords,
   isLoadingHistory,
   onManageKeywords,
 }: RankChartProps) {
-  const [hovered, setHovered] = useState<{
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const [pinnedLabels, setPinnedLabels] = useState<string[]>([]);
+  const [hoveredPoint, setHoveredPoint] = useState<{
     x: number;
     y: number;
     date: number;
@@ -112,33 +221,19 @@ export default function RankChart({
     rank: number;
     color: string;
   } | null>(null);
-  const [hiddenLabels, setHiddenLabels] = useState<string[]>([]);
 
   const [zoomDomain, setZoomDomain] = useState<{ min: number; max: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const panStart = useRef<{ x: number; min: number; max: number } | null>(null);
 
-  const toggleHiddenLabel = (label: string) => {
-    setHiddenLabels((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
-    );
-  };
-
   const W = 900;
-  const H = 260;
+  const H = 280;
   const PAD = { top: 24, right: 20, bottom: 40, left: 52 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
 
-  // Map keyword id -> color index
-  const kwColorIndex = useMemo(() => {
-    const m: Record<number, number> = {};
-    keywords.forEach((k, i) => { m[k.id] = i; });
-    return m;
-  }, [keywords]);
-
-  // Build chart series (including competitors)
+  // Build chart series with strictly non-repeating colors
   const series = useMemo(() => {
     if (!historyData || historyData.length === 0) return [];
     const sList: Array<{
@@ -148,7 +243,14 @@ export default function RankChart({
       colorIdx: number;
       isCompetitor: boolean;
       compName?: string;
+      latestRank: number;
+      firstRank: number;
+      bestRank: number;
+      rankChange: number;
+      color: string;
     }> = [];
+
+    let seriesCounter = 0;
 
     historyData
       .filter((kh) => selectedKeywords.includes(kh.keyword.id))
@@ -157,32 +259,58 @@ export default function RankChart({
         const primarySorted = [...kh.history]
           .filter((r) => r.rank !== null)
           .sort((a, b) => new Date(a.tracked_date).getTime() - new Date(b.tracked_date).getTime());
-        
+
         if (primarySorted.length > 0) {
+          const firstRank = primarySorted[0].rank!;
+          const latestRank = primarySorted[primarySorted.length - 1].rank!;
+          const bestRank = Math.min(...primarySorted.map((r) => r.rank!));
+
+          const color = getUniqueSeriesColor(seriesCounter);
+          const colorIdx = seriesCounter;
+          seriesCounter++;
+
           sList.push({
             keywordId: kh.keyword.id,
             label: kh.keyword.name,
             records: primarySorted,
-            colorIdx: kwColorIndex[kh.keyword.id] ?? 0,
+            colorIdx,
             isCompetitor: false,
+            latestRank,
+            firstRank,
+            bestRank,
+            rankChange: firstRank - latestRank,
+            color,
           });
         }
 
         // Competitor Lines
         if (kh.competitors) {
-          kh.competitors.forEach((comp, compIdx) => {
+          kh.competitors.forEach((comp) => {
             const compSorted = [...comp.history]
               .filter((r) => r.rank !== null)
               .sort((a, b) => new Date(a.tracked_date).getTime() - new Date(b.tracked_date).getTime());
-            
+
             if (compSorted.length > 0) {
+              const firstRank = compSorted[0].rank!;
+              const latestRank = compSorted[compSorted.length - 1].rank!;
+              const bestRank = Math.min(...compSorted.map((r) => r.rank!));
+
+              const color = getUniqueSeriesColor(seriesCounter);
+              const colorIdx = seriesCounter;
+              seriesCounter++;
+
               sList.push({
                 keywordId: kh.keyword.id,
-                label: `${kh.keyword.name} (Comp: ${comp.name})`,
+                label: `${kh.keyword.name} (${comp.name})`,
                 records: compSorted,
-                colorIdx: (kwColorIndex[kh.keyword.id] + compIdx + 1) % LINE_COLORS.length,
+                colorIdx,
                 isCompetitor: true,
                 compName: comp.name,
+                latestRank,
+                firstRank,
+                bestRank,
+                rankChange: firstRank - latestRank,
+                color,
               });
             }
           });
@@ -190,7 +318,15 @@ export default function RankChart({
       });
 
     return sList;
-  }, [historyData, selectedKeywords, kwColorIndex]);
+  }, [historyData, selectedKeywords]);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredSeries = useMemo(() => {
+    if (!searchQuery.trim()) return series;
+    const q = searchQuery.toLowerCase().trim();
+    return series.filter((s) => s.label.toLowerCase().includes(q));
+  }, [series, searchQuery]);
 
   const { minDate, maxDate, minRank, maxRank, yTicks } = useMemo(() => {
     let minDate = Infinity;
@@ -207,14 +343,17 @@ export default function RankChart({
       })
     );
     if (!isFinite(minDate)) {
-      return { minDate: 0, maxDate: 1, minRank: 1, maxRank: 100, yTicks: [] as number[] };
+      return { minDate: 0, maxDate: 1, minRank: 1, maxRank: 100, yTicks: [1, 10, 25, 50, 100] };
     }
-    const rankPad = Math.max(2, Math.ceil((maxRank - minRank) * 0.2));
+    const rankPad = Math.max(2, Math.ceil((maxRank - minRank) * 0.15));
     const rMin = Math.max(1, minRank - rankPad);
     const rMax = maxRank + rankPad;
-    const yStep = Math.ceil((rMax - rMin) / 5);
+    
+    // Pick clean yTicks
+    const step = Math.max(1, Math.ceil((rMax - rMin) / 5));
     const yTicksArr: number[] = [];
-    for (let v = rMin; v <= rMax; v += yStep) yTicksArr.push(v);
+    for (let v = rMin; v <= rMax; v += step) yTicksArr.push(v);
+    if (!yTicksArr.includes(rMin)) yTicksArr.unshift(rMin);
     return { minDate, maxDate, minRank: rMin, maxRank: rMax, yTicks: yTicksArr };
   }, [series]);
 
@@ -237,17 +376,27 @@ export default function RankChart({
     const range = displayMaxDate - displayMinDate || 1;
     return PAD.left + ((timestamp - displayMinDate) / range) * chartW;
   }
+
+  // Power scale to spread top positions (#1–#15) and compress lower positions (#50+)
   function toY(rank: number) {
-    const range = maxRank - minRank || 1;
-    // Inverted: lower rank = higher on chart
-    return PAD.top + ((rank - minRank) / range) * chartH;
+    const minVal = Math.sqrt(minRank - 0.5);
+    const maxVal = Math.sqrt(maxRank);
+    const curVal = Math.sqrt(rank);
+    const ratio = (curVal - minVal) / (maxVal - minVal || 1);
+    return PAD.top + ratio * chartH;
   }
 
   const bottomY = PAD.top + chartH;
-  const formatDate = (ts: number) =>
-    new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const formatDate = (ts: number) => {
+    const d = new Date(ts);
+    if (daysRange === 1) {
+      return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    }
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
   const isEmpty = series.length === 0;
 
+  // Zooming & Panning logic
   useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
@@ -264,7 +413,6 @@ export default function RankChart({
       const curRange = curMax - curMin || 1;
 
       const t = curMin + ((svgX - PAD.left) / chartW) * curRange;
-
       const zoomFactor = e.deltaY < 0 ? 0.85 : 1 / 0.85;
       let newRange = curRange * zoomFactor;
 
@@ -276,8 +424,14 @@ export default function RankChart({
       let newMin = t - ratio * newRange;
       let newMax = newMin + newRange;
 
-      if (newMin < minDate) { newMin = minDate; newMax = newMin + newRange; }
-      if (newMax > maxDate) { newMax = maxDate; newMin = newMax - newRange; }
+      if (newMin < minDate) {
+        newMin = minDate;
+        newMax = newMin + newRange;
+      }
+      if (newMax > maxDate) {
+        newMax = maxDate;
+        newMin = newMax - newRange;
+      }
 
       if (newRange >= fullRange - 1) {
         setZoomDomain(null);
@@ -307,8 +461,14 @@ export default function RankChart({
 
     let newMin = panStart.current.min + dt;
     let newMax = panStart.current.max + dt;
-    if (newMin < minDate) { newMin = minDate; newMax = newMin + range; }
-    if (newMax > maxDate) { newMax = maxDate; newMin = newMax - range; }
+    if (newMin < minDate) {
+      newMin = minDate;
+      newMax = newMin + range;
+    }
+    if (newMax > maxDate) {
+      newMax = maxDate;
+      newMin = newMax - range;
+    }
 
     setZoomDomain({ min: newMin, max: newMax });
   }
@@ -318,17 +478,43 @@ export default function RankChart({
     panStart.current = null;
   }
 
+  const togglePinLabel = (label: string) => {
+    setPinnedLabels((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+    );
+  };
+
+  // Quick Filter Shortcuts
+  const handleSelectAll = () => {
+    setPinnedLabels(series.map((s) => s.label));
+  };
+  const handleSelectTop10 = () => {
+    setPinnedLabels(series.filter((s) => s.latestRank <= 10).map((s) => s.label));
+  };
+  const handleSelectMovers = () => {
+    setPinnedLabels(series.filter((s) => s.rankChange !== 0).map((s) => s.label));
+  };
+  const handleClearSelection = () => {
+    setPinnedLabels([]);
+    setHoveredLabel(null);
+  };
+
+  const hasActiveSelection = pinnedLabels.length > 0 || hoveredLabel !== null;
+  const headers = getSummaryHeaders(daysRange);
+
   return (
     <Paper
       elevation={0}
       sx={{
-        borderRadius: "12px",
-        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        border: "1px solid #e2e8f0",
         overflow: "hidden",
         mb: 3,
+        bgcolor: "#ffffff",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
       }}
     >
-      {/* Section header */}
+      {/* ── Section Header ── */}
       <Box
         sx={{
           px: 3,
@@ -339,18 +525,19 @@ export default function RankChart({
           flexWrap: "wrap",
           gap: 2,
           borderBottom: "1px solid #f1f5f9",
+          bgcolor: "#f8fafc",
         }}
       >
         <Box>
-          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", lineHeight: 1.2 }}>
-            Keyword position changes
+          <Typography sx={{ fontWeight: 800, fontSize: 16, color: "#0f172a", lineHeight: 1.2 }}>
+            Keyword Position Trends
           </Typography>
           <Typography sx={{ fontSize: 12, color: "#64748b", mt: 0.5 }}>
-            You can view up to 10 search terms at a time. Scroll to zoom, drag to pan.
+            Hover or click lines to highlight. Scroll to zoom timeline.
           </Typography>
         </Box>
 
-        {/* Right side controls - single aligned row */}
+        {/* Controls */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           {zoomDomain && (
             <Button
@@ -377,6 +564,7 @@ export default function RankChart({
             size="small"
             sx={{
               height: 32,
+              bgcolor: "#ffffff",
               "& .MuiToggleButton-root": {
                 border: "1px solid #e2e8f0",
                 fontSize: 12,
@@ -428,17 +616,27 @@ export default function RankChart({
         </Box>
       </Box>
 
-      {/* Chart area */}
+      {/* ── Main Chart SVG Area ── */}
       <Box sx={{ px: 1, pt: 1, pb: 0.5, position: "relative" }}>
         {isLoadingHistory && (
-          <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "rgba(255,255,255,0.8)", zIndex: 2 }}>
-            <CircularProgress size={24} sx={{ color: "#6366f1" }} />
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "rgba(255,255,255,0.8)",
+              zIndex: 2,
+            }}
+          >
+            <CircularProgress size={26} sx={{ color: "#0f172a" }} />
           </Box>
         )}
         {isEmpty && !isLoadingHistory ? (
           <Box sx={{ height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography sx={{ color: "#9ca3af", fontSize: 13 }}>
-              No ranking data available for the selected period.
+            <Typography sx={{ color: "#9ca3af", fontSize: 13, fontWeight: 500 }}>
+              No ranking history data available for the selected range.
             </Typography>
           </Box>
         ) : (
@@ -447,17 +645,26 @@ export default function RankChart({
               ref={svgRef}
               viewBox={`0 0 ${W} ${H}`}
               width="100%"
-              style={{ display: "block", touchAction: "none", cursor: zoomDomain ? (isPanning ? "grabbing" : "grab") : "default" }}
+              style={{
+                display: "block",
+                touchAction: "none",
+                cursor: zoomDomain ? (isPanning ? "grabbing" : "grab") : "default",
+              }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
             >
-              {/* Clip path for the plot area — keeps lines/dots from bleeding into axis labels when zoomed */}
               <defs>
                 <clipPath id="plotAreaClip">
                   <rect x={PAD.left} y={PAD.top} width={chartW} height={chartH} />
                 </clipPath>
+
+                {/* Glow filter for highlighted lines */}
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
               </defs>
 
               {/* Y grid lines + labels */}
@@ -466,11 +673,16 @@ export default function RankChart({
                 return (
                   <g key={tick}>
                     <line
-                      x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
-                      stroke="#f3f4f6" strokeWidth={1} strokeDasharray="4 3"
+                      x1={PAD.left}
+                      y1={y}
+                      x2={W - PAD.right}
+                      y2={y}
+                      stroke="#f1f5f9"
+                      strokeWidth={1}
+                      strokeDasharray="4 3"
                     />
-                    <text x={PAD.left - 8} y={y + 4} textAnchor="end" fontSize={10} fill="#9ca3af">
-                      {tick}
+                    <text x={PAD.left - 8} y={y + 4} textAnchor="end" fontSize={10.5} fontWeight={600} fill="#94a3b8">
+                      #{tick}
                     </text>
                   </g>
                 );
@@ -480,7 +692,7 @@ export default function RankChart({
               {xTicks.map((ts) => {
                 const x = toX(ts);
                 return (
-                  <text key={ts} x={x} y={H - 6} textAnchor="middle" fontSize={10} fill="#9ca3af">
+                  <text key={ts} x={x} y={H - 6} textAnchor="middle" fontSize={10.5} fontWeight={600} fill="#94a3b8">
                     {formatDate(ts)}
                   </text>
                 );
@@ -489,105 +701,157 @@ export default function RankChart({
               {/* Y axis label */}
               <text
                 transform={`translate(12, ${PAD.top + chartH / 2}) rotate(-90)`}
-                textAnchor="middle" fontSize={10} fill="#9ca3af"
+                textAnchor="middle"
+                fontSize={10.5}
+                fontWeight={700}
+                fill="#64748b"
               >
-                Search term position
+                Rank Position
               </text>
 
-              {/* Lines — clipped to plot area */}
+              {/* ── Chart Lines Layer ── */}
               <g clipPath="url(#plotAreaClip)">
-                {series
-                  .filter((s) => !hiddenLabels.includes(s.label))
-                  .map((s) => {
-                    const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
-                    const pts = s.records.map((r) => ({
-                      x: toX(new Date(r.tracked_date).getTime()),
-                      y: toY(r.rank!),
-                    }));
-                    return (
-                      <path
-                        key={`line-${s.label}`}
-                        d={buildSmoothPath(pts)}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={2}
-                        strokeDasharray={s.isCompetitor ? "4 3" : undefined}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    );
-                  })}
+                {series.map((s) => {
+                  const isHovered = hoveredLabel === s.label;
+                  const isPinned = pinnedLabels.includes(s.label);
+                  const isHighlighted = isHovered || isPinned;
+
+                  let opacity = 0.65;
+                  let strokeWidth = 1.8;
+                  let strokeColor = s.color;
+
+                  if (hasActiveSelection) {
+                    if (isHighlighted) {
+                      opacity = 1;
+                      strokeWidth = 2.8;
+                    } else {
+                      opacity = 0.15;
+                      strokeWidth = 1.2;
+                      strokeColor = "#cbd5e1";
+                    }
+                  }
+
+                  const pts = s.records.map((r) => ({
+                    x: toX(new Date(r.tracked_date).getTime()),
+                    y: toY(r.rank!),
+                  }));
+
+                  return (
+                    <path
+                      key={`line-${s.label}`}
+                      d={buildSmoothPath(pts)}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeDasharray={s.isCompetitor ? "4 3" : undefined}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={opacity}
+                      filter={isHighlighted ? "url(#glow)" : undefined}
+                      style={{ transition: "all 0.2s ease", cursor: "pointer" }}
+                      onMouseEnter={() => setHoveredLabel(s.label)}
+                      onMouseLeave={() => setHoveredLabel(null)}
+                      onClick={() => togglePinLabel(s.label)}
+                    />
+                  );
+                })}
               </g>
 
-              {/* Hover crosshair — clipped to plot area */}
-              {hovered && (
+              {/* Hover crosshair */}
+              {hoveredPoint && (
                 <g clipPath="url(#plotAreaClip)">
                   <line
-                    x1={hovered.x} y1={PAD.top} x2={hovered.x} y2={bottomY}
-                    stroke="#d1d5db" strokeWidth={1} strokeDasharray="3 3"
+                    x1={hoveredPoint.x}
+                    y1={PAD.top}
+                    x2={hoveredPoint.x}
+                    y2={bottomY}
+                    stroke="#cbd5e1"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
                   />
                 </g>
               )}
 
-              {/* Dot markers at data points — clipped to plot area */}
+              {/* ── Selective Dot Markers Layer (Noise-Reduced) ── */}
               <g clipPath="url(#plotAreaClip)">
-                {series
-                  .filter((s) => !hiddenLabels.includes(s.label))
-                  .map((s) => {
-                    const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
-                    return s.records.map((r) => {
-                      const cx = toX(new Date(r.tracked_date).getTime());
-                      const cy = toY(r.rank!);
-                      return (
-                        <g key={`dot-${s.label}-${r.id}`}>
+                {series.map((s) => {
+                  const isHovered = hoveredLabel === s.label;
+                  const isPinned = pinnedLabels.includes(s.label);
+                  const isHighlighted = isHovered || isPinned;
+
+                  // Render dots ONLY when line is highlighted or hovered
+                  if (hasActiveSelection && !isHighlighted) return null;
+
+                  return s.records.map((r) => {
+                    const cx = toX(new Date(r.tracked_date).getTime());
+                    const cy = toY(r.rank!);
+                    return (
+                      <g key={`dot-${s.label}-${r.id}`}>
+                        {isHighlighted && (
                           <circle
-                            cx={cx} cy={cy} r={3}
-                            fill="#fff" stroke={color} strokeWidth={1.5}
+                            cx={cx}
+                            cy={cy}
+                            r={3.5}
+                            fill="#ffffff"
+                            stroke={s.color}
+                            strokeWidth={2}
                             pointerEvents="none"
                           />
-                          <circle
-                            cx={cx} cy={cy} r={8}
-                            fill="transparent"
-                            style={{ cursor: "pointer" }}
-                            onMouseEnter={() =>
-                              setHovered({
-                                x: cx,
-                                y: cy,
-                                date: new Date(r.tracked_date).getTime(),
-                                keyword: s.label,
-                                rank: r.rank!,
-                                color,
-                              })
-                            }
-                            onMouseLeave={() => setHovered(null)}
-                          />
-                        </g>
-                      );
-                    });
-                  })}
+                        )}
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={9}
+                          fill="transparent"
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={() => {
+                            setHoveredLabel(s.label);
+                            setHoveredPoint({
+                              x: cx,
+                              y: cy,
+                              date: new Date(r.tracked_date).getTime(),
+                              keyword: s.label,
+                              rank: r.rank!,
+                              color: s.color,
+                            });
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredLabel(null);
+                            setHoveredPoint(null);
+                          }}
+                          onClick={() => togglePinLabel(s.label)}
+                        />
+                      </g>
+                    );
+                  });
+                })}
               </g>
 
-              {/* Tooltip — NOT clipped, so it can render even near the edge */}
-              {hovered && (() => {
-                const maxLabelLen = 22;
+              {/* ── Hover Tooltip ── */}
+              {hoveredPoint && (() => {
+                const maxLabelLen = 24;
                 const label =
-                  hovered.keyword.length > maxLabelLen
-                    ? hovered.keyword.slice(0, maxLabelLen - 1) + "…"
-                    : hovered.keyword;
-                const dateLine = `${formatDate(hovered.date)} · Rank #${hovered.rank}`;
-                const estWidth = Math.max(label.length * 6.4, dateLine.length * 5.6) + 20;
-                const tw = Math.min(Math.max(estWidth, 100), 220);
-                const th = 46;
-                const tx = hovered.x + tw + 12 > W ? hovered.x - tw - 10 : hovered.x + 10;
-                const ty = Math.max(PAD.top, Math.min(hovered.y - th / 2, bottomY - th));
+                  hoveredPoint.keyword.length > maxLabelLen
+                    ? hoveredPoint.keyword.slice(0, maxLabelLen - 1) + "…"
+                    : hoveredPoint.keyword;
+                const dateLine =
+                  daysRange === 1
+                    ? `${new Date(hoveredPoint.date).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · Rank #${hoveredPoint.rank}`
+                    : `${formatDate(hoveredPoint.date)} · Rank #${hoveredPoint.rank}`;
+                const estWidth = Math.max(label.length * 6.5, dateLine.length * 5.8) + 22;
+                const tw = Math.min(Math.max(estWidth, 110), 230);
+                const th = 48;
+                const tx = hoveredPoint.x + tw + 12 > W ? hoveredPoint.x - tw - 10 : hoveredPoint.x + 10;
+                const ty = Math.max(PAD.top, Math.min(hoveredPoint.y - th / 2, bottomY - th));
+
                 return (
                   <g pointerEvents="none">
-                    <circle cx={hovered.x} cy={hovered.y} r={5} fill={hovered.color} stroke="#fff" strokeWidth={2} />
-                    <rect x={tx} y={ty} width={tw} height={th} rx={6} fill="#111827" opacity={0.95} />
-                    <text x={tx + 10} y={ty + 18} fontSize={11} fontWeight={600} fill="#fff">
+                    <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r={6} fill={hoveredPoint.color} stroke="#fff" strokeWidth={2.5} />
+                    <rect x={tx} y={ty} width={tw} height={th} rx={7} fill="#0f172a" opacity={0.95} style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.15))" }} />
+                    <text x={tx + 10} y={ty + 19} fontSize={11.5} fontWeight={700} fill="#ffffff">
                       {label}
                     </text>
-                    <text x={tx + 10} y={ty + 33} fontSize={10} fill="#d1d5db">
+                    <text x={tx + 10} y={ty + 34} fontSize={10.5} fontWeight={500} fill="#cbd5e1">
                       {dateLine}
                     </text>
                   </g>
@@ -598,68 +862,335 @@ export default function RankChart({
         )}
       </Box>
 
-      {/* Scrollable Legend Container */}
+      {/* ── Interactive Legend & Filter Bar ── */}
       {series.length > 0 && (
-        <Box
-          sx={{
-            px: 3,
-            pb: 2.5,
-            pt: 1,
-            display: "flex",
-            gap: 1.25,
-            flexWrap: "wrap",
-            justifyContent: "flex-start",
-            maxHeight: 110,
-            overflowY: "auto",
-            borderTop: "1px solid #f1f5f9",
-            "&::-webkit-scrollbar": { width: 5, height: 5 },
-            "&::-webkit-scrollbar-thumb": { bgcolor: "#cbd5e1", borderRadius: 4 },
-          }}
-        >
-          {series.map((s) => {
-            const color = LINE_COLORS[s.colorIdx % LINE_COLORS.length];
-            const isHidden = hiddenLabels.includes(s.label);
-            return (
-              <Box
-                key={s.label}
-                onClick={() => toggleHiddenLabel(s.label)}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.75,
-                  cursor: "pointer",
-                  px: 1.25,
-                  py: 0.4,
-                  borderRadius: "6px",
-                  bgcolor: isHidden ? "#f1f5f9" : "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  opacity: isHidden ? 0.45 : 1,
-                  transition: "all .15s ease",
-                  "&:hover": { borderColor: color, bgcolor: "#f8fafc" },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 14,
-                    height: 3,
-                    bgcolor: s.isCompetitor ? "transparent" : color,
-                    borderBottom: s.isCompetitor ? `2.5px dashed ${color}` : "none",
-                    borderRadius: 1,
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    color: isHidden ? "#94a3b8" : "#334155",
-                    textDecoration: isHidden ? "line-through" : "none",
-                  }}
-                >
-                  {s.label}
+        <Box sx={{ borderTop: "1px solid #f1f5f9", bgcolor: "#f8fafc", px: 2.5, py: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <FilterListIcon sx={{ fontSize: 15, color: "#64748b" }} />
+                <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Filter / Highlight Shortcuts
                 </Typography>
               </Box>
-            );
-          })}
+
+              {/* Keyword Search Input */}
+              <TextField
+                size="small"
+                placeholder="Search keywords..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ fontSize: 15, color: "#94a3b8" }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery ? (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setSearchQuery("")} sx={{ p: 0.2 }}>
+                          <CloseIcon sx={{ fontSize: 13, color: "#64748b" }} />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null,
+                  },
+                }}
+                sx={{
+                  width: { xs: "100%", sm: 200 },
+                  "& .MuiOutlinedInput-root": {
+                    height: 28,
+                    fontSize: 11.5,
+                    bgcolor: "#ffffff",
+                    borderRadius: "6px",
+                    px: 1,
+                    "& fieldset": { borderColor: "#cbd5e1" },
+                    "&:hover fieldset": { borderColor: "#94a3b8" },
+                    "&.Mui-focused fieldset": { borderColor: "#0284c7" },
+                  },
+                }}
+              />
+            </Box>
+            <Box sx={{ display: "flex", gap: 0.75 }}>
+              <Chip
+                label="All"
+                size="small"
+                onClick={handleSelectAll}
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  height: 22,
+                  bgcolor: pinnedLabels.length === series.length ? "#0f172a" : "#ffffff",
+                  color: pinnedLabels.length === series.length ? "#ffffff" : "#475569",
+                  border: "1px solid #cbd5e1",
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "#f1f5f9" },
+                }}
+              />
+              <Chip
+                label="Top 10"
+                size="small"
+                onClick={handleSelectTop10}
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  height: 22,
+                  bgcolor: "#ecfdf5",
+                  color: "#047857",
+                  border: "1px solid #a7f3d0",
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "#d1fae5" },
+                }}
+              />
+              <Chip
+                label="Movers"
+                size="small"
+                onClick={handleSelectMovers}
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  height: 22,
+                  bgcolor: "#eff6ff",
+                  color: "#1d4ed8",
+                  border: "1px solid #bfdbfe",
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: "#dbeafe" },
+                }}
+              />
+              {pinnedLabels.length > 0 && (
+                <Chip
+                  label="Clear Pin"
+                  size="small"
+                  onClick={handleClearSelection}
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    height: 22,
+                    bgcolor: "#fef2f2",
+                    color: "#b91c1c",
+                    border: "1px solid #fca5a5",
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "#fee2e2" },
+                  }}
+                />
+              )}
+            </Box>
+          </Box>
+
+          {/* Scrollable Legend Pills */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              flexWrap: "wrap",
+              maxHeight: 90,
+              overflowY: "auto",
+              pt: 0.5,
+              "&::-webkit-scrollbar": { width: 4, height: 4 },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "#cbd5e1", borderRadius: 4 },
+            }}
+          >
+            {filteredSeries.length === 0 ? (
+              <Typography sx={{ fontSize: 12, color: "#64748b", py: 0.5, fontStyle: "italic" }}>
+                No keywords matching "{searchQuery}"
+              </Typography>
+            ) : (
+              filteredSeries.map((s) => {
+                const isPinned = pinnedLabels.includes(s.label);
+                const isHovered = hoveredLabel === s.label;
+                const isHighlighted = isHovered || isPinned;
+
+                return (
+                  <Box
+                    key={s.label}
+                    onClick={() => togglePinLabel(s.label)}
+                    onMouseEnter={() => setHoveredLabel(s.label)}
+                    onMouseLeave={() => setHoveredLabel(null)}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      cursor: "pointer",
+                      px: 1.25,
+                      py: 0.4,
+                      borderRadius: "6px",
+                      bgcolor: isPinned ? "#ffffff" : isHovered ? "#ffffff" : "#f1f5f9",
+                      border: `1px solid ${isHighlighted ? s.color : "#e2e8f0"}`,
+                      boxShadow: isHighlighted ? `0 2px 8px ${s.color}33` : "none",
+                      opacity: hasActiveSelection && !isHighlighted ? 0.45 : 1,
+                      transition: "all 0.15s ease",
+                      "&:hover": { borderColor: s.color, bgcolor: "#ffffff" },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        bgcolor: s.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        fontSize: 11.5,
+                        fontWeight: isHighlighted ? 700 : 500,
+                        color: isHighlighted ? "#0f172a" : "#475569",
+                      }}
+                    >
+                      {s.label}
+                    </Typography>
+                    <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: s.color, ml: 0.25 }}>
+                      #{s.latestRank}
+                    </Typography>
+                    {isPinned && <PushPinIcon sx={{ fontSize: 11, color: s.color, ml: 0.25 }} />}
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+        </Box>
+      )}
+
+      {/* ── Companion Keyword Sparkline & Rank Table ── */}
+      {series.length > 0 && (
+        <Box sx={{ borderTop: "1px solid #e2e8f0" }}>
+          <Box sx={{ px: 3, py: 1.5, bgcolor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>
+              Keyword Performance Summary ({filteredSeries.length})
+            </Typography>
+            <Typography sx={{ fontSize: 11.5, color: "#64748b" }}>
+              Hover rows to trace lines on chart above
+            </Typography>
+          </Box>
+
+          <TableContainer sx={{ maxHeight: 220, overflowY: "auto" }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ "& th": { bgcolor: "#f8fafc", color: "#475569", fontSize: 11.5, fontWeight: 700, py: 1 } }}>
+                  <TableCell sx={{ pl: 3 }}>Keyword / Series</TableCell>
+                  <TableCell align="center">{headers.startHeader}</TableCell>
+                  <TableCell align="center">{headers.endHeader}</TableCell>
+                  <TableCell align="center">{headers.changeHeader}</TableCell>
+                  <TableCell align="center">Best Rank</TableCell>
+                  <TableCell align="right" sx={{ pr: 3 }}>Highlight</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredSeries.map((s) => {
+                  const isPinned = pinnedLabels.includes(s.label);
+                  const isHovered = hoveredLabel === s.label;
+                  const isHighlighted = isHovered || isPinned;
+                  const startBadge = getRankBadgeBg(s.firstRank);
+                  const badge = getRankBadgeBg(s.latestRank);
+
+                  return (
+                    <TableRow
+                      key={`table-${s.label}`}
+                      onMouseEnter={() => setHoveredLabel(s.label)}
+                      onMouseLeave={() => setHoveredLabel(null)}
+                      onClick={() => togglePinLabel(s.label)}
+                      sx={{
+                        cursor: "pointer",
+                        bgcolor: isHighlighted ? "#f0f9ff" : "transparent",
+                        transition: "bgcolor 0.15s ease",
+                        "&:hover": { bgcolor: "#f8fafc" },
+                        "& td": { borderBottom: "1px solid #f1f5f9", py: 1 },
+                      }}
+                    >
+                      {/* Keyword Name */}
+                      <TableCell sx={{ pl: 3 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: s.color }} />
+                          <Typography sx={{ fontSize: 12.5, fontWeight: isHighlighted ? 700 : 600, color: "#0f172a" }}>
+                            {s.label}
+                          </Typography>
+                          {s.isCompetitor && (
+                            <Chip
+                              label="Competitor"
+                              size="small"
+                              sx={{ fontSize: 9.5, height: 16, bgcolor: "#f1f5f9", color: "#64748b", fontWeight: 700 }}
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
+
+                      {/* Start / Yesterday Rank */}
+                      <TableCell align="center">
+                        <Chip
+                          label={`#${s.firstRank}`}
+                          size="small"
+                          sx={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            height: 20,
+                            bgcolor: startBadge.bg,
+                            color: startBadge.color,
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Current / Today Rank */}
+                      <TableCell align="center">
+                        <Chip
+                          label={`#${s.latestRank}`}
+                          size="small"
+                          sx={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            height: 20,
+                            bgcolor: badge.bg,
+                            color: badge.color,
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Rank Change */}
+                      <TableCell align="center">
+                        {s.rankChange > 0 ? (
+                          <Box sx={{ display: "inline-flex", alignItems: "center", color: "#059669", fontWeight: 700, fontSize: 11.5 }}>
+                            <TrendingUpIcon sx={{ fontSize: 14, mr: 0.25 }} />
+                            +{s.rankChange}
+                          </Box>
+                        ) : s.rankChange < 0 ? (
+                          <Box sx={{ display: "inline-flex", alignItems: "center", color: "#dc2626", fontWeight: 700, fontSize: 11.5 }}>
+                            <TrendingDownIcon sx={{ fontSize: 14, mr: 0.25 }} />
+                            {s.rankChange}
+                          </Box>
+                        ) : (
+                          <Box sx={{ display: "inline-flex", alignItems: "center", color: "#94a3b8", fontWeight: 600, fontSize: 11.5 }}>
+                            <RemoveIcon sx={{ fontSize: 13, mr: 0.25 }} />
+                            0
+                          </Box>
+                        )}
+                      </TableCell>
+
+                      {/* Best Rank */}
+                      <TableCell align="center">
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+                          #{s.bestRank}
+                        </Typography>
+                      </TableCell>
+
+                      {/* Pin Button */}
+                      <TableCell align="right" sx={{ pr: 3 }}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinLabel(s.label);
+                          }}
+                          sx={{ color: isPinned ? s.color : "#cbd5e1" }}
+                        >
+                          {isPinned ? <PushPinIcon sx={{ fontSize: 15 }} /> : <PushPinOutlinedIcon sx={{ fontSize: 15 }} />}
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
       )}
     </Paper>

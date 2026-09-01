@@ -113,10 +113,11 @@ export default function Dashboard({
     let isMounted = true;
     setIsLoadingHistory(true);
     const kwIds = selectedApp.keywords.map((k) => k.id);
+    const effectiveDays = daysRange === 1 ? 2 : daysRange;
 
     Promise.allSettled([
       api.getListingAudit(selectedApp.id),
-      kwIds.length > 0 ? api.getHistory(selectedApp.id, kwIds, daysRange) : Promise.resolve({ keywords: [] }),
+      kwIds.length > 0 ? api.getHistory(selectedApp.id, kwIds, effectiveDays) : Promise.resolve({ keywords: [] }),
     ]).then(([auditRes, historyRes]) => {
       if (!isMounted) return;
 
@@ -151,7 +152,8 @@ export default function Dashboard({
     }
     setIsLoadingHistory(true);
     try {
-      const res = await api.getHistory(selectedApp.id, kwIds, daysRange);
+      const effectiveDays = daysRange === 1 ? 2 : daysRange;
+      const res = await api.getHistory(selectedApp.id, kwIds, effectiveDays);
       setHistoryData(res.keywords || []);
     } catch (err) {
       console.error("Failed to fetch history", err);
