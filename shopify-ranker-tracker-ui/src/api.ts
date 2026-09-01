@@ -10,6 +10,7 @@ export interface App {
   user_id?: number;
   name: string;
   url: string;
+  icon_url?: string | null;
   created_at: string;
   history_count: number;
   keywords: Keyword[];
@@ -31,6 +32,7 @@ export interface Competitor {
   id: number;
   name: string;
   url: string;
+  icon_url?: string | null;
   created_at: string;
   history_count: number;
 }
@@ -86,6 +88,7 @@ export interface AppLastSync {
   id: number;
   name: string;
   url: string;
+  icon_url?: string | null;
   last_synced_at: string | null;
   audit_last_synced_at?: string | null;
   sync_status?: string;

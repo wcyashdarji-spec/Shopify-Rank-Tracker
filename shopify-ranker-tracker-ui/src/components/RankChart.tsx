@@ -3,6 +3,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 
 // Material UI
 import { Box, Button, CircularProgress, Paper, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 
 // Types
 import type { Keyword, KeywordHistory } from "../api";
@@ -328,72 +329,66 @@ export default function RankChart({
       }}
     >
       {/* Section header */}
-      <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: "1px solid #f3f4f6" }}>
+      <Box
+        sx={{
+          px: 3,
+          py: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 2,
+          borderBottom: "1px solid #f1f5f9",
+        }}
+      >
         <Box>
-          <Typography sx={{ fontWeight: 600, fontSize: 15, color: "#111827", mb: 0.5 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", lineHeight: 1.2 }}>
             Keyword position changes
           </Typography>
-          <Typography sx={{ fontSize: 11.5, color: "#9ca3af", mt: 0.75 }}>
+          <Typography sx={{ fontSize: 12, color: "#64748b", mt: 0.5 }}>
             You can view up to 10 search terms at a time. Scroll to zoom, drag to pan.
           </Typography>
         </Box>
-        {/* Right side: Manage link + range toggle + reset zoom */}
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            {zoomDomain && (
-              <Button
-                size="small"
-                onClick={() => setZoomDomain(null)}
-                sx={{
-                  textTransform: "none",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#6b7280",
-                  p: 0,
-                  minWidth: 0,
-                  "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
-                }}
-              >
-                Reset zoom
-              </Button>
-            )}
+
+        {/* Right side controls - single aligned row */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          {zoomDomain && (
             <Button
               size="small"
-              onClick={onManageKeywords}
+              onClick={() => setZoomDomain(null)}
               sx={{
                 textTransform: "none",
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
-                color: "#f97316",
+                color: "#64748b",
                 p: 0,
                 minWidth: 0,
-                "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
+                "&:hover": { color: "#0f172a", bgcolor: "transparent" },
               }}
             >
-              Manage keywords Delete and Add
+              Reset zoom
             </Button>
-          </Box>
+          )}
+
           <ToggleButtonGroup
             value={daysRange}
             exclusive
             onChange={(_, v) => v && onRangeChange(v)}
             size="small"
             sx={{
+              height: 32,
               "& .MuiToggleButton-root": {
-                border: "1px solid #e5e7eb",
-                borderRadius: "6px !important",
+                border: "1px solid #e2e8f0",
                 fontSize: 12,
-                fontWeight: 500,
-                color: "#6b7280",
-                px: 1.25,
-                py: 0.4,
-                mx: 0.25,
+                fontWeight: 600,
+                color: "#64748b",
+                px: 1.5,
                 textTransform: "none",
                 "&.Mui-selected": {
-                  bgcolor: "#f3f4f6",
-                  color: "#111827",
-                  fontWeight: 600,
-                  borderColor: "#d1d5db",
+                  bgcolor: "#f1f5f9",
+                  color: "#0f172a",
+                  fontWeight: 700,
+                  borderColor: "#cbd5e1",
                 },
               },
             }}
@@ -404,6 +399,32 @@ export default function RankChart({
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
+
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={onManageKeywords}
+            startIcon={<AddIcon sx={{ fontSize: 15, color: "#0284c7" }} />}
+            sx={{
+              height: 32,
+              borderRadius: "6px",
+              bgcolor: "#f0f9ff",
+              borderColor: "#bae6fd",
+              color: "#0369a1",
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: 12,
+              px: 1.5,
+              boxShadow: "none",
+              "&:hover": {
+                bgcolor: "#e0f2fe",
+                borderColor: "#7dd3fc",
+                boxShadow: "none",
+              },
+            }}
+          >
+            Manage Keywords
+          </Button>
         </Box>
       </Box>
 

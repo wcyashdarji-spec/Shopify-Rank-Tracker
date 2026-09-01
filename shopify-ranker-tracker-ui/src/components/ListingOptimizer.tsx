@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import {
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -328,7 +329,15 @@ export default function ListingOptimizer({
             >
               {apps.map((app) => (
                 <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
-                  {app.name}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Avatar
+                      src={app.icon_url || undefined}
+                      sx={{ width: 20, height: 20, fontSize: 10, fontWeight: 700, bgcolor: "#0f172a" }}
+                    >
+                      {app.name[0]?.toUpperCase()}
+                    </Avatar>
+                    {app.name}
+                  </Box>
                 </MenuItem>
               ))}
             </Select>
@@ -488,10 +497,26 @@ export default function ListingOptimizer({
 
           {/* Right Column: App Header & Priority Action Plan Cards */}
           <Box>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
-                {appName}
-              </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Avatar
+                  src={selectedApp.icon_url || auditData?.app_icon_url || auditData?.app?.icon_url || undefined}
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "10px",
+                    bgcolor: "#0f172a",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    boxShadow: "0 4px 12px rgba(15,23,42,0.12)",
+                  }}
+                >
+                  {appName[0]?.toUpperCase()}
+                </Avatar>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  {appName}
+                </Typography>
+              </Box>
               <Button
                 component="a"
                 href={appUrl}

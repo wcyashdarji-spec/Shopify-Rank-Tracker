@@ -30,6 +30,7 @@ interface Competitor {
   id: number;
   name: string;
   url: string;
+  icon_url?: string | null;
   rating?: number;
   reviews_count?: number;
   price_text?: string;
@@ -364,6 +365,7 @@ export default function CompetitorsPage({
         id: c.id,
         name: c.name,
         url: c.url,
+        icon_url: c.icon_url || null,
         rating: c.rating ?? 4.8,
         reviews_count: c.reviews_count ?? "0 reviews",
         price_text: c.price_text ?? "Free plan",
@@ -527,6 +529,7 @@ export default function CompetitorsPage({
             <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: 1 }}>
                 <Avatar
+                  src={mainAppDetails?.icon_url || selectedApp.icon_url || undefined}
                   sx={{
                     width: 42,
                     height: 42,
@@ -549,7 +552,7 @@ export default function CompetitorsPage({
               </Box>
 
               <Chip
-                label="Your Store"
+                label="Your App"
                 size="small"
                 sx={{
                   bgcolor: "#ecfdf5",
@@ -615,6 +618,7 @@ export default function CompetitorsPage({
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <Avatar
+                    src={comp.icon_url || undefined}
                     sx={{
                       width: 42,
                       height: 42,
@@ -764,7 +768,7 @@ export default function CompetitorsPage({
                 {selectedApp.name}
               </Typography>
               <Chip
-                label="Your Store"
+                label="Your App"
                 size="small"
                 sx={{ fontSize: 9.5, height: 18, bgcolor: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", mt: 0.25 }}
               />
@@ -1054,7 +1058,7 @@ export default function CompetitorsPage({
                         </Typography>
                         {isOwnApp && (
                           <Chip
-                            label="Your Store"
+                            label="Your App"
                             size="small"
                             sx={{
                               fontSize: 9.5,

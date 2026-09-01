@@ -92,6 +92,23 @@ export default function HistoryLog({
   const [newCompUrl, setNewCompUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Delete Competitor Confirmation Dialog State
+  const [pendingDelete, setPendingDelete] = useState<Competitor | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete || !onDeleteCompetitor) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteCompetitor(pendingDelete);
+      setPendingDelete(null);
+    } catch (err) {
+      console.error("Failed to delete competitor", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
 
   // Handle Add Competitor Submit
@@ -252,10 +269,10 @@ export default function HistoryLog({
           const dateStr = entry.storeRecord?.tracked_date || (Object.values(entry.compRecords)[0] as any)?.tracked_date || dateKey;
           const formattedDate = dateStr && dateStr !== "unknown"
             ? new Date(dateStr).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
             : dateKey;
 
           rawList.push({
@@ -385,6 +402,7 @@ export default function HistoryLog({
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
                   <Avatar
+                    src={comp.icon_url || undefined}
                     sx={{
                       width: 32,
                       height: 32,
@@ -408,7 +426,7 @@ export default function HistoryLog({
                 {onDeleteCompetitor && (
                   <IconButton
                     size="small"
-                    onClick={() => onDeleteCompetitor(comp)}
+                    onClick={() => setPendingDelete(comp)}
                     sx={{ color: "#ef4444", p: 0.5, "&:hover": { bgcolor: "#fee2e2" } }}
                     title={`Delete ${comp.name}`}
                   >
@@ -522,7 +540,7 @@ export default function HistoryLog({
           </Box>
         </Paper>
 
-        {/* Card 3: Your Store in Top 10 */}
+        {/* Card 3: Your App in Top 10 */}
         <Paper
           elevation={0}
           sx={{
@@ -536,7 +554,7 @@ export default function HistoryLog({
           }}
         >
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#4b5563", mb: 0.5 }} noWrap>
-            Your Store in Top 10
+            Your App in Top 10
           </Typography>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>
@@ -557,7 +575,7 @@ export default function HistoryLog({
           </Box>
         </Paper>
 
-        {/* Card 4: Not Ranking (Your Store) */}
+        {/* Card 4: Not Ranking (Your App) */}
         <Paper
           elevation={0}
           sx={{
@@ -571,7 +589,7 @@ export default function HistoryLog({
           }}
         >
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#111827", mb: 0.5 }} noWrap>
-            Not Ranking (Your Store)
+            Not Ranking (Your App)
           </Typography>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
@@ -698,15 +716,26 @@ export default function HistoryLog({
                   Keyword
                 </TableCell>
 
-                {/* Your Store Column */}
+                {/* Your App Column */}
                 <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <StorefrontIcon sx={{ fontSize: 16, color: "#2563eb" }} />
+                    <Avatar
+                      src={selectedApp?.icon_url || undefined}
+                      sx={{
+                        width: 22,
+                        height: 22,
+                        bgcolor: "#2563eb",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {selectedApp?.name ? selectedApp.name[0]?.toUpperCase() : "A"}
+                    </Avatar>
                     <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
-                      {selectedApp?.name || "Your Store"}
+                      {selectedApp?.name || "Your App"}
                     </Typography>
                     <Chip
-                      label="Your Store"
+                      label="Your App"
                       size="small"
                       sx={{
                         bgcolor: "#eff6ff",
@@ -727,6 +756,7 @@ export default function HistoryLog({
                     <TableCell key={comp.id} sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Avatar
+                          src={comp.icon_url || undefined}
                           sx={{
                             width: 22,
                             height: 22,
@@ -772,7 +802,7 @@ export default function HistoryLog({
                       {row.keywordName}
                     </TableCell>
 
-                    {/* Your Store Cell */}
+                    {/* Your App Cell */}
                     <TableCell>
                       {row.store.found && row.store.rank !== null ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1086,6 +1116,75 @@ export default function HistoryLog({
             ) : (
               "Add Competitor"
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Delete Competitor Confirmation Dialog ── */}
+      <Dialog
+        open={!!pendingDelete}
+        onClose={() => { if (!isDeleting) setPendingDelete(null); }}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: "16px",
+              p: 1,
+              maxWidth: 420,
+              width: "100%",
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontSize: 17, fontWeight: 700, color: "#111827", pb: 0.5 }}>
+          Remove Competitor
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography sx={{ fontSize: 14, color: "#374151", mb: 1 }}>
+            Are you sure you want to remove{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+              {pendingDelete?.name}
+            </Box>
+            ?
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "#6b7280" }}>
+            This will stop tracking this competitor and remove all associated
+            activity history. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setPendingDelete(null)}
+            disabled={isDeleting}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: 13,
+              color: "#374151",
+              borderRadius: "8px",
+              px: 2.5,
+              "&:hover": { bgcolor: "#f3f4f6" },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            disabled={isDeleting}
+            variant="contained"
+            startIcon={isDeleting ? <CircularProgress size={15} color="inherit" /> : null}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: 13,
+              bgcolor: "#ef4444",
+              color: "#fff",
+              borderRadius: "8px",
+              px: 2.5,
+              "&:hover": { bgcolor: "#dc2626" },
+              "&.Mui-disabled": { bgcolor: "#fca5a5", color: "#fff" },
+            }}
+          >
+            {isDeleting ? "Removing…" : "Remove Competitor"}
           </Button>
         </DialogActions>
       </Dialog>

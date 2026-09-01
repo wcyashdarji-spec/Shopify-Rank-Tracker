@@ -190,7 +190,6 @@ export default function Dashboard({
         const newKwIds = match.keywords.map((k) => k.id);
         setSelectedKeywords(newKwIds);
       }
-      setKeywordsDialogOpen(false);
     } catch (err: any) {
       showToast(err?.message || "Failed to add keywords", "error");
     } finally {
@@ -482,6 +481,7 @@ export default function Dashboard({
                       <CardContent sx={{ p: 3 }}>
                         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.75, mb: 2 }}>
                           <Avatar
+                            src={app.icon_url || undefined}
                             sx={{
                               width: 44,
                               height: 44,
@@ -671,6 +671,7 @@ export default function Dashboard({
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Avatar
+                src={selectedApp.icon_url || undefined}
                 sx={{
                   width: 34,
                   height: 34,

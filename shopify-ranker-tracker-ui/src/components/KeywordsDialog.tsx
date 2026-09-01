@@ -1,8 +1,19 @@
 // React
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Material UI
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Typography,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 // Types
@@ -24,6 +35,12 @@ export function getChipColor(index: number) {
   return CHIP_COLORS[index % CHIP_COLORS.length];
 }
 
+interface DraftKeyword {
+  id: number;
+  name: string;
+  isNew?: boolean;
+}
+
 interface KeywordsDialogProps {
   open: boolean;
   onClose: () => void;
@@ -41,26 +58,92 @@ export default function KeywordsDialog({
   onRemoveKeyword,
   isLoading,
 }: KeywordsDialogProps) {
+  const [draftKeywords, setDraftKeywords] = useState<DraftKeyword[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleAdd = async () => {
+  // Sync draft keywords whenever modal opens or original keywords change
+  useEffect(() => {
+    if (open) {
+      setDraftKeywords(keywords.map((k) => ({ id: k.id, name: k.name })));
+      setInputValue("");
+    }
+  }, [open, keywords]);
+
+  const handleAddDraft = () => {
     const terms = inputValue
       .split(/[\n,]+/)
       .map((k) => k.trim())
       .filter(Boolean);
     if (terms.length === 0) return;
-    await onAddKeywords(terms);
+
+    setDraftKeywords((prev) => {
+      const next = [...prev];
+      terms.forEach((term) => {
+        if (!next.some((k) => k.name.toLowerCase() === term.toLowerCase())) {
+          next.push({
+            id: -Date.now() - Math.floor(Math.random() * 1000),
+            name: term,
+            isNew: true,
+          });
+        }
+      });
+      return next;
+    });
+
     setInputValue("");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") { e.preventDefault(); handleAdd(); }
+  const handleRemoveDraft = (name: string) => {
+    setDraftKeywords((prev) => prev.filter((k) => k.name.toLowerCase() !== name.toLowerCase()));
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddDraft();
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // 1. Keywords to delete: in initial `keywords` prop but absent in `draftKeywords`
+      const remainingNames = new Set(draftKeywords.map((k) => k.name.toLowerCase()));
+      const removedKeywords = keywords.filter((k) => !remainingNames.has(k.name.toLowerCase()));
+
+      // 2. Keywords to add: marked as `isNew` or absent in initial `keywords` prop
+      const initialNames = new Set(keywords.map((k) => k.name.toLowerCase()));
+      const addedTerms = draftKeywords
+        .filter((k) => k.isNew || !initialNames.has(k.name.toLowerCase()))
+        .map((k) => k.name);
+
+      // Perform deletions
+      for (const kw of removedKeywords) {
+        await onRemoveKeyword(kw.id, kw.name);
+      }
+
+      // Perform additions
+      if (addedTerms.length > 0) {
+        await onAddKeywords(addedTerms);
+      }
+
+      onClose();
+    } catch (err) {
+      console.error("Failed to save keyword changes", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const busy = isLoading || isSaving;
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
       maxWidth="xs"
       fullWidth
       slotProps={{
@@ -84,9 +167,9 @@ export default function KeywordsDialog({
         }}
       >
         <Typography sx={{ fontWeight: 600, fontSize: 15, color: "#111827" }}>
-         Manage keywords Delete and Add
+          Manage Keywords
         </Typography>
-        <IconButton size="small" onClick={onClose} sx={{ color: "#9ca3af" }}>
+        <IconButton size="small" onClick={onClose} disabled={busy} sx={{ color: "#9ca3af" }}>
           <CloseIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </DialogTitle>
@@ -100,6 +183,7 @@ export default function KeywordsDialog({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            disabled={busy}
             placeholder="Enter search term to track changes in your app's search position"
             slotProps={{
               input: {
@@ -118,8 +202,8 @@ export default function KeywordsDialog({
           <Button
             variant="contained"
             size="small"
-            onClick={handleAdd}
-            disabled={!inputValue.trim() || isLoading}
+            onClick={handleAddDraft}
+            disabled={!inputValue.trim() || busy}
             sx={{
               bgcolor: "#111827",
               color: "#fff",
@@ -138,16 +222,16 @@ export default function KeywordsDialog({
 
         {/* Keyword chips */}
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, minHeight: 32 }}>
-          {keywords.length === 0 ? (
+          {draftKeywords.length === 0 ? (
             <Typography sx={{ fontSize: 12.5, color: "#9ca3af", py: 0.5 }}>
               No keywords tracked yet. Add some above.
             </Typography>
           ) : (
-            keywords.map((kw, i) => {
+            draftKeywords.map((kw, i) => {
               const chipColor = getChipColor(i);
               return (
                 <Box
-                  key={kw.id}
+                  key={kw.name}
                   sx={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -167,16 +251,18 @@ export default function KeywordsDialog({
                   {kw.name}
                   <Box
                     component="span"
-                    onClick={() => onRemoveKeyword(kw.id, kw.name)}
+                    onClick={() => {
+                      if (!busy) handleRemoveDraft(kw.name);
+                    }}
                     sx={{
                       display: "inline-flex",
                       alignItems: "center",
                       ml: 0.25,
-                      cursor: "pointer",
+                      cursor: busy ? "default" : "pointer",
                       opacity: 0.7,
                       fontSize: 13,
                       lineHeight: 1,
-                      "&:hover": { opacity: 1 },
+                      "&:hover": { opacity: busy ? 0.7 : 1 },
                     }}
                     title={`Remove "${kw.name}"`}
                   >
@@ -196,6 +282,7 @@ export default function KeywordsDialog({
       <DialogActions sx={{ px: 2.5, pb: 2, pt: 1.5, gap: 1 }}>
         <Button
           onClick={onClose}
+          disabled={busy}
           size="small"
           variant="outlined"
           sx={{
@@ -212,7 +299,9 @@ export default function KeywordsDialog({
         <Button
           variant="contained"
           size="small"
-          onClick={onClose}
+          onClick={handleSave}
+          disabled={busy}
+          startIcon={busy ? <CircularProgress size={14} color="inherit" /> : null}
           sx={{
             bgcolor: "#111827",
             color: "#fff",
@@ -220,10 +309,12 @@ export default function KeywordsDialog({
             textTransform: "none",
             fontWeight: 600,
             fontSize: 13,
+            px: 2.5,
             "&:hover": { bgcolor: "#1f2937" },
+            "&.Mui-disabled": { bgcolor: "#94a3b8", color: "#ffffff" },
           }}
         >
-          Save
+          {busy ? "Saving…" : "Save"}
         </Button>
       </DialogActions>
     </Dialog>

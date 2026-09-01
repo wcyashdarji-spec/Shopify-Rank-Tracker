@@ -390,7 +390,7 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                 </Typography>
                 <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
                   {isLogin
-                    ? "Enter your credentials to access your store ranking dashboard."
+                    ? "Enter your credentials to access Your App ranking dashboard."
                     : "Create an account to start tracking app store positions today."}
                 </Typography>
               </Box>
@@ -707,8 +707,8 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                     {isGoogleAuthLoading
                       ? "Authenticating with Google..."
                       : isLogin
-                      ? "Sign in with Google"
-                      : "Sign up with Google"}
+                        ? "Sign in with Google"
+                        : "Sign up with Google"}
                   </Button>
 
                   <Box sx={{ textAlign: "center", mt: 1.5 }}>

@@ -416,6 +416,7 @@ export default function Sidebar({
                       }}
                     >
                       <Avatar
+                        src={app.icon_url || undefined}
                         sx={{
                           width: 22,
                           height: 22,
