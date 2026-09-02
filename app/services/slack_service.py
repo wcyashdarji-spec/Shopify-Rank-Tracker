@@ -144,7 +144,15 @@ class SlackService:
                         exc,
                     )
 
-        token = getattr(integration, "bot_token", None) or _bot_token()
+        _raw_token = getattr(integration, "bot_token", None) or _bot_token()
+        if _raw_token and _raw_token != _bot_token():
+            try:
+                from app.core.encryption import decrypt_token
+                _raw_token = decrypt_token(_raw_token)
+            except Exception:
+                logger.error("Failed to decrypt Slack bot token for workspace '%s'; skipping bot-token flow.", getattr(integration, "workspace_name", "Slack"))
+                _raw_token = None
+        token = _raw_token
         if token:
             headers = {
                 "Authorization": f"Bearer {token}",

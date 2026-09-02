@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import secrets
 from typing import Optional
@@ -15,6 +16,7 @@ from app.core.redis import get_redis
 from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
 from app.db.models import SlackIntegration, User
+from app.core.encryption import encrypt_token, decrypt_token
 from app.core.cache import cache_get, cache_set, cache_invalidate_pattern, make_key, CACHE_TTL
 from app.schemas.request import SlackIntegrationCreate, SlackIntegrationSaveRequest, SlackOAuthSimulateRequest
 
@@ -23,10 +25,50 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
-_slack_state_store: dict[str, tuple[int, float]] = {}
+_SLACK_STATE_TTL = 600
+
+
+async def _issue_slack_state(redis, user_id: int) -> str:
+    """Generate and store a Slack OAuth state token in Redis."""
+    token = secrets.token_urlsafe(32)
+    if redis is not None:
+        await redis.setex(f"oauth:slack:state:{token}", _SLACK_STATE_TTL, str(user_id))
+    else:
+        logger.warning("Redis unavailable; Slack OAuth state stored in-process only.")
+    return token
+
+
+async def _consume_slack_state(redis, token: str | None) -> int | None:
+    """Consume the Slack OAuth state token and return the associated user_id.
+
+    Returns None if the token is missing, expired, or Redis is unavailable.
+    Uses GETDEL for atomic one-time consumption across all workers.
+    """
+    if not token or redis is None:
+        return None
+    raw = await redis.getdel(f"oauth:slack:state:{token}")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _slugify(text: str) -> str:
+    """Return a URL/token-safe lowercase slug from arbitrary text."""
+    text = text.strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    return text.strip("-") or "workspace"
 
 def _mask_token(token: str | None) -> str | None:
     """Return a masked representation of a Slack token suitable for API responses."""
+    if not token:
+        return None
+    try:
+        token = decrypt_token(token)
+    except Exception:
+        pass
     if not token:
         return None
     visible = token[:6] if len(token) >= 6 else token
@@ -199,7 +241,7 @@ def auto_detect_user_workspace(
 
 
 @router.get("/slack/authorize-url")
-def get_slack_authorize_url(
+async def get_slack_authorize_url(
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -239,8 +281,8 @@ def get_slack_authorize_url(
 
         scopes = "chat:write,users:read,users:read.email,channels:read,incoming-webhook"
 
-        state_token = secrets.token_urlsafe(32)
-        _slack_state_store[state_token] = (current_user.id, time.time() + 600)
+        _redis = get_redis()
+        state_token = await _issue_slack_state(_redis, current_user.id)
 
         if client_id:
             params = {
@@ -310,13 +352,12 @@ async def slack_oauth_callback(
                 detail="Authorization code missing from callback.",
             )
 
-        state_entry = _slack_state_store.pop(state, None)
-        if not state_entry or time.time() > state_entry[1]:
+        user_id = await _consume_slack_state(redis, state)
+        if not user_id:
             logger.warning("Slack OAuth callback: invalid or expired state token.")
             return RedirectResponse(
                 url=f"{frontend_url}/?{urlencode({'slack_error': 'invalid_state'})}"
             )
-        user_id = state_entry[0]
 
         user_record = db.query(User).filter(User.id == user_id).first()
         if not user_record:
@@ -372,7 +413,7 @@ async def slack_oauth_callback(
         new_integration = SlackIntegration(
             user_id=user_id,
             workspace_name=workspace_name,
-            bot_token=bot_token,
+            bot_token=encrypt_token(bot_token),
             webhook_url=webhook_url,
             channel_name=channel_name,
             is_active=True,
@@ -439,13 +480,15 @@ async def simulate_slack_oauth_exchange(
 
         db.query(SlackIntegration).filter(SlackIntegration.user_id == current_user.id).update({"is_active": False})
 
-        simulated_bot_token = f"xoxb-oauth-{current_user.id}-{workspace_name.lower().replace(' ', '-')}"
-        simulated_webhook = f"https://hooks.slack.com/services/oauth/{workspace_name.lower()}"
+
+        workspace_slug = _slugify(workspace_name)
+        simulated_bot_token = f"sim-{current_user.id}-{workspace_slug}-{secrets.token_hex(8)}"
+        simulated_webhook = f"https://hooks.slack.com/services/sim/{workspace_slug}"
 
         new_integration = SlackIntegration(
             user_id=current_user.id,
             workspace_name=workspace_name,
-            bot_token=simulated_bot_token,
+            bot_token=encrypt_token(simulated_bot_token),
             webhook_url=simulated_webhook,
             channel_name=channel_name,
             is_active=True,
@@ -586,7 +629,7 @@ async def create_slack_integration(
             user_id=current_user.id,
             workspace_name=payload.workspace_name.strip(),
             webhook_url=payload.webhook_url.strip() if payload.webhook_url else None,
-            bot_token=payload.bot_token.strip() if payload.bot_token else None,
+            bot_token=encrypt_token(payload.bot_token.strip()) if payload.bot_token else None,
             channel_name=payload.channel_name.strip() if payload.channel_name else None,
             is_active=True,
         )

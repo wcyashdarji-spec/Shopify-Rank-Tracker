@@ -32,3 +32,9 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{FRONTEND_URL}/auth/google/callback")
 
+_raw_allowed_redirect_uris = os.getenv("ALLOWED_REDIRECT_URIS", GOOGLE_REDIRECT_URI)
+ALLOWED_REDIRECT_URIS: set[str] = {
+    u.strip() for u in _raw_allowed_redirect_uris.split(",") if u.strip()
+}
+
+FERNET_KEY = os.getenv("FERNET_KEY")

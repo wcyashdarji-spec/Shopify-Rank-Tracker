@@ -2453,6 +2453,7 @@ source = { editable = "." }
 dependencies = [
     { name = "agentmail" },
     { name = "arize-phoenix-otel" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "logfire" },
     { name = "openinference-instrumentation-openai" },
@@ -2478,6 +2479,7 @@ dependencies = [
 requires-dist = [
     { name = "agentmail", specifier = ">=0.5.9" },
     { name = "arize-phoenix-otel", specifier = ">=0.17.1" },
+    { name = "cryptography", specifier = ">=49.0.0" },
     { name = "fastapi" },
     { name = "logfire", specifier = ">=4.39.0" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.54" },

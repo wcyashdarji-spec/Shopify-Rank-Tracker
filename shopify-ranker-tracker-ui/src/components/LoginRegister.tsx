@@ -71,12 +71,30 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
   // Check for Google OAuth 2.0 authorization code callback in URL query params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const authCode = urlParams.get("auth_code");
     const code = urlParams.get("code");
-    if (code) {
+
+    if (authCode) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleAuthCodeExchange(authCode);
+    } else if (code) {
       window.history.replaceState({}, document.title, window.location.pathname);
       handleGoogleOAuthCallback(code);
     }
   }, []);
+
+  const handleAuthCodeExchange = async (authCode: string) => {
+    setIsGoogleAuthLoading(true);
+    setError(null);
+    try {
+      await api.exchangeAuthCode(authCode);
+      onLoginSuccess();
+    } catch (err: any) {
+      setError(err?.message || "Authentication code exchange failed.");
+    } finally {
+      setIsGoogleAuthLoading(false);
+    }
+  };
 
   const handleGoogleOAuthCallback = async (code: string) => {
     setIsGoogleAuthLoading(true);
