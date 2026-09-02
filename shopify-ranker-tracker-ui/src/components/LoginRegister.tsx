@@ -66,17 +66,42 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleAuthLoading, setIsGoogleAuthLoading] = useState(false);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
+  const [isGoogleAuthLoading, setIsGoogleAuthLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.has("auth_code") || params.has("code");
+    }
+    return false;
+  });
 
   // Check for Google OAuth 2.0 authorization code callback in URL query params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const authCode = urlParams.get("auth_code");
     const code = urlParams.get("code");
-    if (code) {
+
+    if (authCode) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleAuthCodeExchange(authCode);
+    } else if (code) {
       window.history.replaceState({}, document.title, window.location.pathname);
       handleGoogleOAuthCallback(code);
     }
   }, []);
+
+  const handleAuthCodeExchange = async (authCode: string) => {
+    setIsGoogleAuthLoading(true);
+    setError(null);
+    try {
+      await api.exchangeAuthCode(authCode);
+      onLoginSuccess();
+    } catch (err: any) {
+      setError(err?.message || "Authentication code exchange failed.");
+    } finally {
+      setIsGoogleAuthLoading(false);
+    }
+  };
 
   const handleGoogleOAuthCallback = async (code: string) => {
     setIsGoogleAuthLoading(true);
@@ -92,7 +117,7 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
   };
 
   const handleGoogleButtonClick = async () => {
-    setIsGoogleAuthLoading(true);
+    setIsGoogleRedirecting(true);
     setError(null);
     try {
       const res = await api.getGoogleAuthUrl();
@@ -101,10 +126,10 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
         return;
       }
       setError("Google OAuth is not configured on the server.");
+      setIsGoogleRedirecting(false);
     } catch (err: any) {
       setError(err?.message || "Failed to initiate Google OAuth login.");
-    } finally {
-      setIsGoogleAuthLoading(false);
+      setIsGoogleRedirecting(false);
     }
   };
 
@@ -166,6 +191,45 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
       setIsLoading(false);
     }
   };
+
+  if (isGoogleAuthLoading) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#f8fafc",
+          color: "#0f172a",
+          gap: 2.5,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "radial-gradient(circle, #94a3b8 1.2px, transparent 1.2px)",
+            backgroundSize: "32px 32px",
+            opacity: 0.35,
+            pointerEvents: "none",
+          }}
+        />
+        <CircularProgress size={52} thickness={4} sx={{ color: "#6366f1" }} />
+        <Box sx={{ textAlign: "center", zIndex: 1 }}>
+          <Typography sx={{ fontSize: 20, fontWeight: 700, color: "#0f172a", mb: 0.5 }}>
+            Authenticating with Google...
+          </Typography>
+          <Typography sx={{ fontSize: 14, color: "#64748b", fontWeight: 500 }}>
+            Please wait while we log you into your Rank Tracker dashboard
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -679,10 +743,10 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                     fullWidth
                     type="button"
                     variant="outlined"
-                    disabled={isLoading || isGoogleAuthLoading}
+                    disabled={isLoading || isGoogleAuthLoading || isGoogleRedirecting}
                     onClick={handleGoogleButtonClick}
                     startIcon={
-                      isGoogleAuthLoading ? (
+                      isGoogleRedirecting || isGoogleAuthLoading ? (
                         <CircularProgress size={18} color="inherit" />
                       ) : (
                         <GoogleIcon />
@@ -704,11 +768,13 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                       },
                     }}
                   >
-                    {isGoogleAuthLoading
-                      ? "Authenticating with Google..."
-                      : isLogin
-                        ? "Sign in with Google"
-                        : "Sign up with Google"}
+                    {isGoogleRedirecting
+                      ? "Connecting to Google..."
+                      : isGoogleAuthLoading
+                        ? "Authenticating with Google..."
+                        : isLogin
+                          ? "Sign in with Google"
+                          : "Sign up with Google"}
                   </Button>
 
                   <Box sx={{ textAlign: "center", mt: 1.5 }}>

@@ -1,14 +1,17 @@
 from sqlalchemy import func
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
-from app.api.auth_deps import get_current_user, verify_cron_key
-from app.schemas.request import CompetitorCreateRequest
-from app.db.repositories.ranking_repository import RankingRepository
+from app.core.redis import get_redis
 from app.core.logging_route import LoggingRoute
+from app.schemas.request import CompetitorCreateRequest
+from app.api.auth_deps import get_current_user, verify_cron_key
+from app.db.repositories.ranking_repository import RankingRepository
+from app.core.cache import cache_get, cache_set, cache_invalidate_pattern, make_key, CACHE_TTL
 
 logger = get_logger(__name__)
 
@@ -20,7 +23,11 @@ router = APIRouter(
 
 
 @router.post("/cron/listing-audit")
-async def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
+async def run_cron_listing_audits(
+    db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
+    _cron_auth: None = Depends(verify_cron_key),
+):
     """
     Execute scheduled listing audits for all active applications.
 
@@ -44,7 +51,10 @@ async def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: Non
         ).all()
         
         results = []
+        user_ids_audited = set()
         for app in apps:
+            if app.user_id:
+                user_ids_audited.add(app.user_id)
             try:
                 logger.info(f"Cron: Auditing primary app {app.name} (id={app.id})...")
                 await AuditService.run_and_save_audit(db, app.id, app.name, app.url)
@@ -60,7 +70,10 @@ async def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: Non
             except Exception as ea:
                 logger.error(f"Cron: Failed to audit primary app {app.name} (id={app.id}): {ea}")
                 results.append({"app_id": app.id, "name": app.name, "status": "failed", "error": str(ea)})
-                
+
+        for uid in user_ids_audited:
+            await cache_invalidate_pattern(redis, make_key(f"user:{uid}", "app", "*"))
+
         return {
             "status": "completed",
             "audited_count": len(results),
@@ -75,6 +88,7 @@ async def run_cron_listing_audits(db: Session = Depends(get_db), _cron_auth: Non
 async def get_all_apps(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Get all tracked apps for the authenticated user.
@@ -86,6 +100,11 @@ async def get_all_apps(
     Returns:
         List of all user's apps with their tracking history count.
     """
+    cache_key = make_key(f"user:{current_user.id}", "apps", "list")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         from app.db.models.ranking import RankingHistory
 
@@ -111,7 +130,7 @@ async def get_all_apps(
                     pass
             return None
 
-        return {
+        response_data = {
             "apps": [
                 {
                     "id": app.id,
@@ -129,6 +148,8 @@ async def get_all_apps(
                 for app in apps
             ]
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["apps_list"])
+        return response_data
 
     except Exception as e:
         logger.exception(f"Failed to retrieve apps for user={current_user.email}: {str(e)}")
@@ -140,6 +161,7 @@ async def delete_app(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Delete an application and all of its associated rankings and keyword mappings if owned by the user.
@@ -158,6 +180,10 @@ async def delete_app(
             raise HTTPException(status_code=404, detail="App not found")
 
         RankingRepository.delete_app(db, app)
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "app", "*"))
 
         return {
             "message": "Application deleted successfully",
@@ -179,6 +205,7 @@ async def get_competitors(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve all competitors associated with a primary application.
@@ -196,6 +223,11 @@ async def get_competitors(
             - 404: If the requested application does not exist.
             - 500: If an unexpected error occurs while retrieving competitors.
     """
+    cache_key = make_key(f"user:{current_user.id}", "app", app_id, "competitors")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
@@ -270,7 +302,7 @@ async def get_competitors(
 
         main_rating, main_reviews = get_rating_and_reviews(app)
 
-        return {
+        response_data = {
             "main_app": {
                 "id": app.id,
                 "name": app.name,
@@ -294,6 +326,8 @@ async def get_competitors(
                 for c in app.competitors
             ]
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["competitors"])
+        return response_data
     except HTTPException:
         raise
     except Exception as e:
@@ -307,6 +341,7 @@ async def add_competitor(
     request: CompetitorCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Add a competitor application to a primary application.
@@ -327,6 +362,8 @@ async def add_competitor(
             raise HTTPException(status_code=404, detail="App not found")
 
         competitor = RankingRepository.add_competitor_to_app(db, app, request.name, str(request.url))
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "app", app_id, "*"))
 
         return {
             "message": "Competitor added successfully",
@@ -349,6 +386,7 @@ async def delete_competitor(
     competitor_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Remove a competitor from a primary application.
@@ -387,6 +425,8 @@ async def delete_competitor(
 
         RankingRepository.remove_competitor_from_app(db, app, competitor)
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "app", app_id, "*"))
+
         return {
             "message": "Competitor removed successfully",
         }
@@ -402,6 +442,7 @@ async def get_listing_audit(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve the listing audit for a specific application.
@@ -416,6 +457,11 @@ async def get_listing_audit(
             - 404: If the requested application cannot be found.
             - 500: If an unexpected error occurs while retrieving the audit.
     """
+    cache_key = make_key(f"user:{current_user.id}", "app", app_id, "listing_audit")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
@@ -457,6 +503,7 @@ async def get_listing_audit(
         audit_result["todays_audits_count"] = todays_audits_count
         audit_result["remaining_audits"] = remaining_audits
 
+        await cache_set(redis, cache_key, audit_result, CACHE_TTL["listing_audit"])
         return audit_result
     except HTTPException:
         raise
@@ -470,6 +517,7 @@ async def run_listing_audit(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Execute a new listing audit for a specific application.
@@ -534,6 +582,8 @@ async def run_listing_audit(
         audit_result["todays_audits_count"] = updated_todays_audits
         audit_result["remaining_audits"] = max(0, app_limit - updated_todays_audits) if app_limit is not None else None
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "app", app_id, "*"))
+
         return audit_result
     except HTTPException:
         raise
@@ -547,6 +597,7 @@ async def get_competitors_activity(
     app_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve activity logs for an application and its competitors.
@@ -564,6 +615,11 @@ async def get_competitors_activity(
             - 500: If an unexpected error occurs while generating the
               activity log.
     """
+    cache_key = make_key(f"user:{current_user.id}", "app", app_id, "activity")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         import re
         import json
@@ -808,11 +864,13 @@ async def get_competitors_activity(
 
         activity_logs.sort(key=lambda x: parse_date(x["date"]), reverse=True)
 
-        return {
+        response_data = {
             "app_id": app_id,
             "activity_count": len(activity_logs),
             "activities": activity_logs
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["activity"])
+        return response_data
     except Exception as e:
         logger.exception(f"Failed to generate competitors activity log: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve competitor activity log")
@@ -824,6 +882,7 @@ async def get_head_to_head(
     competitor_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Generate a side-by-side comparison between an application and a competitor.
@@ -841,6 +900,11 @@ async def get_head_to_head(
             - 500: If an unexpected error occurs while generating the
               comparison.
     """
+    cache_key = make_key(f"user:{current_user.id}", "app", app_id, "h2h", competitor_id)
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         from app.db.models.ranking import App as AppModel, AppAuditHistory, RankingHistory
         import json
@@ -954,11 +1018,13 @@ async def get_head_to_head(
                 "them_rank": them_rank
             })
 
-        return {
+        response_data = {
             "you": you_details,
             "them": them_details,
             "keyword_rankings": keyword_rankings
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["h2h"])
+        return response_data
 
     except Exception as e:
         logger.exception(f"Failed to generate head-to-head comparison: {str(e)}")

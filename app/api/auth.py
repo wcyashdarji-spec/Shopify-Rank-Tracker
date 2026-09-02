@@ -1,11 +1,10 @@
-import time
 import httpx
 import secrets
 import requests
 from html import escape
 from datetime import datetime
 from sqlalchemy.orm import Session
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_db
@@ -15,35 +14,58 @@ from app.core.logging_route import LoggingRoute
 from app.db.models.user import User, UserActivity
 from fastapi.responses import HTMLResponse, RedirectResponse
 from app.core.security import hash_password, verify_password, create_access_token
-from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from app.schemas.request import UserCreate, UserLogin, UserUpdate, GoogleOAuthCallbackRequest
+from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, ALLOWED_REDIRECT_URIS
 
 logger = get_logger(__name__)
 
-_google_state_store: dict[str, float] = {}
 
-_auth_code_store: dict[str, tuple[str, float]] = {}
+_GOOGLE_STATE_TTL = 600
+_AUTH_CODE_TTL    = 120
 
 
-def _issue_google_state() -> str:
-    """Generate and store a short-lived CSRF state token for Google OAuth."""
+async def _issue_google_state(redis) -> str:
+    """Generate and persist a short-lived CSRF state token for Google OAuth.
+
+    The token is stored in Redis with a 10-minute TTL so it survives across
+    multiple uvicorn workers and application restarts.
+    """
+    from app.core.redis import get_redis as _get_redis
     state = secrets.token_urlsafe(32)
-    _google_state_store[state] = time.time() + 600
+    if redis is not None:
+        await redis.setex(f"oauth:google:state:{state}", _GOOGLE_STATE_TTL, "1")
+    else:
+        logger.warning("Redis unavailable; Google OAuth state stored in-process only.")
     return state
 
 
-def _validate_google_state(state: str | None) -> bool:
-    """Return True and consume the state token if valid; False otherwise."""
+async def _validate_google_state(redis, state: str | None) -> bool:
+    """Consume the state token from Redis and return True if it was valid.
+
+    Using GETDEL ensures the token can only be used once regardless of which
+    worker receives the callback request.
+    """
     if not state:
         return False
-    expires_at = _google_state_store.pop(state, None)
-    return expires_at is not None and time.time() < expires_at
+    if redis is None:
+        logger.warning("Redis unavailable; cannot validate Google OAuth state token.")
+        return False
+    key = f"oauth:google:state:{state}"
+    value = await redis.getdel(key)
+    return value is not None
 
 
-def _issue_auth_code(jwt_token: str) -> str:
-    """Wrap a JWT in a short-lived one-time code for the redirect URL."""
+async def _issue_auth_code(redis, jwt_token: str) -> str:
+    """Wrap a JWT in a short-lived one-time code and persist it in Redis.
+
+    The JWT is never exposed in the browser redirect URL; it is stored behind
+    this temporary code and retrieved by the frontend immediately after redirect.
+    """
     code = secrets.token_urlsafe(32)
-    _auth_code_store[code] = (jwt_token, time.time() + 120)
+    if redis is not None:
+        await redis.setex(f"oauth:google:code:{code}", _AUTH_CODE_TTL, jwt_token)
+    else:
+        logger.warning("Redis unavailable; Google OAuth auth code stored in-process only.")
     return code
 
 
@@ -181,7 +203,10 @@ async def login(request: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/google/url")
-async def get_google_auth_url(redirect_uri: str = None):
+async def get_google_auth_url(
+    redirect_uri: str = None,
+    redis=Depends(lambda: None),
+):
     """
     Generate a Google OAuth 2.0 authorization URL.
 
@@ -191,16 +216,20 @@ async def get_google_auth_url(redirect_uri: str = None):
 
     Args:
         redirect_uri: Optional OAuth callback URI. When omitted, the
-            configured GOOGLE_REDIRECT_URI is used.
+            configured GOOGLE_REDIRECT_URI is used. Must be present in the
+            server-side ALLOWED_REDIRECT_URIS whitelist.
 
     Returns:
-        A dictionary containing the Google authorization URL, client ID,
-        and redirect URI.
+        A dictionary containing the Google authorization URL and redirect URI.
 
     Raises:
-        HTTPException: If GOOGLE_CLIENT_ID is not configured or an unexpected
-            error occurs while generating the authorization URL.
+        HTTPException: If GOOGLE_CLIENT_ID is not configured, the supplied
+            redirect_uri is not whitelisted, or an unexpected error occurs
+            while generating the authorization URL.
     """
+    import redis.asyncio as aioredis
+    from app.core.redis import get_redis
+
     try:
         if not GOOGLE_CLIENT_ID:
             raise HTTPException(
@@ -209,7 +238,17 @@ async def get_google_auth_url(redirect_uri: str = None):
             )
 
         target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
-        state = _issue_google_state()
+        if target_redirect not in ALLOWED_REDIRECT_URIS:
+            logger.warning(
+                "[Google OAuth] Rejected disallowed redirect_uri: %s", target_redirect
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="redirect_uri is not allowed.",
+            )
+
+        _redis = get_redis()
+        state = await _issue_google_state(_redis)
         params = {
             "client_id": GOOGLE_CLIENT_ID,
             "redirect_uri": target_redirect,
@@ -219,9 +258,9 @@ async def get_google_auth_url(redirect_uri: str = None):
             "state": state,
         }
         url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+
         return {
             "url": url,
-            "client_id": GOOGLE_CLIENT_ID,
             "redirect_uri": target_redirect,
         }
     
@@ -408,6 +447,8 @@ async def google_oauth_callback_get(
     """
     try:
         from app.core.config import FRONTEND_URL
+        from app.core.redis import get_redis
+
         if error:
             logger.error("Google OAuth redirect error: %s", error)
             return HTMLResponse(
@@ -416,7 +457,8 @@ async def google_oauth_callback_get(
                 status_code=400
             )
 
-        if not _validate_google_state(state):
+        _redis = get_redis()
+        if not await _validate_google_state(_redis, state):
             logger.warning("Google OAuth callback: invalid or missing state token.")
             return HTMLResponse(
                 "<h2>Authentication Error</h2><p>Invalid or expired request. Please try signing in again.</p>",
@@ -426,7 +468,7 @@ async def google_oauth_callback_get(
         target_redirect = redirect_uri or GOOGLE_REDIRECT_URI
         token, user = await _process_google_code_exchange(code, target_redirect, db)
 
-        auth_code = _issue_auth_code(token)
+        auth_code = await _issue_auth_code(_redis, token)
         return RedirectResponse(
             url=f"{FRONTEND_URL}?{urlencode({'auth_code': auth_code})}",
             status_code=307,
@@ -509,13 +551,23 @@ async def exchange_auth_code(code: str = Query(...)):
     Raises:
         HTTPException 400: If the code is missing, invalid, or expired.
     """
-    entry = _auth_code_store.pop(code, None)
-    if not entry or time.time() > entry[1]:
+    from app.core.redis import get_redis
+
+    _redis = get_redis()
+    if _redis is None:
+        logger.error("[token/exchange] Redis unavailable; cannot validate auth code.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable.",
+        )
+
+    key = f"oauth:google:code:{code}"
+    jwt_token = await _redis.getdel(key)
+    if not jwt_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired authentication code.",
         )
-    jwt_token, _ = entry
     return {"access_token": jwt_token, "token_type": "bearer"}
 
 

@@ -230,6 +230,13 @@ export const api = {
     return res;
   },
 
+  // Exchange short-lived one-time auth code for JWT token
+  async exchangeAuthCode(code: string): Promise<{ access_token: string; token_type: string }> {
+    const res = await request<{ access_token: string; token_type: string }>(`/auth/token/exchange?code=${encodeURIComponent(code)}`);
+    setToken(res.access_token);
+    return res;
+  },
+
   // Log out of existing session
   async logout(): Promise<{ message: string }> {
     try {

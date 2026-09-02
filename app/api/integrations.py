@@ -1,18 +1,23 @@
 import os
+import re
 import time
 import secrets
 from typing import Optional
 from urllib.parse import urlencode
 
 import requests
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_db
+from app.core.redis import get_redis
 from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
 from app.db.models import SlackIntegration, User
+from app.core.encryption import encrypt_token, decrypt_token
+from app.core.cache import cache_get, cache_set, cache_invalidate_pattern, make_key, CACHE_TTL
 from app.schemas.request import SlackIntegrationCreate, SlackIntegrationSaveRequest, SlackOAuthSimulateRequest
 
 logger = get_logger(__name__)
@@ -20,10 +25,50 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
-_slack_state_store: dict[str, tuple[int, float]] = {}
+_SLACK_STATE_TTL = 600
+
+
+async def _issue_slack_state(redis, user_id: int) -> str:
+    """Generate and store a Slack OAuth state token in Redis."""
+    token = secrets.token_urlsafe(32)
+    if redis is not None:
+        await redis.setex(f"oauth:slack:state:{token}", _SLACK_STATE_TTL, str(user_id))
+    else:
+        logger.warning("Redis unavailable; Slack OAuth state stored in-process only.")
+    return token
+
+
+async def _consume_slack_state(redis, token: str | None) -> int | None:
+    """Consume the Slack OAuth state token and return the associated user_id.
+
+    Returns None if the token is missing, expired, or Redis is unavailable.
+    Uses GETDEL for atomic one-time consumption across all workers.
+    """
+    if not token or redis is None:
+        return None
+    raw = await redis.getdel(f"oauth:slack:state:{token}")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _slugify(text: str) -> str:
+    """Return a URL/token-safe lowercase slug from arbitrary text."""
+    text = text.strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    return text.strip("-") or "workspace"
 
 def _mask_token(token: str | None) -> str | None:
     """Return a masked representation of a Slack token suitable for API responses."""
+    if not token:
+        return None
+    try:
+        token = decrypt_token(token)
+    except Exception:
+        pass
     if not token:
         return None
     visible = token[:6] if len(token) >= 6 else token
@@ -31,9 +76,10 @@ def _mask_token(token: str | None) -> str | None:
 
 
 @router.get("/slack")
-def get_slack_integrations(
+async def get_slack_integrations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve all Slack integrations configured for the authenticated user.
@@ -59,6 +105,11 @@ def get_slack_integrations(
         * ``is_connected``: ``True`` when the user has at least one Slack
           integration configured; otherwise ``False``.
     """
+    cache_key = make_key(f"user:{current_user.id}", "integrations", "slack")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         integrations = (
             db.query(SlackIntegration)
@@ -69,7 +120,7 @@ def get_slack_integrations(
 
         active_item = next((item for item in integrations if item.is_active), None)
 
-        return {
+        response_data = {
             "integrations": [
                 {
                     "id": item.id,
@@ -85,6 +136,8 @@ def get_slack_integrations(
             "selected_integration_id": active_item.id if active_item else (integrations[0].id if integrations else None),
             "is_connected": len(integrations) > 0,
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["integrations_slack"])
+        return response_data
     except Exception as exc:
         logger.error("Error retrieving Slack integrations for user_id=%d: %s", current_user.id, exc)
         raise HTTPException(
@@ -188,7 +241,7 @@ def auto_detect_user_workspace(
 
 
 @router.get("/slack/authorize-url")
-def get_slack_authorize_url(
+async def get_slack_authorize_url(
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -228,8 +281,8 @@ def get_slack_authorize_url(
 
         scopes = "chat:write,users:read,users:read.email,channels:read,incoming-webhook"
 
-        state_token = secrets.token_urlsafe(32)
-        _slack_state_store[state_token] = (current_user.id, time.time() + 600)
+        _redis = get_redis()
+        state_token = await _issue_slack_state(_redis, current_user.id)
 
         if client_id:
             params = {
@@ -259,11 +312,12 @@ def get_slack_authorize_url(
 
 
 @router.get("/slack/oauth/callback")
-def slack_oauth_callback(
+async def slack_oauth_callback(
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Handle the Slack OAuth callback and save the authorized integration.
@@ -298,13 +352,12 @@ def slack_oauth_callback(
                 detail="Authorization code missing from callback.",
             )
 
-        state_entry = _slack_state_store.pop(state, None)
-        if not state_entry or time.time() > state_entry[1]:
+        user_id = await _consume_slack_state(redis, state)
+        if not user_id:
             logger.warning("Slack OAuth callback: invalid or expired state token.")
             return RedirectResponse(
                 url=f"{frontend_url}/?{urlencode({'slack_error': 'invalid_state'})}"
             )
-        user_id = state_entry[0]
 
         user_record = db.query(User).filter(User.id == user_id).first()
         if not user_record:
@@ -360,7 +413,7 @@ def slack_oauth_callback(
         new_integration = SlackIntegration(
             user_id=user_id,
             workspace_name=workspace_name,
-            bot_token=bot_token,
+            bot_token=encrypt_token(bot_token),
             webhook_url=webhook_url,
             channel_name=channel_name,
             is_active=True,
@@ -375,6 +428,8 @@ def slack_oauth_callback(
             user_id,
         )
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{user_id}", "integrations", "slack"))
+
         return RedirectResponse(
             url=f"{frontend_url}/?{urlencode({'slack_connected': 'true', 'workspace': workspace_name})}"
         )
@@ -387,10 +442,11 @@ def slack_oauth_callback(
 
 
 @router.post("/slack/oauth/simulate")
-def simulate_slack_oauth_exchange(
+async def simulate_slack_oauth_exchange(
     payload: SlackOAuthSimulateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Simulate a Slack OAuth2 authorization and create a test integration.
@@ -424,13 +480,15 @@ def simulate_slack_oauth_exchange(
 
         db.query(SlackIntegration).filter(SlackIntegration.user_id == current_user.id).update({"is_active": False})
 
-        simulated_bot_token = f"xoxb-oauth-{current_user.id}-{workspace_name.lower().replace(' ', '-')}"
-        simulated_webhook = f"https://hooks.slack.com/services/oauth/{workspace_name.lower()}"
+
+        workspace_slug = _slugify(workspace_name)
+        simulated_bot_token = f"sim-{current_user.id}-{workspace_slug}-{secrets.token_hex(8)}"
+        simulated_webhook = f"https://hooks.slack.com/services/sim/{workspace_slug}"
 
         new_integration = SlackIntegration(
             user_id=current_user.id,
             workspace_name=workspace_name,
-            bot_token=simulated_bot_token,
+            bot_token=encrypt_token(simulated_bot_token),
             webhook_url=simulated_webhook,
             channel_name=channel_name,
             is_active=True,
@@ -444,6 +502,8 @@ def simulate_slack_oauth_exchange(
             workspace_name,
             current_user.id,
         )
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
 
         return {
             "message": f"Slack workspace '{workspace_name}' authorized successfully via Backend OAuth2.",
@@ -530,10 +590,11 @@ def send_test_slack_notification(
 
 
 @router.post("/slack")
-def create_slack_integration(
+async def create_slack_integration(
     payload: SlackIntegrationCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Create and activate a new Slack workspace integration.
@@ -568,7 +629,7 @@ def create_slack_integration(
             user_id=current_user.id,
             workspace_name=payload.workspace_name.strip(),
             webhook_url=payload.webhook_url.strip() if payload.webhook_url else None,
-            bot_token=payload.bot_token.strip() if payload.bot_token else None,
+            bot_token=encrypt_token(payload.bot_token.strip()) if payload.bot_token else None,
             channel_name=payload.channel_name.strip() if payload.channel_name else None,
             is_active=True,
         )
@@ -577,6 +638,8 @@ def create_slack_integration(
         db.refresh(new_integration)
 
         logger.info("Created Slack integration '%s' for user_id=%d", new_integration.workspace_name, current_user.id)
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
 
         return {
             "message": "Slack workspace connected successfully.",
@@ -608,10 +671,11 @@ def create_slack_integration(
 
 
 @router.put("/slack/save")
-def save_slack_integration_selection(
+async def save_slack_integration_selection(
     payload: SlackIntegrationSaveRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Save active Slack workspace selection.
@@ -632,14 +696,17 @@ def save_slack_integration_selection(
 
     db.commit()
 
+    await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
+
     return {"message": "Slack integration preferences saved successfully."}
 
 
 @router.delete("/slack/{integration_id}")
-def delete_slack_integration(
+async def delete_slack_integration(
     integration_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Save the selected Slack workspace integration as the active integration.
@@ -679,6 +746,8 @@ def delete_slack_integration(
         db.delete(target)
         db.commit()
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
+
         return {"message": "Slack workspace removed."}
     
     except Exception as exc:
@@ -696,9 +765,10 @@ def delete_slack_integration(
 
 
 @router.delete("/slack")
-def remove_all_slack_integrations(
+async def remove_all_slack_integrations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Remove all Slack integrations configured for the authenticated user.
@@ -730,6 +800,8 @@ def remove_all_slack_integrations(
             deleted_count,
             current_user.id,
         )
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
 
         return {
             "message": "Slack integration removed successfully."
