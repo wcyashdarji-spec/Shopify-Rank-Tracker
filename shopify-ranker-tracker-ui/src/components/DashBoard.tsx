@@ -113,10 +113,11 @@ export default function Dashboard({
     let isMounted = true;
     setIsLoadingHistory(true);
     const kwIds = selectedApp.keywords.map((k) => k.id);
+    const effectiveDays = daysRange === 1 ? 2 : daysRange;
 
     Promise.allSettled([
       api.getListingAudit(selectedApp.id),
-      kwIds.length > 0 ? api.getHistory(selectedApp.id, kwIds, daysRange) : Promise.resolve({ keywords: [] }),
+      kwIds.length > 0 ? api.getHistory(selectedApp.id, kwIds, effectiveDays) : Promise.resolve({ keywords: [] }),
     ]).then(([auditRes, historyRes]) => {
       if (!isMounted) return;
 
@@ -151,7 +152,8 @@ export default function Dashboard({
     }
     setIsLoadingHistory(true);
     try {
-      const res = await api.getHistory(selectedApp.id, kwIds, daysRange);
+      const effectiveDays = daysRange === 1 ? 2 : daysRange;
+      const res = await api.getHistory(selectedApp.id, kwIds, effectiveDays);
       setHistoryData(res.keywords || []);
     } catch (err) {
       console.error("Failed to fetch history", err);
@@ -190,7 +192,6 @@ export default function Dashboard({
         const newKwIds = match.keywords.map((k) => k.id);
         setSelectedKeywords(newKwIds);
       }
-      setKeywordsDialogOpen(false);
     } catch (err: any) {
       showToast(err?.message || "Failed to add keywords", "error");
     } finally {
@@ -482,6 +483,7 @@ export default function Dashboard({
                       <CardContent sx={{ p: 3 }}>
                         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.75, mb: 2 }}>
                           <Avatar
+                            src={app.icon_url || undefined}
                             sx={{
                               width: 44,
                               height: 44,
@@ -671,6 +673,7 @@ export default function Dashboard({
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Avatar
+                src={selectedApp.icon_url || undefined}
                 sx={{
                   width: 34,
                   height: 34,

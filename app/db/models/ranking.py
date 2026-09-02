@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, UniqueConstraint, Float
 from app.db import Base
 
@@ -147,7 +147,7 @@ class AppAuditHistory(Base):
     scraped_data = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
-    app = relationship("App", backref="audit_histories")
+    app = relationship("App", backref=backref("audit_histories", cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f"<AppAuditHistory(app_id={self.app_id}, score={self.overall_score}, created_at={self.created_at})>"

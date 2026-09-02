@@ -100,6 +100,17 @@ async def get_all_apps(
         )
         history_counts = {row.app_id: row.cnt for row in counts_query}
 
+        import json
+
+        def get_app_icon(target_app):
+            if target_app.audit_data:
+                try:
+                    data = json.loads(target_app.audit_data)
+                    return data.get("app_icon_url") or data.get("app", {}).get("icon_url")
+                except Exception:
+                    pass
+            return None
+
         return {
             "apps": [
                 {
@@ -107,6 +118,7 @@ async def get_all_apps(
                     "user_id": app.user_id,
                     "name": app.name,
                     "url": app.url,
+                    "icon_url": get_app_icon(app),
                     "created_at": app.created_at.isoformat(),
                     "history_count": history_counts.get(app.id, 0),
                     "keywords": [{"id": k.id, "name": k.name} for k in app.keywords],
@@ -250,12 +262,19 @@ async def get_competitors(
             reviews = data.get("reviews_text", "0 reviews")
             return rating, reviews
 
+        def get_app_icon(target_app):
+            data = _get_parsed_data(target_app)
+            if not data:
+                return None
+            return data.get("app_icon_url") or data.get("app", {}).get("icon_url")
+
         main_rating, main_reviews = get_rating_and_reviews(app)
 
         return {
             "main_app": {
                 "id": app.id,
                 "name": app.name,
+                "icon_url": get_app_icon(app),
                 "price_text": get_starting_price(app),
                 "rating": main_rating,
                 "reviews_count": main_reviews
@@ -265,6 +284,7 @@ async def get_competitors(
                     "id": c.id,
                     "name": c.name,
                     "url": c.url,
+                    "icon_url": get_app_icon(c),
                     "created_at": c.created_at.isoformat(),
                     "history_count": len(c.rankings),
                     "rating": get_rating_and_reviews(c)[0],

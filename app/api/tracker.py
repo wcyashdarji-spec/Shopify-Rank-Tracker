@@ -131,12 +131,24 @@ async def get_apps_last_sync(
         apps = RankingRepository.get_apps_last_sync(db, user_id=current_user.id)
         competitors = RankingRepository.get_competitors_last_sync(db, user_id=current_user.id)
 
+        import json
+
+        def get_app_icon(target_app):
+            if target_app.audit_data:
+                try:
+                    data = json.loads(target_app.audit_data)
+                    return data.get("app_icon_url") or data.get("app", {}).get("icon_url")
+                except Exception:
+                    pass
+            return None
+
         return {
             "apps": [
                 {
                     "id": app.id,
                     "name": app.name,
                     "url": app.url,
+                    "icon_url": get_app_icon(app),
                     "last_synced_at": (
                         app.last_synced_at.isoformat()
                         if app.last_synced_at
@@ -156,6 +168,7 @@ async def get_apps_last_sync(
                     "id": comp.id,
                     "name": comp.name,
                     "url": comp.url,
+                    "icon_url": get_app_icon(comp),
                     "last_synced_at": (
                         comp.last_synced_at.isoformat()
                         if comp.last_synced_at

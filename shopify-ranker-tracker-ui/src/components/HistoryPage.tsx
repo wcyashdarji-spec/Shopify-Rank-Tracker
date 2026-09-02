@@ -174,6 +174,7 @@ export default function HistoryPage() {
         return (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, height: "100%" }}>
             <Avatar
+              src={params.row.icon_url || undefined}
               sx={{
                 width: 32,
                 height: 32,
