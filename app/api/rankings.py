@@ -1,9 +1,12 @@
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
+from app.core.redis import get_redis
+from app.core.cache import cache_get, cache_set, make_key, CACHE_TTL
 from app.api.auth_deps import get_current_user
 from app.core.logging_route import LoggingRoute
 from app.db.repositories.ranking_repository import RankingRepository
@@ -21,6 +24,7 @@ async def get_latest_rankings(
     app_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Get the latest ranking for each app-keyword combination (today) for the authenticated user.
@@ -29,10 +33,16 @@ async def get_latest_rankings(
         app_id: Optional app ID to filter by.
         db: Database session.
         current_user: Authenticated user.
+        redis: Optional Redis connection.
 
     Returns:
         List of latest ranking records with app and keyword details.
     """
+    cache_key = make_key(f"user:{current_user.id}", "rankings", "latest", app_id or "all")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         rankings = RankingRepository.get_latest_rankings(db, app_id, user_id=current_user.id)
 
@@ -58,7 +68,9 @@ async def get_latest_rankings(
                 }
             )
 
-        return {"results": results}
+        response_data = {"results": results}
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["rankings_latest"])
+        return response_data
 
     except Exception as e:
         logger.exception(f"Failed to retrieve latest rankings for app_id={app_id} for user={current_user.email}: {str(e)}")
@@ -72,6 +84,7 @@ async def get_ranking_history_multi(
     days: int = Query(default=30, ge=1, le=9999),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Get ranking history for one or more keywords for a given app, including competitor history.
@@ -90,6 +103,12 @@ async def get_ranking_history_multi(
     Returns:
         Ranking history grouped by keyword with competitor metrics.
     """
+    kw_part = ",".join(str(k) for k in sorted(keyword_ids)) if keyword_ids else "all"
+    cache_key = make_key(f"user:{current_user.id}", "rankings", "history", app_id, kw_part, days)
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
@@ -176,10 +195,12 @@ async def get_ranking_history_multi(
                 }
             )
 
-        return {
+        response_data = {
             "app": {"id": app.id, "name": app.name, "url": app.url},
             "keywords": results,
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["rankings_history"])
+        return response_data
 
     except HTTPException:
         raise
@@ -195,6 +216,7 @@ async def get_ranking_history(
     days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Get ranking history for a specific app and keyword.
@@ -209,6 +231,11 @@ async def get_ranking_history(
     Returns:
         List of ranking records with app and keyword details.
     """
+    cache_key = make_key(f"user:{current_user.id}", "rankings", "history", app_id, f"kw:{keyword_id}", days)
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         app = RankingRepository.get_app_by_id(db, app_id, user_id=current_user.id)
         if not app:
@@ -228,7 +255,7 @@ async def get_ranking_history(
         }
         averages = RankingRepository.get_average_rank_windows(db, app_id, keyword_id, windows)
 
-        return {
+        response_data = {
             "app": {"id": app.id, "name": app.name, "url": app.url},
             "keyword": {"id": keyword.id, "name": keyword.name},
             "history": [
@@ -244,6 +271,8 @@ async def get_ranking_history(
             ],
             "averages": averages,
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["rankings_history"])
+        return response_data
 
     except HTTPException:
         raise

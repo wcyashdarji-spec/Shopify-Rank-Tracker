@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.logger import get_logger
 from app.core.telemetry import setup_telemetry
+from app.core.redis import init_redis, close_redis
 
 setup_telemetry()
 
@@ -58,9 +59,11 @@ def _prewarm_pool() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: pre-warm DB pool on startup."""
+    """Application lifespan: pre-warm DB pool and initialize Redis on startup."""
     await asyncio.to_thread(_prewarm_pool)
+    await init_redis()
     yield
+    await close_redis()
 
 
 app = FastAPI(

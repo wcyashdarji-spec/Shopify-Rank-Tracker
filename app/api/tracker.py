@@ -1,9 +1,11 @@
 import asyncio
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.db import get_db
 from app.db.models.user import User
+from app.core.redis import get_redis
 from app.core.logger import get_logger
 from app.core.logging_route import LoggingRoute
 from app.services.tracker_service import TrackerService
@@ -11,6 +13,7 @@ from app.schemas.request import TrackerRequest, AppRequest
 from app.api.auth_deps import get_current_user, verify_cron_key
 from app.services.notification_service import NotificationService
 from app.db.repositories.ranking_repository import RankingRepository
+from app.core.cache import cache_get, cache_set, cache_invalidate_pattern, make_key, CACHE_TTL
 
 logger = get_logger(__name__)
 
@@ -32,6 +35,7 @@ async def run_tracker(
     request: TrackerRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Execute the rank tracker for the provided apps and keywords.
@@ -48,6 +52,9 @@ async def run_tracker(
         service = TrackerService(db=db, user_id=current_user.id)
 
         results = await asyncio.to_thread(service.run, request.apps)
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "last_sync"))
 
         try:
             await asyncio.to_thread(
@@ -72,6 +79,7 @@ async def run_tracker(
 async def run_saved_apps(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Run tracker for all saved apps and their keywords from the database for the current user.
@@ -89,6 +97,9 @@ async def run_saved_apps(
 
         service = TrackerService(db=db, user_id=current_user.id)
         results = await asyncio.to_thread(service.run, apps_payload)
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "last_sync"))
 
         try:
             await asyncio.to_thread(
@@ -113,6 +124,7 @@ async def run_saved_apps(
 async def get_apps_last_sync(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve the last synchronization details for all tracked applications of the current user.
@@ -127,6 +139,11 @@ async def get_apps_last_sync(
     Raises:
         HTTPException: If the application sync details cannot be retrieved.
     """
+    cache_key = make_key(f"user:{current_user.id}", "apps", "last_sync")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         apps = RankingRepository.get_apps_last_sync(db, user_id=current_user.id)
         competitors = RankingRepository.get_competitors_last_sync(db, user_id=current_user.id)
@@ -142,7 +159,7 @@ async def get_apps_last_sync(
                     pass
             return None
 
-        return {
+        response_data = {
             "apps": [
                 {
                     "id": app.id,
@@ -178,6 +195,8 @@ async def get_apps_last_sync(
                 for comp in competitors
             ],
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["apps_last_sync"])
+        return response_data
 
     except Exception as e:
         logger.exception(f"Failed to retrieve app last sync details for user={current_user.email}: {str(e)}")
@@ -188,7 +207,11 @@ async def get_apps_last_sync(
 
 
 @router.post("/run/cron")
-async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = Depends(verify_cron_key)):
+async def run_cron_saved_apps(
+    db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
+    _cron_auth: None = Depends(verify_cron_key),
+):
     """
     Execute the scheduled ranking tracker for all saved applications.
 
@@ -234,6 +257,10 @@ async def run_cron_saved_apps(db: Session = Depends(get_db), _cron_auth: None = 
                     apps_payload
                 )
                 all_results.extend(results)
+
+
+                await cache_invalidate_pattern(redis, make_key(f"user:{user_id}", "rankings", "*"))
+                await cache_invalidate_pattern(redis, make_key(f"user:{user_id}", "apps", "last_sync"))
 
                 try:
                     user = db.query(User).filter(User.id == user_id).first()

@@ -1,9 +1,11 @@
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
-
 from app.db import get_db
 from app.db.models.user import User
 from app.core.logger import get_logger
+from app.core.redis import get_redis
+from app.core.cache import cache_invalidate_pattern, make_key
 from app.api.auth_deps import get_current_user
 from app.schemas.request import AppKeywordUpdateRequest
 from app.db.repositories.ranking_repository import RankingRepository
@@ -24,6 +26,7 @@ async def add_keywords_to_app(
     request: AppKeywordUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Add one or more keywords to an existing app.
@@ -52,6 +55,9 @@ async def add_keywords_to_app(
             RankingRepository.add_keyword_to_app(db, app, keyword)
             added_keywords.append({"id": keyword.id, "name": keyword.name})
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "*"))
+
         return {
             "app": {"id": app.id, "name": app.name, "url": app.url},
             "keywords": [{"id": k.id, "name": k.name} for k in app.keywords],
@@ -70,6 +76,7 @@ async def remove_keyword_from_app(
     keyword_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Remove a keyword association from an existing app.
@@ -93,6 +100,9 @@ async def remove_keyword_from_app(
             raise HTTPException(status_code=404, detail="Keyword not found")
 
         RankingRepository.remove_keyword_from_app(db, app, keyword)
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "*"))
 
         return {
             "message": "Keyword removed from app",

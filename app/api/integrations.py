@@ -5,14 +5,17 @@ from typing import Optional
 from urllib.parse import urlencode
 
 import requests
+import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_db
+from app.core.redis import get_redis
 from app.core.logger import get_logger
 from app.api.auth_deps import get_current_user
 from app.db.models import SlackIntegration, User
+from app.core.cache import cache_get, cache_set, cache_invalidate_pattern, make_key, CACHE_TTL
 from app.schemas.request import SlackIntegrationCreate, SlackIntegrationSaveRequest, SlackOAuthSimulateRequest
 
 logger = get_logger(__name__)
@@ -31,9 +34,10 @@ def _mask_token(token: str | None) -> str | None:
 
 
 @router.get("/slack")
-def get_slack_integrations(
+async def get_slack_integrations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Retrieve all Slack integrations configured for the authenticated user.
@@ -59,6 +63,11 @@ def get_slack_integrations(
         * ``is_connected``: ``True`` when the user has at least one Slack
           integration configured; otherwise ``False``.
     """
+    cache_key = make_key(f"user:{current_user.id}", "integrations", "slack")
+    cached = await cache_get(redis, cache_key)
+    if cached is not None:
+        return cached
+
     try:
         integrations = (
             db.query(SlackIntegration)
@@ -69,7 +78,7 @@ def get_slack_integrations(
 
         active_item = next((item for item in integrations if item.is_active), None)
 
-        return {
+        response_data = {
             "integrations": [
                 {
                     "id": item.id,
@@ -85,6 +94,8 @@ def get_slack_integrations(
             "selected_integration_id": active_item.id if active_item else (integrations[0].id if integrations else None),
             "is_connected": len(integrations) > 0,
         }
+        await cache_set(redis, cache_key, response_data, CACHE_TTL["integrations_slack"])
+        return response_data
     except Exception as exc:
         logger.error("Error retrieving Slack integrations for user_id=%d: %s", current_user.id, exc)
         raise HTTPException(
@@ -259,11 +270,12 @@ def get_slack_authorize_url(
 
 
 @router.get("/slack/oauth/callback")
-def slack_oauth_callback(
+async def slack_oauth_callback(
     code: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
     error: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Handle the Slack OAuth callback and save the authorized integration.
@@ -375,6 +387,8 @@ def slack_oauth_callback(
             user_id,
         )
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{user_id}", "integrations", "slack"))
+
         return RedirectResponse(
             url=f"{frontend_url}/?{urlencode({'slack_connected': 'true', 'workspace': workspace_name})}"
         )
@@ -387,10 +401,11 @@ def slack_oauth_callback(
 
 
 @router.post("/slack/oauth/simulate")
-def simulate_slack_oauth_exchange(
+async def simulate_slack_oauth_exchange(
     payload: SlackOAuthSimulateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Simulate a Slack OAuth2 authorization and create a test integration.
@@ -444,6 +459,8 @@ def simulate_slack_oauth_exchange(
             workspace_name,
             current_user.id,
         )
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
 
         return {
             "message": f"Slack workspace '{workspace_name}' authorized successfully via Backend OAuth2.",
@@ -530,10 +547,11 @@ def send_test_slack_notification(
 
 
 @router.post("/slack")
-def create_slack_integration(
+async def create_slack_integration(
     payload: SlackIntegrationCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Create and activate a new Slack workspace integration.
@@ -578,6 +596,8 @@ def create_slack_integration(
 
         logger.info("Created Slack integration '%s' for user_id=%d", new_integration.workspace_name, current_user.id)
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
+
         return {
             "message": "Slack workspace connected successfully.",
             "integration": {
@@ -608,10 +628,11 @@ def create_slack_integration(
 
 
 @router.put("/slack/save")
-def save_slack_integration_selection(
+async def save_slack_integration_selection(
     payload: SlackIntegrationSaveRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Save active Slack workspace selection.
@@ -632,14 +653,17 @@ def save_slack_integration_selection(
 
     db.commit()
 
+    await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
+
     return {"message": "Slack integration preferences saved successfully."}
 
 
 @router.delete("/slack/{integration_id}")
-def delete_slack_integration(
+async def delete_slack_integration(
     integration_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Save the selected Slack workspace integration as the active integration.
@@ -679,6 +703,8 @@ def delete_slack_integration(
         db.delete(target)
         db.commit()
 
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
+
         return {"message": "Slack workspace removed."}
     
     except Exception as exc:
@@ -696,9 +722,10 @@ def delete_slack_integration(
 
 
 @router.delete("/slack")
-def remove_all_slack_integrations(
+async def remove_all_slack_integrations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    redis: aioredis.Redis | None = Depends(get_redis),
 ):
     """
     Remove all Slack integrations configured for the authenticated user.
@@ -730,6 +757,8 @@ def remove_all_slack_integrations(
             deleted_count,
             current_user.id,
         )
+
+        await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "integrations", "slack"))
 
         return {
             "message": "Slack integration removed successfully."
