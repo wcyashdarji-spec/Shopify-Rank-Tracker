@@ -28,6 +28,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
@@ -363,6 +364,15 @@ export default function HistoryLog({
     return competitors.filter((c) => c.name === competitorFilter);
   }, [competitors, competitorFilter]);
 
+  const isHistoryFilterActive = search.trim() !== "" || competitorFilter !== "ALL" || sortBy !== "KEYWORD_GROUP";
+
+  const handleResetHistoryFilters = () => {
+    setSearch("");
+    setCompetitorFilter("ALL");
+    setSortBy("KEYWORD_GROUP");
+    setPage(0);
+  };
+
   const paginatedRows = useMemo(() => {
     return filteredRows.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
   }, [filteredRows, page, rowsPerPage]);
@@ -689,32 +699,61 @@ export default function HistoryLog({
             </Select>
           </Box>
 
-          <TextField
-            size="small"
-            placeholder="Filter keywords…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 16, color: "#9ca3af" }} />
-                  </InputAdornment>
-                ),
-                sx: {
-                  fontSize: 13,
-                  borderRadius: "8px",
-                  bgcolor: "#fff",
-                  height: 36,
-                  "& fieldset": { borderColor: "#e5e7eb" },
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <TextField
+              size="small"
+              placeholder="Filter keywords…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 16, color: "#9ca3af" }} />
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    fontSize: 13,
+                    borderRadius: "8px",
+                    bgcolor: "#fff",
+                    height: 36,
+                    "& fieldset": { borderColor: "#e5e7eb" },
+                  },
                 },
-              },
-            }}
-            sx={{ width: 220 }}
-          />
+              }}
+              sx={{ width: 220 }}
+            />
+
+            {isHistoryFilterActive && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleResetHistoryFilters}
+                startIcon={<RestartAltIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  height: 36,
+                  borderRadius: "8px",
+                  bgcolor: "#fff1f2",
+                  color: "#e11d48",
+                  borderColor: "#fecdd3",
+                  textTransform: "none",
+                  px: 1.5,
+                  boxShadow: "0 2px 6px rgba(225, 29, 72, 0.1)",
+                  "&:hover": {
+                    bgcolor: "#ffe4e6",
+                    borderColor: "#fda4af",
+                  },
+                }}
+              >
+                Reset Filters
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {/* Matrix Table */}

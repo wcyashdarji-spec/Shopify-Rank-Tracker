@@ -33,6 +33,7 @@ import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 // Types
 import type { Keyword, KeywordHistory } from "../api";
@@ -562,6 +563,29 @@ export default function RankChart({
   const handleClearSelection = () => {
     setPinnedLabels([]);
     setHoveredLabel(null);
+  };
+
+  const isFilterActive = useMemo(() => {
+    return (
+      searchQuery.trim() !== "" ||
+      positionFilter !== "ALL" ||
+      rankBracketFilter !== "ALL" ||
+      appTypeFilter !== "ALL" ||
+      sortBy !== "BIGGEST_GAINERS" ||
+      pinnedLabels.length > 0 ||
+      zoomDomain !== null
+    );
+  }, [searchQuery, positionFilter, rankBracketFilter, appTypeFilter, sortBy, pinnedLabels, zoomDomain]);
+
+  const handleResetAllFilters = () => {
+    setSearchQuery("");
+    setPositionFilter("ALL");
+    setRankBracketFilter("ALL");
+    setAppTypeFilter("ALL");
+    setSortBy("BIGGEST_GAINERS");
+    setPinnedLabels([]);
+    setHoveredLabel(null);
+    setZoomDomain(null);
   };
 
   const hasActiveSelection = pinnedLabels.length > 0 || hoveredLabel !== null;
@@ -1153,6 +1177,34 @@ export default function RankChart({
                     ml: 1,
                   }}
                 />
+              )}
+
+              {isFilterActive && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleResetAllFilters}
+                  startIcon={<RestartAltIcon sx={{ fontSize: 15 }} />}
+                  sx={{
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    height: 28,
+                    borderRadius: "6px",
+                    bgcolor: "#fff1f2",
+                    color: "#e11d48",
+                    borderColor: "#fecdd3",
+                    textTransform: "none",
+                    px: 1.5,
+                    ml: "auto",
+                    boxShadow: "0 2px 6px rgba(225, 29, 72, 0.1)",
+                    "&:hover": {
+                      bgcolor: "#ffe4e6",
+                      borderColor: "#fda4af",
+                    },
+                  }}
+                >
+                  Reset Filters
+                </Button>
               )}
             </Box>
           </Box>
