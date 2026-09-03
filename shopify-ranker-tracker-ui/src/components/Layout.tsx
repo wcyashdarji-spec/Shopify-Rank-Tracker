@@ -43,20 +43,6 @@ export default function Layout({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const handleNavigateWithAutoClose = (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => {
-    onNavigate(page);
-    if (isMobile && !sidebarCollapsed) {
-      onToggleSidebar();
-    }
-  };
-
-  const handleSelectAppWithAutoClose = (app: App | null) => {
-    onSelectApp(app);
-    if (isMobile && !sidebarCollapsed) {
-      onToggleSidebar();
-    }
-  };
-
   return (
     <Box
       className="animated-mesh-bg tech-grid-pattern"
@@ -99,13 +85,13 @@ export default function Layout({
             <Sidebar
               apps={apps}
               selectedApp={selectedApp}
-              onSelectApp={handleSelectAppWithAutoClose}
+              onSelectApp={onSelectApp}
               onRunAllSaved={onRunAllSaved}
               onTrackApp={onTrackApp}
               onDeleteApp={onDeleteApp}
               isLoadingApps={isLoadingApps}
               currentPage={currentPage}
-              onNavigate={handleNavigateWithAutoClose}
+              onNavigate={onNavigate}
               onLogout={onLogout}
               onCloseSidebar={onToggleSidebar}
             />
