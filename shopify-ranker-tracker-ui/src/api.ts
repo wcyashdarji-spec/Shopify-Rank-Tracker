@@ -84,6 +84,14 @@ export interface RunTrackerResponse {
   results: TrackerResult[];
 }
 
+export interface AddKeywordsResponse {
+  message: string;
+  app: any;
+  keywords: Keyword[];
+  added: Keyword[];
+  duplicates: string[];
+}
+
 export interface AppLastSync {
   id: number;
   name: string;
@@ -274,8 +282,8 @@ export const api = {
   async addKeywords(
     appId: number,
     keywords: string[]
-  ): Promise<{ app: any; keywords: Keyword[]; added: Keyword[] }> {
-    return request<{ app: any; keywords: Keyword[]; added: Keyword[] }>(
+  ): Promise<AddKeywordsResponse> {
+    return request<AddKeywordsResponse>(
       `/keywords/apps/${appId}/keywords`,
       {
         method: "POST",

@@ -24,9 +24,11 @@ export default function KeywordsManager({
   isAddingKeywords,
 }: KeywordsManagerProps) {
   const [newKeywordsInput, setNewKeywordsInput] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setDuplicateWarning("");
     if (!newKeywordsInput.trim()) return;
 
     const keywordsList = newKeywordsInput
@@ -36,6 +38,18 @@ export default function KeywordsManager({
       .filter((k) => k.length > 0);
 
     if (keywordsList.length === 0) return;
+
+    const existingNames = new Set(selectedApp.keywords?.map((k) => k.name.toLowerCase()) || []);
+    const duplicates = keywordsList.filter((k) => existingNames.has(k.toLowerCase()));
+
+    if (duplicates.length > 0) {
+      if (duplicates.length === 1) {
+        setDuplicateWarning(`Keyword '${duplicates[0]}' is already in the list.`);
+      } else {
+        const dupStr = duplicates.map((d) => `'${d}'`).join(", ");
+        setDuplicateWarning(`Keywords ${dupStr} are already in the list.`);
+      }
+    }
 
     onAddKeywords(keywordsList);
     setNewKeywordsInput("");
@@ -66,16 +80,26 @@ export default function KeywordsManager({
           label="Add New Keywords (one per line)"
           placeholder="order tags&#10;auto tagger&#10;tag flow"
           value={newKeywordsInput}
-          onChange={(e) => setNewKeywordsInput(e.target.value)}
+          onChange={(e) => {
+            setNewKeywordsInput(e.target.value);
+            if (duplicateWarning) setDuplicateWarning("");
+          }}
           slotProps={{
             inputLabel: { style: { color: "text.secondary" } }
           }}
           sx={{
             mb: 1.5,
             "& .MuiInputBase-root": { color: "#fff" },
-            "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255, 255, 255, 0.08)" }
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: duplicateWarning ? "#ef4444" : "rgba(255, 255, 255, 0.08)" }
           }}
         />
+
+        {duplicateWarning && (
+          <Typography variant="caption" sx={{ color: "#f59e0b", display: "block", mb: 1.5, fontWeight: 500 }}>
+            ⚠️ {duplicateWarning}
+          </Typography>
+        )}
+
         <Button
           type="submit"
           variant="contained"

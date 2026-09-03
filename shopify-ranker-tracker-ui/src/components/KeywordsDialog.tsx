@@ -60,6 +60,7 @@ export default function KeywordsDialog({
 }: KeywordsDialogProps) {
   const [draftKeywords, setDraftKeywords] = useState<DraftKeyword[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync draft keywords whenever modal opens or original keywords change
@@ -67,54 +68,103 @@ export default function KeywordsDialog({
     if (open) {
       setDraftKeywords(keywords.map((k) => ({ id: k.id, name: k.name })));
       setInputValue("");
+      setDuplicateWarning("");
     }
   }, [open, keywords]);
 
   const handleAddDraft = () => {
+    setDuplicateWarning("");
     const terms = inputValue
       .split(/[\n,]+/)
       .map((k) => k.trim())
       .filter(Boolean);
     if (terms.length === 0) return;
 
-    setDraftKeywords((prev) => {
-      const next = [...prev];
-      terms.forEach((term) => {
-        if (!next.some((k) => k.name.toLowerCase() === term.toLowerCase())) {
-          next.push({
-            id: -Date.now() - Math.floor(Math.random() * 1000),
-            name: term,
-            isNew: true,
-          });
-        }
-      });
-      return next;
+    const duplicates: string[] = [];
+    const newTerms: string[] = [];
+    const existingLower = new Set(draftKeywords.map((k) => k.name.toLowerCase()));
+
+    terms.forEach((term) => {
+      const lower = term.toLowerCase();
+      if (existingLower.has(lower) || newTerms.some((t) => t.toLowerCase() === lower)) {
+        duplicates.push(term);
+      } else {
+        newTerms.push(term);
+      }
     });
 
-    setInputValue("");
+    if (duplicates.length > 0) {
+      if (duplicates.length === 1) {
+        setDuplicateWarning(`Keyword '${duplicates[0]}' is already in the list.`);
+      } else {
+        const dupStr = duplicates.map((d) => `'${d}'`).join(", ");
+        setDuplicateWarning(`Keywords ${dupStr} are already in the list.`);
+      }
+    }
+
+    if (newTerms.length > 0) {
+      const addedDrafts = newTerms.map((term) => ({
+        id: -Date.now() - Math.floor(Math.random() * 1000),
+        name: term,
+        isNew: true,
+      }));
+      setDraftKeywords((prev) => [...prev, ...addedDrafts]);
+      setInputValue("");
+    }
   };
 
   const handleRemoveDraft = (name: string) => {
     setDraftKeywords((prev) => prev.filter((k) => k.name.toLowerCase() !== name.toLowerCase()));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddDraft();
-    }
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
+    setDuplicateWarning("");
     try {
-      // 1. Keywords to delete: in initial `keywords` prop but absent in `draftKeywords`
-      const remainingNames = new Set(draftKeywords.map((k) => k.name.toLowerCase()));
+      let currentDrafts = [...draftKeywords];
+
+      if (inputValue.trim()) {
+        const terms = inputValue
+          .split(/[\n,]+/)
+          .map((k) => k.trim())
+          .filter(Boolean);
+
+        const duplicates: string[] = [];
+        const existingLower = new Set(currentDrafts.map((k) => k.name.toLowerCase()));
+
+        terms.forEach((term) => {
+          const lower = term.toLowerCase();
+          if (existingLower.has(lower)) {
+            duplicates.push(term);
+          } else {
+            currentDrafts.push({
+              id: -Date.now() - Math.floor(Math.random() * 1000),
+              name: term,
+              isNew: true,
+            });
+            existingLower.add(lower);
+          }
+        });
+
+        if (duplicates.length > 0) {
+          if (duplicates.length === 1) {
+            setDuplicateWarning(`Keyword '${duplicates[0]}' is already in the list.`);
+          } else {
+            const dupStr = duplicates.map((d) => `'${d}'`).join(", ");
+            setDuplicateWarning(`Keywords ${dupStr} are already in the list.`);
+          }
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // 1. Keywords to delete: in initial `keywords` prop but absent in `currentDrafts`
+      const remainingNames = new Set(currentDrafts.map((k) => k.name.toLowerCase()));
       const removedKeywords = keywords.filter((k) => !remainingNames.has(k.name.toLowerCase()));
 
       // 2. Keywords to add: marked as `isNew` or absent in initial `keywords` prop
       const initialNames = new Set(keywords.map((k) => k.name.toLowerCase()));
-      const addedTerms = draftKeywords
+      const addedTerms = currentDrafts
         .filter((k) => k.isNew || !initialNames.has(k.name.toLowerCase()))
         .map((k) => k.name);
 
@@ -176,13 +226,22 @@ export default function KeywordsDialog({
 
       <DialogContent sx={{ px: 2.5, pt: 1, pb: 1 }}>
         {/* Input + Add button row */}
-        <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+        <Box
+          component="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAddDraft();
+          }}
+          sx={{ display: "flex", gap: 1, mb: duplicateWarning ? 1 : 2 }}
+        >
           <TextField
             size="small"
             fullWidth
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              if (duplicateWarning) setDuplicateWarning("");
+            }}
             disabled={busy}
             placeholder="Enter search term to track changes in your app's search position"
             slotProps={{
@@ -191,18 +250,18 @@ export default function KeywordsDialog({
                   fontSize: 13,
                   borderRadius: "8px",
                   bgcolor: "#fff",
-                  "& fieldset": { borderColor: "#e5e7eb" },
-                  "&:hover fieldset": { borderColor: "#d1d5db" },
-                  "&.Mui-focused fieldset": { borderColor: "#6366f1" },
+                  "& fieldset": { borderColor: duplicateWarning ? "#ef4444" : "#e5e7eb" },
+                  "&:hover fieldset": { borderColor: duplicateWarning ? "#ef4444" : "#d1d5db" },
+                  "&.Mui-focused fieldset": { borderColor: duplicateWarning ? "#ef4444" : "#6366f1" },
                 },
               },
             }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
           />
           <Button
+            type="submit"
             variant="contained"
             size="small"
-            onClick={handleAddDraft}
             disabled={!inputValue.trim() || busy}
             sx={{
               bgcolor: "#111827",
@@ -219,6 +278,30 @@ export default function KeywordsDialog({
             Add
           </Button>
         </Box>
+
+        {duplicateWarning && (
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 1.25,
+              py: 0.75,
+              borderRadius: "6px",
+              bgcolor: "#fffbe6",
+              border: "1px solid #ffe58f",
+              color: "#d46b08",
+              fontSize: 12,
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+            }}
+          >
+            <span>⚠️</span>
+            <Typography variant="caption" sx={{ color: "#d46b08", fontWeight: 500, fontSize: 12 }}>
+              {duplicateWarning}
+            </Typography>
+          </Box>
+        )}
 
         {/* Keyword chips */}
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, minHeight: 32 }}>

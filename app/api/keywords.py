@@ -45,23 +45,53 @@ async def add_keywords_to_app(
         if not app:
             raise HTTPException(status_code=404, detail="App not found")
 
+        existing_keywords_map = {k.name.strip().lower(): k.name for k in app.keywords}
         added_keywords = []
-        for keyword_name in request.keywords:
-            keyword_name = keyword_name.strip()
+        duplicate_keywords = []
+        seen_in_request = set()
+
+        for raw_keyword_name in request.keywords:
+            keyword_name = raw_keyword_name.strip()
             if not keyword_name:
                 continue
 
-            keyword = RankingRepository.get_or_create_keyword(db, keyword_name)
-            RankingRepository.add_keyword_to_app(db, app, keyword)
-            added_keywords.append({"id": keyword.id, "name": keyword.name})
+            kw_lower = keyword_name.lower()
+            if kw_lower in existing_keywords_map:
+                existing_name = existing_keywords_map[kw_lower]
+                if existing_name not in duplicate_keywords:
+                    duplicate_keywords.append(existing_name)
+            elif kw_lower in seen_in_request:
+                if keyword_name not in duplicate_keywords:
+                    duplicate_keywords.append(keyword_name)
+            else:
+                seen_in_request.add(kw_lower)
+                keyword = RankingRepository.get_or_create_keyword(db, keyword_name)
+                RankingRepository.add_keyword_to_app(db, app, keyword)
+                added_keywords.append({"id": keyword.id, "name": keyword.name})
 
         await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "rankings", "*"))
         await cache_invalidate_pattern(redis, make_key(f"user:{current_user.id}", "apps", "*"))
 
+        db.refresh(app)
+
+        if duplicate_keywords and not added_keywords:
+            if len(duplicate_keywords) == 1:
+                message = f"Keyword '{duplicate_keywords[0]}' is already in the list."
+            else:
+                dup_str = ", ".join([f"'{k}'" for k in duplicate_keywords])
+                message = f"Keywords {dup_str} are already in the list."
+        elif duplicate_keywords and added_keywords:
+            dup_str = ", ".join([f"'{k}'" for k in duplicate_keywords])
+            message = f"Added {len(added_keywords)} keyword(s). {dup_str} already in the list."
+        else:
+            message = f"Successfully added {len(added_keywords)} keyword(s)."
+
         return {
+            "message": message,
             "app": {"id": app.id, "name": app.name, "url": app.url},
             "keywords": [{"id": k.id, "name": k.name} for k in app.keywords],
             "added": added_keywords,
+            "duplicates": duplicate_keywords,
         }
     except HTTPException:
         raise

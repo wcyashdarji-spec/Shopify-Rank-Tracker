@@ -166,8 +166,19 @@ export default function Dashboard({
     setIsAddingKeywords(true);
     try {
       const res = await api.addKeywords(selectedApp.id, keywordsList);
-      onUpdateSelectedApp(res.app);
-      showToast(`Added ${keywordsList.length} keyword(s)`, "success");
+      if (res.keywords) {
+        onUpdateSelectedApp({ ...selectedApp, keywords: res.keywords });
+      }
+      const hasDuplicates = res.duplicates && res.duplicates.length > 0;
+      const addedCount = res.added ? res.added.length : 0;
+      
+      if (hasDuplicates && addedCount === 0) {
+        showToast(res.message || "Keyword(s) already in the list", "info");
+      } else if (hasDuplicates) {
+        showToast(res.message || `Added ${addedCount} keyword(s). Duplicate(s) skipped`, "info");
+      } else {
+        showToast(res.message || `Added ${keywordsList.length} keyword(s)`, "success");
+      }
       setKeywordsDialogOpen(false);
       await fetchHistory();
     } catch (err: any) {

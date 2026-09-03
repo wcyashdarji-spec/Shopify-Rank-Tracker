@@ -21,12 +21,14 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import StorefrontIcon from "@mui/icons-material/Storefront";
@@ -131,7 +133,7 @@ export default function HistoryLog({
   // 1. Calculate Summary Stats (100% Dynamic)
   const stats = useMemo(() => {
     let totalKeywords = 0;
-    let top10AnyCount = 0;
+    let beatingCompCount = 0;
     let top10StoreCount = 0;
     let notRankingStoreCount = 0;
 
@@ -152,18 +154,15 @@ export default function HistoryLog({
           notRankingStoreCount++;
         }
 
-        let compInTop10 = false;
-        if (kh.competitors) {
-          kh.competitors.forEach((c) => {
-            const cLatest = c.history && c.history.length > 0 ? c.history[0] : null;
-            if (cLatest?.found && cLatest.rank !== null && cLatest.rank <= 10) {
-              compInTop10 = true;
-            }
-          });
-        }
-
-        if (storeInTop10 || compInTop10) {
-          top10AnyCount++;
+        // Beating competitors: your app is ranked AND beats every ranked competitor
+        if (storeFound && kh.competitors && kh.competitors.length > 0) {
+          const rankedComps = kh.competitors
+            .map((c) => (c.history && c.history.length > 0 ? c.history[0] : null))
+            .filter((h) => h?.found && h.rank !== null && h.rank !== undefined);
+          const beatsAll = rankedComps.length > 0
+            ? rankedComps.every((h) => storeRank! < h!.rank!)
+            : false;
+          if (beatsAll) beatingCompCount++;
         }
       });
     } else if (tableRows && tableRows.length > 0) {
@@ -195,17 +194,21 @@ export default function HistoryLog({
           notRankingStoreCount++;
         }
 
-        const compInTop10 = entry.compRecords.some((c) => c.found && c.rank !== null && c.rank <= 10);
-        if (storeInTop10 || compInTop10) {
-          top10AnyCount++;
+        // Beating competitors: your app is ranked AND beats every ranked competitor
+        if (storeFound && entry.compRecords.length > 0) {
+          const rankedComps = entry.compRecords.filter((c) => c.found && c.rank !== null && c.rank !== undefined);
+          const beatsAll = rankedComps.length > 0
+            ? rankedComps.every((c) => storeRank < c.rank)
+            : false;
+          if (beatsAll) beatingCompCount++;
         }
       });
     }
 
     return {
       totalKeywords,
-      top10Any: top10AnyCount,
-      top10AnyPct: totalKeywords > 0 ? `${((top10AnyCount / totalKeywords) * 100).toFixed(1)}%` : "0.0%",
+      beatingComp: beatingCompCount,
+      beatingCompPct: totalKeywords > 0 ? `${((beatingCompCount / totalKeywords) * 100).toFixed(1)}%` : "0.0%",
       top10Store: top10StoreCount,
       top10StorePct: totalKeywords > 0 ? `${((top10StoreCount / totalKeywords) * 100).toFixed(1)}%` : "0.0%",
       notRankingStore: notRankingStoreCount,
@@ -495,9 +498,18 @@ export default function HistoryLog({
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }}>
-              Total Keywords
-            </Typography>
+            <Tooltip
+              title="The total number of keywords currently being tracked for this app."
+              placement="top"
+              arrow
+            >
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, cursor: "help", mb: 0.5 }}>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Total Keywords
+                </Typography>
+                <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
+              </Box>
+            </Tooltip>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
               {stats.totalKeywords}
             </Typography>
@@ -519,40 +531,49 @@ export default function HistoryLog({
           </Box>
         </Paper>
 
-        {/* Card 2: Keywords in Top 10 (Any Competitor) */}
+        {/* Card 2: Beating Competitors */}
         <Paper
           elevation={0}
           sx={{
             p: 2.5,
             borderRadius: "18px",
             border: "1px solid #e2e8f0",
-            background: "linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%)",
+            background: "linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)",
             boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
             transition: "all 0.2s ease",
-            "&:hover": { borderColor: "#10b981", boxShadow: "0 10px 25px -4px rgba(16, 185, 129, 0.2)" },
+            "&:hover": { borderColor: "#f97316", boxShadow: "0 10px 25px -4px rgba(249, 115, 22, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
-            Keywords in Top 10 (Any)
-          </Typography>
+          <Tooltip
+            title="Keywords where your app ranks higher (lower number) than every competitor that also appears in results. Requires at least one ranked competitor to count."
+            placement="top"
+            arrow
+          >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, cursor: "help", mb: 0.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} noWrap>
+                Beating Competitors
+              </Typography>
+              <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
+            </Box>
+          </Tooltip>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
-              {stats.top10Any}
+              {stats.beatingComp}
             </Typography>
             <Chip
-              label={stats.top10AnyPct}
+              label={stats.beatingCompPct}
               size="small"
               sx={{
-                bgcolor: "#dcfce7",
-                color: "#15803d",
+                bgcolor: "#ffedd5",
+                color: "#c2410c",
                 fontWeight: 800,
                 fontSize: 11.5,
                 height: 22,
                 borderRadius: "6px",
-                border: "1px solid #a7f3d0",
+                border: "1px solid #fed7aa",
               }}
             />
           </Box>
@@ -574,9 +595,18 @@ export default function HistoryLog({
             "&:hover": { borderColor: "#3b82f6", boxShadow: "0 10px 25px -4px rgba(59, 130, 246, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
-            Your App in Top 10
-          </Typography>
+          <Tooltip
+            title="Number of tracked keywords where your app currently appears in the top 10 search results on the Shopify App Store."
+            placement="top"
+            arrow
+          >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, cursor: "help", mb: 0.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }} noWrap>
+                Your App in Top 10
+              </Typography>
+              <InfoOutlinedIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
+            </Box>
+          </Tooltip>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#3b82f6", lineHeight: 1 }}>
               {stats.top10Store}
@@ -613,9 +643,18 @@ export default function HistoryLog({
             "&:hover": { borderColor: "#e11d48", boxShadow: "0 10px 25px -4px rgba(225, 29, 72, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
-            Not Ranking (Your App)
-          </Typography>
+          <Tooltip
+            title="Keywords where your app was not found in any search results during the latest scan. These need immediate attention to improve visibility."
+            placement="top"
+            arrow
+          >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, cursor: "help", mb: 0.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.05em" }} noWrap>
+                Not Ranking (Your App)
+              </Typography>
+              <InfoOutlinedIcon sx={{ fontSize: 13, color: "#f87171" }} />
+            </Box>
+          </Tooltip>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#e11d48", lineHeight: 1 }}>
               {stats.notRankingStore}
