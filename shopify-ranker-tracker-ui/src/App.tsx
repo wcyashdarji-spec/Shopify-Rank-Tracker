@@ -62,7 +62,7 @@ const theme = createTheme({
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getToken());
   const [page, setPage] = useState<"dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations">("dashboard");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 900);
   const [invitations, setInvitations] = useState<any[]>([]);
 
   // ─── Shared state (needed by Sidebar on every page) ───────────────────────

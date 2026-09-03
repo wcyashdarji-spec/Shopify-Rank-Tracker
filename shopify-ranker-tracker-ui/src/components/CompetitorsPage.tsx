@@ -964,7 +964,7 @@ export default function CompetitorsPage({
           >
             {/* Filter by Change Type */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", mr: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", width: { xs: "100%", sm: "auto" }, mb: { xs: 0.5, sm: 0 }, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 Filter Type:
               </Typography>
               <Button
@@ -1016,7 +1016,7 @@ export default function CompetitorsPage({
 
             {/* Filter by Application */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", mr: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#475569", width: { xs: "100%", sm: "auto" }, mb: { xs: 0.5, sm: 0 }, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 Filter Apps:
               </Typography>
               <Button
@@ -1096,21 +1096,21 @@ export default function CompetitorsPage({
                   key={act.id}
                   elevation={0}
                   sx={{
-                    p: 2,
-                    borderRadius: "12px",
+                    p: { xs: 1.75, sm: 2 },
+                    borderRadius: "14px",
                     border: "1px solid #e2e8f0",
                     borderLeft: `4px solid ${colors.text}`,
                     bgcolor: "#ffffff",
                     display: "flex",
-                    alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" },
+                    alignItems: { xs: "flex-start", sm: "center" },
                     justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: 2,
+                    gap: { xs: 1.5, sm: 2 },
                     transition: "all 0.15s ease",
                     "&:hover": { boxShadow: "0 4px 14px rgba(0,0,0,0.03)" },
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.75, flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, flex: 1, minWidth: 0, width: "100%" }}>
                     <Avatar
                       src={getAppIconUrl(act.app_name)}
                       sx={{
@@ -1119,14 +1119,16 @@ export default function CompetitorsPage({
                         bgcolor: getAvatarColor(act.app_name),
                         fontSize: 14,
                         fontWeight: 800,
+                        flexShrink: 0,
+                        mt: 0.25,
                       }}
                     >
                       {act.app_name[0]?.toUpperCase()}
                     </Avatar>
 
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: "#0f172a" }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5, flexWrap: "wrap" }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: "#0f172a", mr: 0.5 }}>
                           {act.app_name}
                         </Typography>
                         {isOwnApp && (
@@ -1136,7 +1138,7 @@ export default function CompetitorsPage({
                             sx={{
                               fontSize: 9.5,
                               fontWeight: 800,
-                              height: 18,
+                              height: 20,
                               bgcolor: "#ecfdf5",
                               color: "#059669",
                               border: "1px solid #a7f3d0",
@@ -1149,7 +1151,7 @@ export default function CompetitorsPage({
                           sx={{
                             fontSize: 10,
                             fontWeight: 800,
-                            height: 18,
+                            height: 20,
                             bgcolor: colors.bg,
                             color: colors.text,
                             border: `1px solid ${colors.border}`,
@@ -1157,13 +1159,24 @@ export default function CompetitorsPage({
                         />
                       </Box>
 
-                      <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                      <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}>
                         {act.text}
                       </Typography>
                     </Box>
                   </Box>
 
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: { xs: "space-between", sm: "flex-end" },
+                      width: { xs: "100%", sm: "auto" },
+                      pt: { xs: 1, sm: 0 },
+                      borderTop: { xs: "1px solid #f1f5f9", sm: "none" },
+                      gap: 2,
+                      flexShrink: 0,
+                    }}
+                  >
                     {act.has_details && (
                       <Button
                         size="small"
@@ -1173,6 +1186,8 @@ export default function CompetitorsPage({
                           fontWeight: 700,
                           color: "#0284c7",
                           textTransform: "none",
+                          p: 0,
+                          minWidth: 0,
                           "&:hover": { textDecoration: "underline", bgcolor: "transparent" },
                         }}
                       >

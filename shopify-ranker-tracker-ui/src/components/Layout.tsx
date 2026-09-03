@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { Box, Drawer, IconButton, Tooltip, useMediaQuery, useTheme } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { motion, AnimatePresence } from "motion/react";
 import Sidebar from "./Sidebar";
@@ -40,12 +40,30 @@ export default function Layout({
   children,
   onLogout,
 }: LayoutProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const handleNavigateWithAutoClose = (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => {
+    onNavigate(page);
+    if (isMobile && !sidebarCollapsed) {
+      onToggleSidebar();
+    }
+  };
+
+  const handleSelectAppWithAutoClose = (app: App | null) => {
+    onSelectApp(app);
+    if (isMobile && !sidebarCollapsed) {
+      onToggleSidebar();
+    }
+  };
+
   return (
     <Box
       className="animated-mesh-bg tech-grid-pattern"
       sx={{
         display: "flex",
         height: "100vh",
+        maxHeight: "100dvh",
         overflow: "hidden",
         position: "relative",
       }}
@@ -60,33 +78,67 @@ export default function Layout({
       <Box className="floating-particle" sx={{ width: 12, height: 12, bgcolor: "#8b5cf6", top: "60%", right: "15%", animationDelay: "3s" }} />
       <Box className="floating-particle" sx={{ width: 10, height: 10, bgcolor: "#10b981", bottom: "15%", left: "45%", animationDelay: "1.5s" }} />
 
-      {/* Sidebar Wrapper */}
-      <Box
-        component={motion.div}
-        animate={{ width: sidebarCollapsed ? 0 : SIDEBAR_WIDTH }}
-        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-        sx={{
-          flexShrink: 0,
-          overflow: "hidden",
-          height: "100%",
-          zIndex: 10,
-        }}
-      >
-        <Box sx={{ width: SIDEBAR_WIDTH, height: "100%" }}>
-          <Sidebar
-            apps={apps}
-            selectedApp={selectedApp}
-            onSelectApp={onSelectApp}
-            onRunAllSaved={onRunAllSaved}
-            onTrackApp={onTrackApp}
-            onDeleteApp={onDeleteApp}
-            isLoadingApps={isLoadingApps}
-            currentPage={currentPage}
-            onNavigate={onNavigate}
-            onLogout={onLogout}
-          />
+      {/* Responsive Sidebar for Mobile (Drawer) & Desktop (Inline) */}
+      {isMobile ? (
+        <Drawer
+          anchor="left"
+          open={!sidebarCollapsed}
+          onClose={onToggleSidebar}
+          slotProps={{
+            paper: {
+              sx: {
+                width: SIDEBAR_WIDTH,
+                bgcolor: "transparent",
+                boxShadow: "none",
+                border: "none",
+              },
+            },
+          }}
+        >
+          <Box sx={{ width: SIDEBAR_WIDTH, height: "100%" }}>
+            <Sidebar
+              apps={apps}
+              selectedApp={selectedApp}
+              onSelectApp={handleSelectAppWithAutoClose}
+              onRunAllSaved={onRunAllSaved}
+              onTrackApp={onTrackApp}
+              onDeleteApp={onDeleteApp}
+              isLoadingApps={isLoadingApps}
+              currentPage={currentPage}
+              onNavigate={handleNavigateWithAutoClose}
+              onLogout={onLogout}
+              onCloseSidebar={onToggleSidebar}
+            />
+          </Box>
+        </Drawer>
+      ) : (
+        <Box
+          component={motion.div}
+          animate={{ width: sidebarCollapsed ? 0 : SIDEBAR_WIDTH }}
+          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+          sx={{
+            flexShrink: 0,
+            overflow: "hidden",
+            height: "100%",
+            zIndex: 10,
+          }}
+        >
+          <Box sx={{ width: SIDEBAR_WIDTH, height: "100%" }}>
+            <Sidebar
+              apps={apps}
+              selectedApp={selectedApp}
+              onSelectApp={onSelectApp}
+              onRunAllSaved={onRunAllSaved}
+              onTrackApp={onTrackApp}
+              onDeleteApp={onDeleteApp}
+              isLoadingApps={isLoadingApps}
+              currentPage={currentPage}
+              onNavigate={onNavigate}
+              onLogout={onLogout}
+            />
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {/* Main Panel Content Area */}
       <Box
@@ -95,6 +147,7 @@ export default function Layout({
           display: "flex",
           flexDirection: "column",
           height: "100vh",
+          maxHeight: "100dvh",
           overflow: "hidden",
           minWidth: 0,
           position: "relative",
@@ -106,15 +159,18 @@ export default function Layout({
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 1.5,
-            px: 3,
-            py: 1.5,
+            gap: { xs: 1, sm: 1.5 },
+            px: { xs: 1.5, sm: 2.5, md: 3 },
+            py: 1.25,
             bgcolor: "rgba(255, 255, 255, 0.85)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
             flexShrink: 0,
             boxShadow: "0 2px 10px rgba(15, 23, 42, 0.02)",
+            width: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           <Tooltip title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
@@ -144,7 +200,9 @@ export default function Layout({
             </IconButton>
           </Tooltip>
 
-          {headerContent}
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            {headerContent}
+          </Box>
         </Box>
 
         {/* Dynamic Route Children Area */}
@@ -152,7 +210,8 @@ export default function Layout({
           sx={{
             flexGrow: 1,
             overflowY: "auto",
-            p: { xs: 2, sm: 3, md: 4 },
+            WebkitOverflowScrolling: "touch",
+            p: { xs: 1.5, sm: 2.5, md: 3.5 },
           }}
         >
           <AnimatePresence mode="wait">

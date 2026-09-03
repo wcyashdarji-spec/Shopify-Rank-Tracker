@@ -15,6 +15,10 @@ export default defineConfig({
     ],
   },
   build: {
+    // Disable source maps in production for smaller files
+    sourcemap: false,
+    // Increase chunk size warning limit (MUI is inherently large)
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -22,12 +26,26 @@ export default defineConfig({
             if (id.includes('@mui/x-data-grid')) {
               return 'vendor-datagrid';
             }
+            if (id.includes('@mui/icons-material')) {
+              return 'vendor-mui-icons';
+            }
             if (id.includes('@mui') || id.includes('@emotion')) {
               return 'vendor-mui';
             }
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            if (id.includes('react-router-dom')) {
+              return 'vendor-router';
+            }
+            if (id.includes('react-dom')) {
+              return 'vendor-react-dom';
+            }
+            if (id.includes('react')) {
               return 'vendor-react';
             }
+            if (id.includes('motion') || id.includes('framer')) {
+              return 'vendor-motion';
+            }
+            // Everything else in node_modules goes to vendor
+            return 'vendor-misc';
           }
         },
       },

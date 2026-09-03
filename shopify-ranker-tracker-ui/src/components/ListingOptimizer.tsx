@@ -351,88 +351,93 @@ export default function ListingOptimizer({
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1080, mx: "auto" }}>
-      {/* 1. Unified Control Header Bar (All Controls in One Sleek Card) */}
+      {/* 1. Header Control Bar */}
       <Paper
         elevation={0}
         sx={{
           borderRadius: "16px",
           border: "1px solid #e2e8f0",
-          p: 2.5,
+          p: { xs: 2, sm: 2.5 },
           bgcolor: "#ffffff",
           mb: 3,
           boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
           display: "flex",
-          alignItems: "center",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "stretch", md: "center" },
           justifyContent: "space-between",
-          flexWrap: "wrap",
           gap: 2,
           "@media print": { display: "none" },
         }}
       >
         {/* App Switcher Dropdown & Info */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Application:
-          </Typography>
-          <FormControl size="small" sx={{ minWidth: 220 }}>
-            <Select
-              value={selectedApp?.id || ""}
-              onChange={(e) => {
-                const app = apps.find((a) => a.id === e.target.value);
-                if (app) onSelectApp(app);
-              }}
-              sx={{
-                bgcolor: "#ffffff",
-                fontSize: 13.5,
-                fontWeight: 700,
-                borderRadius: "10px",
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#0f172a" },
-              }}
-            >
-              {apps.map((app) => (
-                <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Avatar
-                      src={app.icon_url || undefined}
-                      sx={{ width: 20, height: 20, fontSize: 10, fontWeight: 700, bgcolor: "#0f172a" }}
-                    >
-                      {app.name[0]?.toUpperCase()}
-                    </Avatar>
-                    {app.name}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 1.25, width: "100%" }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
+              Application:
+            </Typography>
+            <FormControl size="small" sx={{ width: { xs: "100%", sm: "auto" }, minWidth: { xs: "100%", sm: 220 } }}>
+              <Select
+                value={selectedApp?.id || ""}
+                onChange={(e) => {
+                  const app = apps.find((a) => a.id === e.target.value);
+                  if (app) onSelectApp(app);
+                }}
+                sx={{
+                  bgcolor: "#ffffff",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  borderRadius: "10px",
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
+                  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#0f172a" },
+                }}
+              >
+                {apps.map((app) => (
+                  <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Avatar
+                        src={app.icon_url || undefined}
+                        sx={{ width: 20, height: 20, fontSize: 10, fontWeight: 700, bgcolor: "#0f172a" }}
+                      >
+                        {app.name[0]?.toUpperCase()}
+                      </Avatar>
+                      {app.name}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
-          {auditData.audit_last_synced_at && (
-            <Chip
-              icon={<ScheduleIcon sx={{ fontSize: 13 }} />}
-              label={`Synced: ${new Date(auditData.audit_last_synced_at).toLocaleDateString()}`}
-              size="small"
-              sx={{ color: "#475569", bgcolor: "#f8fafc", border: "1px solid #e2e8f0", fontWeight: 600, fontSize: 11.5, height: 26 }}
-            />
-          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            {auditData.audit_last_synced_at && (
+              <Chip
+                icon={<ScheduleIcon sx={{ fontSize: 13 }} />}
+                label={`Synced: ${new Date(auditData.audit_last_synced_at).toLocaleDateString()}`}
+                size="small"
+                sx={{ color: "#475569", bgcolor: "#f8fafc", border: "1px solid #e2e8f0", fontWeight: 600, fontSize: 11.5, height: 26 }}
+              />
+            )}
 
-          {auditData.daily_audit_limit !== null && auditData.daily_audit_limit !== undefined && (
-            <Chip
-              label={`${auditData.remaining_audits} of ${auditData.daily_audit_limit} audits left`}
-              color={auditData.remaining_audits === 0 ? "error" : "success"}
-              size="small"
-              sx={{ fontWeight: 700, fontSize: 11.5, height: 26 }}
-            />
-          )}
+            {auditData.daily_audit_limit !== null && auditData.daily_audit_limit !== undefined && (
+              <Chip
+                label={`${auditData.remaining_audits} of ${auditData.daily_audit_limit} audits left`}
+                color={auditData.remaining_audits === 0 ? "error" : "success"}
+                size="small"
+                sx={{ fontWeight: 700, fontSize: 11.5, height: 26 }}
+              />
+            )}
+          </Box>
         </Box>
 
         {/* Action Buttons */}
-        <Box sx={{ display: "flex", gap: 1.25 }}>
+        <Box sx={{ display: "flex", gap: 1.25, width: { xs: "100%", md: "auto" } }}>
           <Button
             variant="outlined"
             onClick={handleExportPdf}
             startIcon={<PdfIcon sx={{ fontSize: 16 }} />}
             sx={{
+              flex: { xs: 1, md: "initial" },
               borderColor: "#e2e8f0",
               color: "#475569",
               textTransform: "none",
@@ -441,7 +446,7 @@ export default function ListingOptimizer({
               borderRadius: "8px",
               bgcolor: "#ffffff",
               px: 1.75,
-              py: 0.6,
+              py: 0.75,
               "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" },
             }}
           >
@@ -453,6 +458,7 @@ export default function ListingOptimizer({
             disabled={loading || auditData?.remaining_audits === 0}
             startIcon={loading ? <CircularProgress size={13} sx={{ color: "#ffffff" }} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
             sx={{
+              flex: { xs: 1, md: "initial" },
               bgcolor: auditData?.remaining_audits === 0 ? "#94a3b8" : "#0f172a",
               color: "#ffffff",
               textTransform: "none",
@@ -629,10 +635,13 @@ export default function ListingOptimizer({
       </Paper>
 
       {/* 3. Organized Filter Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: "#e2e8f0", mb: 2.5 }}>
+      <Box sx={{ borderBottom: 1, borderColor: "#e2e8f0", mb: 2.5, width: "100%" }}>
         <Tabs
           value={activeTab}
           onChange={(_, val) => setActiveTab(val)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           textColor="primary"
           indicatorColor="primary"
           sx={{
@@ -643,7 +652,8 @@ export default function ListingOptimizer({
               textTransform: "none",
               minHeight: 40,
               py: 1,
-              px: 2,
+              px: { xs: 1.5, sm: 2 },
+              whiteSpace: "nowrap",
               color: "#64748b",
               "&.Mui-selected": { color: "#0f172a" },
             },

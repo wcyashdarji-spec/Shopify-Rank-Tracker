@@ -37,7 +37,7 @@ export default function MetricCards({
     {
       label: "Tracked Keywords",
       value: totalKeywords,
-      subtext: "Active search queries",
+      subtext: "Keywords tracked",
       icon: <SearchIcon sx={{ fontSize: 20 }} />,
       accent: "#3b82f6",
       bg: "#eff6ff",
@@ -47,42 +47,42 @@ export default function MetricCards({
     {
       label: "Avg. Position",
       value: currentAvgRank,
-      subtext: "App Store placement",
+      subtext: "Average rank",
       icon: <TrendingUpIcon sx={{ fontSize: 20 }} />,
       accent: "#10b981",
       bg: "#ecfdf5",
       gradientBg: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(236, 253, 245, 0.7) 100%)",
-      badgeText: "Live Rank",
+      badgeText: "Current Rank",
     },
     {
       label: "Found Rate",
       value: successRate,
-      subtext: "Index coverage",
+      subtext: "Found in search",
       icon: <CheckIcon sx={{ fontSize: 20 }} />,
       accent: "#f59e0b",
       bg: "#fffbeb",
       gradientBg: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(254, 243, 199, 0.7) 100%)",
-      badgeText: "Indexed",
+      badgeText: "Found",
     },
     {
       label: "Top 5 Hits",
       value: topPositions,
-      subtext: "High ranking terms",
+      subtext: "Top 5 rankings",
       icon: <TrophyIcon sx={{ fontSize: 20 }} />,
       accent: "#ec4899",
       bg: "#fce7f3",
       gradientBg: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(252, 231, 243, 0.7) 100%)",
-      badgeText: "Leaderboard",
+      badgeText: "Top Ranks",
     },
     {
       label: "Listing Score",
       value: listingScore !== null ? `${listingScore}/100` : "--",
-      subtext: "ASO health audit",
+      subtext: "Listing score",
       icon: <StarIcon sx={{ fontSize: 20 }} />,
       accent: "#8b5cf6",
       bg: "#f5f3ff",
       gradientBg: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(245, 243, 255, 0.7) 100%)",
-      badgeText: "ASO Score",
+      badgeText: "Health Score",
     },
   ];
 
@@ -91,11 +91,12 @@ export default function MetricCards({
       sx={{
         display: "grid",
         gridTemplateColumns: {
-          xs: "repeat(2, 1fr)",
+          xs: "1fr",
           sm: "repeat(2, 1fr)",
-          md: "repeat(5, 1fr)",
+          md: "repeat(3, 1fr)",
+          lg: "repeat(5, 1fr)",
         },
-        gap: 2.5,
+        gap: { xs: 1.75, sm: 2.5 },
         mb: 3.5,
       }}
     >
@@ -114,7 +115,7 @@ export default function MetricCards({
           <Paper
             elevation={0}
             sx={{
-              p: 2.5,
+              p: { xs: 2, sm: 2.5 },
               borderRadius: "20px",
               border: "1px solid #e2e8f0",
               background: card.gradientBg,
@@ -160,8 +161,8 @@ export default function MetricCards({
               </Typography>
               <Box
                 sx={{
-                  width: 38,
-                  height: 38,
+                  width: 36,
+                  height: 36,
                   borderRadius: "12px",
                   bgcolor: card.bg,
                   color: card.accent,
@@ -180,7 +181,7 @@ export default function MetricCards({
               <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
                 <Typography
                   sx={{
-                    fontSize: 28,
+                    fontSize: { xs: 22, sm: 26, md: 28 },
                     fontWeight: 800,
                     color: "#0f172a",
                     lineHeight: 1.1,

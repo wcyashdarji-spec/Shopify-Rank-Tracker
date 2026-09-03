@@ -179,3 +179,22 @@ html, body, #root {
 .radar-sweep { animation: radarSweep 2.5s linear infinite; transform-origin: center; }
 .radar-ring { animation: radarPulse 2s ease-in-out infinite; }
 .blink-cursor::after { content: '\u25cc'; animation: blink 1s step-end infinite; }
+
+/* Responsive Touch Scrolling & Utilities */
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .animated-orb-blue,
+  .animated-orb-purple,
+  .animated-orb-emerald,
+  .animated-orb-orange {
+    width: 280px !important;
+    height: 280px !important;
+    filter: blur(35px) !important;
+  }
+}
+

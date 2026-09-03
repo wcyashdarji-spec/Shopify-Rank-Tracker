@@ -53,6 +53,7 @@ interface SidebarProps {
   currentPage: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations";
   onNavigate: (page: "dashboard" | "history" | "settings" | "optimizer" | "competitors" | "integrations") => void;
   onLogout?: () => void;
+  onCloseSidebar?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -76,6 +77,7 @@ export default function Sidebar({
   currentPage,
   onNavigate,
   onLogout,
+  onCloseSidebar,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
   const [appsExpanded, setAppsExpanded] = useState(true);
@@ -88,6 +90,22 @@ export default function Sidebar({
   const [historyExpanded] = useState(false);
   const [, setLastSyncs] = useState<AppLastSync[]>([]);
   const [, setLoadingHistory] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .getMe()
+      .then((user) => {
+        if (isMounted && user && user.email) {
+          setUserEmail(user.email);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const showSyncButton = useMemo(() => {
     if (!apps || apps.length === 0) return false;
@@ -189,24 +207,53 @@ export default function Sidebar({
       {/* Brand Header */}
       <Box
         sx={{
-          px: 2.25,
-          py: 2.25,
+          px: 2,
+          py: 1.75,
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: 1.5,
           borderBottom: "1px solid #f1f5f9",
           bgcolor: "#ffffff",
         }}
       >
-        <AppLogo size={32} />
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography sx={{ fontWeight: 800, fontSize: 15, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
-            Rank Tracker
-          </Typography>
-          <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
-            Shopify ASO Suite
-          </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: 1 }}>
+          <AppLogo size={32} />
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 15, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
+              Rank Tracker
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
+              Shopify ASO Suite
+            </Typography>
+          </Box>
         </Box>
+
+        {onCloseSidebar && (
+          <Tooltip title="Close sidebar">
+            <IconButton
+              size="small"
+              onClick={onCloseSidebar}
+              sx={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "9px",
+                width: 32,
+                height: 32,
+                color: "#475569",
+                bgcolor: "#f8fafc",
+                flexShrink: 0,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                "&:hover": {
+                  bgcolor: "#f1f5f9",
+                  borderColor: "#cbd5e1",
+                  color: "#0f172a",
+                },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
       {/* Search Input */}
@@ -272,6 +319,7 @@ export default function Sidebar({
                       onSelectApp(null);
                     }
                     onNavigate(item.page as any);
+                    if (onCloseSidebar) onCloseSidebar();
                   }}
                   sx={{
                     borderRadius: "10px",
@@ -375,6 +423,7 @@ export default function Sidebar({
                       onClick={() => {
                         onSelectApp(app);
                         onNavigate("dashboard");
+                        if (onCloseSidebar) onCloseSidebar();
                       }}
                     >
                       <Avatar
@@ -469,7 +518,10 @@ export default function Sidebar({
           transition={{ type: "spring", stiffness: 400, damping: 20 }}
           variant="contained"
           startIcon={<AddIcon sx={{ fontSize: 17 }} />}
-          onClick={() => setTrackDialogOpen(true)}
+          onClick={() => {
+            setTrackDialogOpen(true);
+            if (onCloseSidebar) onCloseSidebar();
+          }}
           sx={{
             height: 40,
             background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
@@ -540,14 +592,18 @@ export default function Sidebar({
               boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
             }}
           >
-            A
+            {userEmail ? userEmail[0]?.toUpperCase() : "U"}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }} noWrap>
-              Active Workspace
+            <Typography
+              sx={{ fontSize: 12, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}
+              noWrap
+              title={userEmail || "Current User"}
+            >
+              {userEmail || "Current User"}
             </Typography>
             <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 500 }} noWrap>
-
+              Active Account
             </Typography>
           </Box>
           <Tooltip title="Log Out" placement="top">

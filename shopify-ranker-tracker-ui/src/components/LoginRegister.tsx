@@ -219,10 +219,11 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
       className="animated-mesh-bg tech-grid-pattern"
       sx={{
         minHeight: "100vh",
+        maxHeight: "100dvh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        p: { xs: 2, md: 4 },
+        p: { xs: 1.5, sm: 3, md: 4 },
         position: "relative",
         overflow: "hidden",
       }}
@@ -251,12 +252,12 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
             sx={{
               display: "flex",
               flexDirection: { xs: "column", md: "row" },
-              borderRadius: "24px",
+              borderRadius: { xs: "20px", sm: "24px" },
               overflow: "hidden",
               border: "1px solid rgba(226, 232, 240, 0.8)",
               boxShadow: "0 25px 60px -15px rgba(15, 23, 42, 0.08)",
               bgcolor: "#ffffff",
-              minHeight: 640,
+              minHeight: { xs: "auto", md: 640 },
             }}
           >
             {/* Left Branding Showcase Panel */}
@@ -264,8 +265,8 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
               sx={{
                 flex: { md: 1.1 },
                 background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
-                p: { xs: 4, md: 6 },
-                display: "flex",
+                p: { xs: 3, md: 6 },
+                display: { xs: "none", md: "flex" },
                 flexDirection: "column",
                 justifyContent: "space-between",
                 position: "relative",
@@ -350,6 +351,60 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
               }}
             >
               <Box sx={{ maxWidth: 400, mx: "auto", width: "100%" }}>
+                {/* Mobile Branding Header Banner (Visible on mobile/tablet screens < md) */}
+                <Box
+                  sx={{
+                    display: { xs: "flex", md: "none" },
+                    alignItems: "center",
+                    gap: 2,
+                    mb: 3,
+                    p: 2.5,
+                    borderRadius: "18px",
+                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    color: "#ffffff",
+                    boxShadow: "0 8px 24px -4px rgba(15, 23, 42, 0.25)",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: -20,
+                      right: -20,
+                      width: 90,
+                      height: 90,
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0) 70%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <AppLogo size={44} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.25 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: 18, color: "#ffffff", letterSpacing: "-0.4px", lineHeight: 1.2 }}>
+                        Rank Tracker
+                      </Typography>
+                      <Chip
+                        icon={<TrendingUpIcon sx={{ fontSize: "12px !important", color: "#10b981 !important" }} />}
+                        label="Live ASO"
+                        size="small"
+                        sx={{
+                          bgcolor: "rgba(16, 185, 129, 0.15)",
+                          color: "#34d399",
+                          fontSize: 10,
+                          fontWeight: 800,
+                          height: 20,
+                          border: "1px solid rgba(16, 185, 129, 0.3)",
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }} noWrap>
+                      Shopify App Store Ranking Metrics
+                    </Typography>
+                  </Box>
+                </Box>
+
                 {/* Tab Controls */}
                 <Box
                   sx={{

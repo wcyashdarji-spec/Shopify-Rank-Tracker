@@ -31,6 +31,10 @@ import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import SecurityIcon from "@mui/icons-material/Security";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import AppsIcon from "@mui/icons-material/Apps";
+import PeopleIcon from "@mui/icons-material/People";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import SendIcon from "@mui/icons-material/Send";
 import { api, type App as AppType } from "../api";
 
 interface ProfilePageProps {
@@ -152,16 +156,17 @@ export default function ProfilePage({
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <CircularProgress size={32} sx={{ color: "#6366f1" }} />
+        <CircularProgress size={36} sx={{ color: "#3b82f6" }} />
       </Box>
     );
   }
 
   const initialLetter = email ? email[0]?.toUpperCase() : "U";
+  const selectedAppObj = apps.find((a) => a.id === selectedAppId);
 
   return (
-    <Box sx={{ position: "relative", minHeight: "100%" }}>
-      {/* Background Ambient Animations */}
+    <Box sx={{ position: "relative", minHeight: "100%", py: { xs: 2, sm: 3, md: 4 } }}>
+      {/* Background Ambient Spheres */}
       <Box
         sx={{
           position: "fixed",
@@ -174,26 +179,26 @@ export default function ProfilePage({
         <Box
           sx={{
             position: "absolute",
-            top: "10%",
-            right: "15%",
-            width: 420,
-            height: 420,
+            top: "8%",
+            right: "10%",
+            width: 460,
+            height: 460,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.02) 70%)",
-            filter: "blur(60px)",
+            background: "radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.02) 70%)",
+            filter: "blur(70px)",
             animation: "floatProfileOrb1 14s ease-in-out infinite",
           }}
         />
         <Box
           sx={{
             position: "absolute",
-            bottom: "15%",
-            left: "10%",
-            width: 380,
-            height: 380,
+            bottom: "10%",
+            left: "5%",
+            width: 420,
+            height: 420,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.02) 70%)",
-            filter: "blur(55px)",
+            background: "radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.02) 70%)",
+            filter: "blur(65px)",
             animation: "floatProfileOrb2 16s ease-in-out infinite",
           }}
         />
@@ -202,404 +207,601 @@ export default function ProfilePage({
       <style>{`
         @keyframes floatProfileOrb1 {
           0%, 100% { transform: translate(0px, 0px) scale(1); }
-          50% { transform: translate(-30px, 40px) scale(1.1); }
+          50% { transform: translate(-30px, 40px) scale(1.08); }
         }
         @keyframes floatProfileOrb2 {
           0%, 100% { transform: translate(0px, 0px) scale(1); }
-          50% { transform: translate(40px, -30px) scale(1.15); }
+          50% { transform: translate(40px, -30px) scale(1.12); }
         }
       `}</style>
 
-      <Container maxWidth="sm" sx={{ py: { xs: 3, sm: 4 }, px: { xs: 2, sm: 3 }, position: "relative", zIndex: 1 }}>
-        {/* Profile Overview Hero Card */}
+      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1, px: { xs: 2, sm: 3 } }}>
+        {/* 1. Profile Overview Hero Banner */}
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 3, sm: 3.5 },
-            borderRadius: "16px",
+            p: { xs: 3, sm: 3.5, md: 4 },
+            borderRadius: "20px",
             border: "1px solid #e2e8f0",
-            bgcolor: "#ffffff",
-            mb: 3.5,
+            background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+            mb: 4,
             boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)",
-            display: "flex",
-            alignItems: "center",
-            gap: 2.5,
-            flexWrap: "wrap",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <Avatar
+          {/* Subtle Top Accent Gradient Line */}
+          <Box
             sx={{
-              width: 64,
-              height: 64,
-              fontSize: 26,
-              fontWeight: 800,
-              bgcolor: "#6366f1",
-              color: "#ffffff",
-              boxShadow: "0 6px 20px rgba(99, 102, 241, 0.3)",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: "linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%)",
+            }}
+          />
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 3,
+              flexWrap: "wrap",
             }}
           >
-            {initialLetter}
-          </Avatar>
+            {/* Left User Identity Info */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2.5, minWidth: 0, flex: 1 }}>
+              <Box sx={{ position: "relative", flexShrink: 0 }}>
+                <Avatar
+                  sx={{
+                    width: { xs: 64, sm: 76 },
+                    height: { xs: 64, sm: 76 },
+                    fontSize: { xs: 26, sm: 32 },
+                    fontWeight: 800,
+                    background: "linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)",
+                    color: "#ffffff",
+                    boxShadow: "0 8px 24px rgba(59, 130, 246, 0.35)",
+                    border: "3px solid #ffffff",
+                  }}
+                >
+                  {initialLetter}
+                </Avatar>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: 2,
+                    right: 2,
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    bgcolor: "#10b981",
+                    border: "2px solid #ffffff",
+                    boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)",
+                  }}
+                />
+              </Box>
 
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 0.5, flexWrap: "wrap" }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 20, color: "#0f172a" }}>
-                {email}
-              </Typography>
-              <Chip
-                label="Account Owner"
-                size="small"
-                sx={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  bgcolor: "#e0e7ff",
-                  color: "#4f46e5",
-                  height: 22,
-                }}
-              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 0.75, flexWrap: "wrap" }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: { xs: 18, sm: 22 }, color: "#0f172a", letterSpacing: "-0.02em" }}>
+                    {email}
+                  </Typography>
+                  <Chip
+                    icon={<VerifiedUserIcon sx={{ fontSize: "14px !important", color: "#3b82f6 !important" }} />}
+                    label="Account Owner"
+                    size="small"
+                    sx={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      bgcolor: "#eff6ff",
+                      color: "#2563eb",
+                      border: "1px solid #bfdbfe",
+                      height: 24,
+                      px: 0.5,
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                  {createdAt && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <CalendarTodayIcon sx={{ fontSize: 14, color: "#64748b" }} />
+                      <Typography sx={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                        Member since {new Date(createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <SecurityIcon sx={{ fontSize: 14, color: "#10b981" }} />
+                    <Typography sx={{ fontSize: 13, color: "#059669", fontWeight: 700 }}>
+                      Verified & Active
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-              {createdAt && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <CalendarTodayIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                  <Typography sx={{ fontSize: 12.5, color: "#64748b" }}>
-                    Member since {new Date(createdAt).toLocaleDateString(undefined, { dateStyle: "long" })}
+            {/* Right Summary Quick Badges */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                width: { xs: "100%", md: "auto" },
+                justifyContent: { xs: "space-between", md: "flex-end" },
+                pt: { xs: 2, md: 0 },
+                borderTop: { xs: "1px solid #e2e8f0", md: "none" },
+              }}
+            >
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  px: 2,
+                  borderRadius: "14px",
+                  bgcolor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  flex: { xs: 1, md: "initial" },
+                }}
+              >
+                <Box sx={{ width: 34, height: 34, borderRadius: "10px", bgcolor: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <AppsIcon sx={{ fontSize: 18 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
+                    {apps.length}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#64748b", mt: 0.2 }}>
+                    Tracked Apps
                   </Typography>
                 </Box>
-              )}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <SecurityIcon sx={{ fontSize: 13, color: "#10b981" }} />
-                <Typography sx={{ fontSize: 12.5, color: "#047857", fontWeight: 600 }}>
-                  Account Active
-                </Typography>
-              </Box>
+              </Paper>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  px: 2,
+                  borderRadius: "14px",
+                  bgcolor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  flex: { xs: 1, md: "initial" },
+                }}
+              >
+                <Box sx={{ width: 34, height: 34, borderRadius: "10px", bgcolor: "#f5f3ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <PeopleIcon sx={{ fontSize: 18 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
+                    {appCollaborators.length + appPendingInvites.length}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#64748b", mt: 0.2 }}>
+                    Collaborators
+                  </Typography>
+                </Box>
+              </Paper>
             </Box>
           </Box>
         </Paper>
 
-        {/* Account Details & Security Card */}
-        <Card
-          elevation={0}
-          sx={{
-            borderRadius: "16px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
-            border: "1px solid #e2e8f0",
-            bgcolor: "#ffffff",
-            mb: 3.5,
-          }}
-        >
-          <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 3 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: "10px", bgcolor: "#f1f5f9", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <PersonIcon sx={{ fontSize: 20 }} />
-              </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
-                Account Information & Password
-              </Typography>
-            </Box>
-
-            <form onSubmit={handleAccountUpdate}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                <TextField
-                  label="Email Address"
-                  size="small"
-                  type="email"
-                  fullWidth
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  slotProps={{
-                    input: {
-                      sx: { borderRadius: "10px", fontSize: 13.5 },
-                    },
-                  }}
-                />
-
-                <Divider sx={{ my: 0.5, borderColor: "#f1f5f9" }} />
-
-                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
-                  Change Password (Leave blank to keep current password)
-                </Typography>
-
-                <TextField
-                  label="New Password"
-                  size="small"
-                  type={showPassword ? "text" : "password"}
-                  fullWidth
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  slotProps={{
-                    input: {
-                      sx: { borderRadius: "10px", fontSize: 13.5 },
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LockIcon sx={{ fontSize: 17, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                          >
-                            {showPassword ? <VisibilityOffIcon sx={{ fontSize: 17 }} /> : <VisibilityIcon sx={{ fontSize: 17 }} />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                />
-
-                <TextField
-                  label="Confirm New Password"
-                  size="small"
-                  type={showConfirmPassword ? "text" : "password"}
-                  fullWidth
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={!password}
-                  slotProps={{
-                    input: {
-                      sx: { borderRadius: "10px", fontSize: 13.5 },
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LockIcon sx={{ fontSize: 17, color: "#94a3b8" }} />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            edge="end"
-                            disabled={!password}
-                          >
-                            {showConfirmPassword ? <VisibilityOffIcon sx={{ fontSize: 17 }} /> : <VisibilityIcon sx={{ fontSize: 17 }} />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                />
-
-                {password && confirmPassword && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                    {password === confirmPassword ? (
-                      <>
-                        <CheckCircleIcon sx={{ fontSize: 15, color: "#10b981" }} />
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#047857" }}>
-                          Passwords match
-                        </Typography>
-                      </>
-                    ) : (
-                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>
-                        ✕ Passwords do not match
-                      </Typography>
-                    )}
-                  </Box>
-                )}
-
-                <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={savingAccount || (!!password && password !== confirmPassword)}
+        {/* 2. Main Responsive Grid (2 Columns on Desktop) */}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3.5, alignItems: "start" }}>
+          {/* Left Column: Account & Security Settings */}
+          <Box>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: "20px",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
+                border: "1px solid #e2e8f0",
+                bgcolor: "#ffffff",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, sm: 3.5 }, flex: 1, display: "flex", flexDirection: "column" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+                  <Box
                     sx={{
-                      bgcolor: "#0f172a",
-                      color: "#ffffff",
-                      textTransform: "none",
-                      fontWeight: 700,
-                      fontSize: 13.5,
-                      borderRadius: "9px",
-                      px: 3.5,
-                      py: 0.85,
-                      boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
-                      "&:hover": { bgcolor: "#1e293b", boxShadow: "0 6px 16px rgba(15, 23, 42, 0.25)" },
+                      width: 42,
+                      height: 42,
+                      borderRadius: "12px",
+                      bgcolor: "#eff6ff",
+                      color: "#3b82f6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(59, 130, 246, 0.12)",
                     }}
                   >
-                    {savingAccount ? "Saving Account..." : "Save Account"}
-                  </Button>
+                    <PersonIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
+                      Account & Security
+                    </Typography>
+                    <Typography sx={{ fontSize: 12.5, color: "#64748b", fontWeight: 500 }}>
+                      Manage your profile email and password credentials
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            </form>
-          </CardContent>
-        </Card>
 
-        {/* Invite Collaborators Card */}
-        <Card
-          elevation={0}
-          sx={{
-            borderRadius: "16px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
-            border: "1px solid #e2e8f0",
-            bgcolor: "#ffffff",
-            mb: 3.5,
-          }}
-        >
-          <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 3 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: "10px", bgcolor: "#f1f5f9", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <GroupAddIcon sx={{ fontSize: 20 }} />
-              </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
-                Invite Collaborators to Your Apps
-              </Typography>
-            </Box>
-
-            <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
-              <InputLabel id="select-app-label">Select Application</InputLabel>
-              <Select
-                labelId="select-app-label"
-                value={selectedAppId}
-                label="Select Application"
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedAppId(val as number | "");
-                  if (val) {
-                    fetchAppCollabs(Number(val));
-                  } else {
-                    setAppCollaborators([]);
-                    setAppPendingInvites([]);
-                    setAppOwner(null);
-                  }
-                }}
-                sx={{ borderRadius: "10px", fontSize: 13.5 }}
-              >
-                {ownedApps.map((app) => (
-                  <MenuItem key={app.id} value={app.id}>
-                    {app.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {selectedAppId ? (
-              <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
-                <form onSubmit={handleSendInvite}>
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
+                <form onSubmit={handleAccountUpdate} style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, flex: 1 }}>
                     <TextField
+                      label="Email Address"
                       size="small"
-                      label="Collaborator Email"
                       type="email"
-                      required
                       fullWidth
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="teammate@company.com"
-                      disabled={invitingCollab}
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       slotProps={{
                         input: {
-                          sx: { borderRadius: "10px", fontSize: 13.5 },
+                          sx: { borderRadius: "10px", fontSize: 13.5, bgcolor: "#f8fafc" },
                         },
                       }}
                     />
+
+                    <Divider sx={{ my: 0.5, borderColor: "#f1f5f9" }} />
+
+                    <Box>
+                      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", mb: 0.5 }}>
+                        Change Password
+                      </Typography>
+                      <Typography sx={{ fontSize: 12, color: "#64748b" }}>
+                        Leave blank if you do not wish to update your password
+                      </Typography>
+                    </Box>
+
+                    <TextField
+                      label="New Password"
+                      size="small"
+                      type={showPassword ? "text" : "password"}
+                      fullWidth
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      slotProps={{
+                        input: {
+                          sx: { borderRadius: "10px", fontSize: 13.5 },
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LockIcon sx={{ fontSize: 17, color: "#94a3b8" }} />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                size="small"
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                              >
+                                {showPassword ? <VisibilityOffIcon sx={{ fontSize: 17 }} /> : <VisibilityIcon sx={{ fontSize: 17 }} />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+
+                    <TextField
+                      label="Confirm New Password"
+                      size="small"
+                      type={showConfirmPassword ? "text" : "password"}
+                      fullWidth
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={!password}
+                      slotProps={{
+                        input: {
+                          sx: { borderRadius: "10px", fontSize: 13.5 },
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LockIcon sx={{ fontSize: 17, color: "#94a3b8" }} />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                size="small"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                edge="end"
+                                disabled={!password}
+                              >
+                                {showConfirmPassword ? <VisibilityOffIcon sx={{ fontSize: 17 }} /> : <VisibilityIcon sx={{ fontSize: 17 }} />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+
+                    {password && confirmPassword && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        {password === confirmPassword ? (
+                          <>
+                            <CheckCircleIcon sx={{ fontSize: 16, color: "#10b981" }} />
+                            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#047857" }}>
+                              Passwords match
+                            </Typography>
+                          </>
+                        ) : (
+                          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#ef4444" }}>
+                            ✕ Passwords do not match
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end" }}>
                     <Button
                       type="submit"
                       variant="contained"
-                      disabled={invitingCollab || !inviteEmail.trim()}
+                      disabled={savingAccount || (!!password && password !== confirmPassword)}
+                      startIcon={savingAccount ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : null}
                       sx={{
-                        bgcolor: "#0f172a",
+                        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
                         color: "#ffffff",
-                        borderRadius: "9px",
-                        px: 3,
-                        fontWeight: 700,
                         textTransform: "none",
-                        "&:hover": { bgcolor: "#1e293b" },
+                        fontWeight: 700,
+                        fontSize: 13.5,
+                        borderRadius: "10px",
+                        px: 3.5,
+                        py: 1,
+                        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.2)",
+                        "&:hover": { background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)", boxShadow: "0 6px 18px rgba(15, 23, 42, 0.3)" },
                       }}
                     >
-                      {invitingCollab ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : "Invite"}
+                      {savingAccount ? "Saving Account..." : "Save Account"}
                     </Button>
                   </Box>
                 </form>
+              </CardContent>
+            </Card>
+          </Box>
 
-                <Divider sx={{ borderColor: "#f1f5f9" }} />
-
-                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
-                  Current Team Collaborators
-                </Typography>
-
-                {loadingCollabs ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                    <CircularProgress size={24} sx={{ color: "#6366f1" }} />
-                  </Box>
-                ) : (
-                  <List dense disablePadding>
-                    {/* Owner */}
-                    {appOwner && (
-                      <ListItem sx={{ px: 1.25, py: 1, borderRadius: "8px", mb: 0.5, bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
-                        <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#ea580c" }} />
-                        <ListItemText
-                          primary={appOwner}
-                          slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 700, color: "#0f172a" } } }}
-                        />
-                        <Chip label="App Owner" size="small" sx={{ height: 20, fontSize: 10.5, fontWeight: 700, bgcolor: "#ffedd5", color: "#ea580c" }} />
-                      </ListItem>
-                    )}
-
-                    {/* Collaborators */}
-                    {appCollaborators.map((collab) => (
-                      <ListItem key={collab} sx={{ px: 1.25, py: 1, borderRadius: "8px", mb: 0.5, bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
-                        <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#6366f1" }} />
-                        <ListItemText
-                          primary={collab}
-                          slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 600, color: "#334155" } } }}
-                        />
-                        <Chip label="Collaborator" size="small" sx={{ height: 20, fontSize: 10.5, fontWeight: 700, bgcolor: "#e0e7ff", color: "#4f46e5" }} />
-                      </ListItem>
-                    ))}
-
-                    {/* Pending Invites */}
-                    {appPendingInvites.map((pending) => (
-                      <ListItem key={pending} sx={{ px: 1.25, py: 1, borderRadius: "8px", mb: 0.5, bgcolor: "#f8fafc", border: "1px solid #f1f5f9" }}>
-                        <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#94a3b8" }} />
-                        <ListItemText
-                          primary={pending}
-                          slotProps={{ primary: { sx: { fontSize: 13, color: "#64748b" } } }}
-                        />
-                        <Chip label="Pending Acceptance" size="small" sx={{ height: 20, fontSize: 10.5, fontWeight: 700, bgcolor: "#fffbeb", color: "#b45309" }} />
-                      </ListItem>
-                    ))}
-
-                    {appCollaborators.length === 0 && appPendingInvites.length === 0 && (
-                      <Typography sx={{ fontSize: 12.5, color: "#94a3b8", textAlign: "center", py: 1.5, fontStyle: "italic" }}>
-                        No extra team members invited yet.
+          {/* Right Column: Collaborators & App Invites */}
+          <Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+              {/* Card 2: Invite & Manage Team Collaborators */}
+              <Card
+                elevation={0}
+                sx={{
+                  borderRadius: "20px",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff",
+                }}
+              >
+                <CardContent sx={{ p: { xs: 3, sm: 3.5 } }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+                    <Box
+                      sx={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: "12px",
+                        bgcolor: "#f5f3ff",
+                        color: "#8b5cf6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: "0 4px 12px rgba(139, 92, 246, 0.12)",
+                      }}
+                    >
+                      <GroupAddIcon sx={{ fontSize: 22 }} />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
+                        Team Collaborators
                       </Typography>
-                    )}
-                  </List>
-                )}
-              </Box>
-            ) : (
-              <Typography sx={{ fontSize: 13, color: "#94a3b8", textAlign: "center", py: 2, fontStyle: "italic" }}>
-                Select one of your tracked applications above to invite collaborators.
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
+                      <Typography sx={{ fontSize: 12.5, color: "#64748b", fontWeight: 500 }}>
+                        Invite teammates to view and manage your tracked apps
+                      </Typography>
+                    </Box>
+                  </Box>
 
-        {/* Pending Invitations Card */}
+                  <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+                    <InputLabel id="select-app-label">Select Application</InputLabel>
+                    <Select
+                      labelId="select-app-label"
+                      value={selectedAppId}
+                      label="Select Application"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedAppId(val as number | "");
+                        if (val) {
+                          fetchAppCollabs(Number(val));
+                        } else {
+                          setAppCollaborators([]);
+                          setAppPendingInvites([]);
+                          setAppOwner(null);
+                        }
+                      }}
+                      sx={{ borderRadius: "10px", fontSize: 13.5, bgcolor: "#f8fafc" }}
+                    >
+                      {ownedApps.map((app) => (
+                        <MenuItem key={app.id} value={app.id} sx={{ fontSize: 13.5, fontWeight: 600 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Avatar
+                              src={app.icon_url || undefined}
+                              sx={{ width: 22, height: 22, fontSize: 11, fontWeight: 700, bgcolor: "#0f172a" }}
+                            >
+                              {app.name[0]?.toUpperCase()}
+                            </Avatar>
+                            {app.name}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  {selectedAppId ? (
+                    <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2.5 }}>
+                      <form onSubmit={handleSendInvite}>
+                        <Box sx={{ display: "flex", gap: 1.25 }}>
+                          <TextField
+                            size="small"
+                            label="Collaborator Email"
+                            type="email"
+                            required
+                            fullWidth
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            placeholder="teammate@company.com"
+                            disabled={invitingCollab}
+                            slotProps={{
+                              input: {
+                                sx: { borderRadius: "10px", fontSize: 13.5 },
+                              },
+                            }}
+                          />
+                          <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={invitingCollab || !inviteEmail.trim()}
+                            endIcon={invitingCollab ? <CircularProgress size={16} sx={{ color: "#ffffff" }} /> : <SendIcon sx={{ fontSize: 16 }} />}
+                            sx={{
+                              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                              color: "#ffffff",
+                              borderRadius: "10px",
+                              px: 3,
+                              fontWeight: 700,
+                              textTransform: "none",
+                              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.2)",
+                              "&:hover": { background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)" },
+                            }}
+                          >
+                            {invitingCollab ? "Sending" : "Invite"}
+                          </Button>
+                        </Box>
+                      </form>
+
+                      <Divider sx={{ borderColor: "#f1f5f9" }} />
+
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ fontSize: 13.5, fontWeight: 800, color: "#0f172a" }}>
+                          Current Team Members
+                        </Typography>
+                        {selectedAppObj && (
+                          <Chip
+                            label={selectedAppObj.name}
+                            size="small"
+                            sx={{ fontSize: 11, fontWeight: 700, bgcolor: "#f1f5f9", color: "#475569", height: 22 }}
+                          />
+                        )}
+                      </Box>
+
+                      {loadingCollabs ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                          <CircularProgress size={24} sx={{ color: "#3b82f6" }} />
+                        </Box>
+                      ) : (
+                        <List dense disablePadding>
+                          {/* Owner */}
+                          {appOwner && (
+                            <ListItem sx={{ px: 1.5, py: 1.25, borderRadius: "10px", mb: 0.75, bgcolor: "#fff7ed", border: "1px solid #ffedd5" }}>
+                              <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#ea580c" }} />
+                              <ListItemText
+                                primary={appOwner}
+                                slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 700, color: "#0f172a" } } }}
+                              />
+                              <Chip label="App Owner" size="small" sx={{ height: 22, fontSize: 10.5, fontWeight: 800, bgcolor: "#ffedd5", color: "#c2410c", border: "1px solid #fed7aa" }} />
+                            </ListItem>
+                          )}
+
+                          {/* Collaborators */}
+                          {appCollaborators.map((collab) => (
+                            <ListItem key={collab} sx={{ px: 1.5, py: 1.25, borderRadius: "10px", mb: 0.75, bgcolor: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                              <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#3b82f6" }} />
+                              <ListItemText
+                                primary={collab}
+                                slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 600, color: "#334155" } } }}
+                              />
+                              <Chip label="Collaborator" size="small" sx={{ height: 22, fontSize: 10.5, fontWeight: 800, bgcolor: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }} />
+                            </ListItem>
+                          ))}
+
+                          {/* Pending Invites */}
+                          {appPendingInvites.map((pending) => (
+                            <ListItem key={pending} sx={{ px: 1.5, py: 1.25, borderRadius: "10px", mb: 0.75, bgcolor: "#fffbeb", border: "1px solid #fef3c7" }}>
+                              <PersonIcon sx={{ fontSize: 18, mr: 1.25, color: "#d97706" }} />
+                              <ListItemText
+                                primary={pending}
+                                slotProps={{ primary: { sx: { fontSize: 13, color: "#78350f" } } }}
+                              />
+                              <Chip label="Pending Acceptance" size="small" sx={{ height: 22, fontSize: 10.5, fontWeight: 800, bgcolor: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }} />
+                            </ListItem>
+                          ))}
+
+                          {appCollaborators.length === 0 && appPendingInvites.length === 0 && (
+                            <Typography sx={{ fontSize: 12.5, color: "#94a3b8", textAlign: "center", py: 2, fontStyle: "italic" }}>
+                              No extra team members invited yet.
+                            </Typography>
+                          )}
+                        </List>
+                      )}
+                    </Box>
+                  ) : (
+                    <Typography sx={{ fontSize: 13, color: "#94a3b8", textAlign: "center", py: 3, fontStyle: "italic" }}>
+                      Select one of your tracked applications above to manage team members.
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* 3. Full-Width Pending Invitations Section */}
         <Card
           elevation={0}
           sx={{
-            borderRadius: "16px",
+            borderRadius: "20px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
             border: "1px solid #e2e8f0",
             bgcolor: "#ffffff",
+            mt: 3.5,
           }}
         >
-          <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 3 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: "10px", bgcolor: "#f1f5f9", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <MailIcon sx={{ fontSize: 20 }} />
+          <CardContent sx={{ p: { xs: 3, sm: 3.5 } }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "12px",
+                  bgcolor: "#ecfdf5",
+                  color: "#10b981",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.12)",
+                }}
+              >
+                <MailIcon sx={{ fontSize: 22 }} />
               </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
-                Pending Collaborator Invitations ({invitations.length})
-              </Typography>
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
+                  Pending Invitations ({invitations.length})
+                </Typography>
+                <Typography sx={{ fontSize: 12.5, color: "#64748b", fontWeight: 500 }}>
+                  Invitations from other app owners requesting your collaboration
+                </Typography>
+              </Box>
             </Box>
 
             {invitations.length === 0 ? (
-              <Typography sx={{ fontSize: 13, color: "#94a3b8", textAlign: "center", py: 2, fontStyle: "italic" }}>
+              <Typography sx={{ fontSize: 13, color: "#94a3b8", textAlign: "center", py: 2.5, fontStyle: "italic" }}>
                 No pending invitations received.
               </Typography>
             ) : (
@@ -612,7 +814,7 @@ export default function ProfilePage({
                       alignItems: "center",
                       justifyContent: "space-between",
                       p: 2.25,
-                      borderRadius: "12px",
+                      borderRadius: "14px",
                       bgcolor: "#f8fafc",
                       border: "1px solid #e2e8f0",
                       flexWrap: "wrap",
@@ -620,11 +822,11 @@ export default function ProfilePage({
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>
                         {invite.app.name}
                       </Typography>
-                      <Typography sx={{ fontSize: 12, color: "#64748b" }}>
-                        Invited by: {invite.inviter}
+                      <Typography sx={{ fontSize: 12.5, color: "#64748b", mt: 0.2 }}>
+                        Invited by: <strong>{invite.inviter}</strong>
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 1 }}>
@@ -633,7 +835,7 @@ export default function ProfilePage({
                         size="small"
                         onClick={() => onAcceptInvitation(invite.id)}
                         sx={{
-                          bgcolor: "#0f172a",
+                          background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                           color: "#ffffff",
                           textTransform: "none",
                           fontSize: 12.5,
@@ -641,7 +843,8 @@ export default function ProfilePage({
                           borderRadius: "8px",
                           py: 0.6,
                           px: 2.25,
-                          "&:hover": { bgcolor: "#1e293b" },
+                          boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
+                          "&:hover": { background: "linear-gradient(135deg, #059669 0%, #047857 100%)" },
                         }}
                       >
                         Accept
@@ -651,7 +854,7 @@ export default function ProfilePage({
                         size="small"
                         onClick={() => onDeclineInvitation(invite.id)}
                         sx={{
-                          borderColor: "#e2e8f0",
+                          borderColor: "#cbd5e1",
                           color: "#64748b",
                           textTransform: "none",
                           fontSize: 12.5,
@@ -659,7 +862,8 @@ export default function ProfilePage({
                           borderRadius: "8px",
                           py: 0.6,
                           px: 1.75,
-                          "&:hover": { borderColor: "#cbd5e1", bgcolor: "#ffffff" },
+                          bgcolor: "#ffffff",
+                          "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
                         }}
                       >
                         Decline

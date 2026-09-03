@@ -646,7 +646,7 @@ export default function HistoryLog({
             flexWrap: "wrap",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <Typography sx={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
               Ranking History
             </Typography>
@@ -663,7 +663,7 @@ export default function HistoryLog({
                 fontWeight: 600,
                 bgcolor: "#fff",
                 borderRadius: "8px",
-                minWidth: 160,
+                minWidth: { xs: "100%", sm: 160 },
                 height: 36,
                 "& fieldset": { borderColor: "#e5e7eb" },
               }}
@@ -688,7 +688,7 @@ export default function HistoryLog({
                 fontWeight: 600,
                 bgcolor: "#fff",
                 borderRadius: "8px",
-                minWidth: 185,
+                minWidth: { xs: "100%", sm: 185 },
                 height: 36,
                 "& fieldset": { borderColor: "#e5e7eb" },
               }}
@@ -699,7 +699,7 @@ export default function HistoryLog({
             </Select>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", width: { xs: "100%", sm: "auto" } }}>
             <TextField
               size="small"
               placeholder="Filter keywords…"
@@ -724,7 +724,7 @@ export default function HistoryLog({
                   },
                 },
               }}
-              sx={{ width: 220 }}
+              sx={{ width: { xs: "100%", sm: 220 } }}
             />
 
             {isHistoryFilterActive && (
@@ -757,17 +757,17 @@ export default function HistoryLog({
         </Box>
 
         {/* Matrix Table */}
-        <Box sx={{ overflowX: "auto" }}>
+        <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           <Table size="small" sx={{ borderCollapse: "separate", borderSpacing: 0, width: "100%" }}>
             <TableHead>
               <TableRow sx={{ "& th": { bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0", py: 1.5, px: 2 } }}>
-                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>
+                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#374151", minWidth: 140, whiteSpace: "nowrap" }}>
                   Keyword
                 </TableCell>
 
                 {/* Your App Column */}
-                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827", minWidth: 220, whiteSpace: "nowrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, whiteSpace: "nowrap" }}>
                     <Avatar
                       src={selectedApp?.icon_url || undefined}
                       sx={{
@@ -776,11 +776,12 @@ export default function HistoryLog({
                         bgcolor: "#2563eb",
                         fontSize: 11,
                         fontWeight: 700,
+                        flexShrink: 0,
                       }}
                     >
                       {selectedApp?.name ? selectedApp.name[0]?.toUpperCase() : "A"}
                     </Avatar>
-                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
                       {selectedApp?.name || "Your App"}
                     </Typography>
                     <Chip
@@ -793,6 +794,7 @@ export default function HistoryLog({
                         fontWeight: 700,
                         height: 18,
                         borderRadius: "4px",
+                        flexShrink: 0,
                       }}
                     />
                   </Box>
@@ -802,8 +804,8 @@ export default function HistoryLog({
                 {activeCompetitors.map((comp, idx) => {
                   const avatarColor = getAvatarColor(comp.name, idx);
                   return (
-                    <TableCell key={comp.id} sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TableCell key={comp.id} sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827", minWidth: 200, whiteSpace: "nowrap" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, whiteSpace: "nowrap" }}>
                         <Avatar
                           src={comp.icon_url || undefined}
                           sx={{
@@ -812,11 +814,12 @@ export default function HistoryLog({
                             bgcolor: avatarColor,
                             fontSize: 11,
                             fontWeight: 700,
+                            flexShrink: 0,
                           }}
                         >
                           {comp.name[0]?.toUpperCase()}
                         </Avatar>
-                        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827" }} noWrap>
+                        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
                           {comp.name}
                         </Typography>
                       </Box>
@@ -824,7 +827,7 @@ export default function HistoryLog({
                   );
                 })}
 
-                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#374151", borderRight: "none" }}>
+                <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: "#374151", borderRight: "none", minWidth: 140, whiteSpace: "nowrap" }}>
                   Last Checked
                 </TableCell>
               </TableRow>
