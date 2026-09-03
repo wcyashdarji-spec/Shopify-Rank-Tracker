@@ -1,25 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+:root {
+  --font-primary: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --bg-main: #f8fafc;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(226, 232, 240, 0.8);
+  --shadow-glass: 0 10px 30px -10px rgba(15, 23, 42, 0.05);
+  --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.15);
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: var(--bg-main);
+  color: #0f172a;
 }
 
+/* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* Dynamic Mesh Background Animation */
+@keyframes meshGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-mesh-bg {
+  background: linear-gradient(-45deg, #f8fafc, #f1f5f9, #eff6ff, #f5f3ff, #ecfdf5, #fff7ed);
+  background-size: 400% 400%;
+  animation: meshGradient 18s ease infinite;
+}
+
+/* Tech Grid Background Pattern Overlay */
+.tech-grid-pattern {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.22) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+/* Glassmorphism & Card Utility Classes */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-orange {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animated Floating Gradient Orbs */
+@keyframes pulseOrb1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); opacity: 0.6; }
+  33% { transform: translate(45px, -65px) scale(1.15); opacity: 0.85; }
+  66% { transform: translate(-35px, 45px) scale(0.92); opacity: 0.65; }
+}
+
+@keyframes pulseOrb2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); opacity: 0.55; }
+  33% { transform: translate(-55px, 55px) scale(1.12); opacity: 0.8; }
+  66% { transform: translate(35px, -45px) scale(0.9); opacity: 0.6; }
+}
+
+@keyframes pulseOrb3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); opacity: 0.5; }
+  50% { transform: translate(65px, 35px) scale(1.2); opacity: 0.75; }
+}
+
+.animated-orb-blue {
+  position: absolute;
+  width: 550px;
+  height: 550px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, rgba(59, 130, 246, 0) 70%);
+  filter: blur(50px);
+  animation: pulseOrb1 14s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.animated-orb-purple {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0) 70%);
+  filter: blur(55px);
+  animation: pulseOrb2 16s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.animated-orb-emerald {
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0) 70%);
+  filter: blur(48px);
+  animation: pulseOrb3 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.animated-orb-orange {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 70%);
+  filter: blur(52px);
+  animation: pulseOrb1 20s ease-in-out infinite reverse;
+  pointer-events: none;
+}
+
+/* Floating Particle Dots */
+@keyframes floatParticle {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  50% { transform: translateY(-40px) translateX(20px); opacity: 0.8; }
+}
+
+.floating-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: floatParticle 8s ease-in-out infinite;
+}
+
+/* Radar & Blink Animations */
 @keyframes radarSweep {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -27,7 +168,7 @@ html, body, #root {
 
 @keyframes radarPulse {
   0%, 100% { opacity: 0.15; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.05); }
+  50% { opacity: 0.45; transform: scale(1.06); }
 }
 
 @keyframes blink {

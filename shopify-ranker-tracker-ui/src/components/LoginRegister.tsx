@@ -7,11 +7,8 @@ import {
   Container,
   TextField,
   Typography,
-  Link,
   CircularProgress,
   Alert,
-  Checkbox,
-  FormControlLabel,
   InputAdornment,
   IconButton,
 } from "@mui/material";
@@ -21,6 +18,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { motion } from "motion/react";
 import AppLogo from "./AppLogo";
 import { api } from "../api";
 
@@ -62,7 +60,6 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,7 +72,6 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
     return false;
   });
 
-  // Check for Google OAuth 2.0 authorization code callback in URL query params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authCode = urlParams.get("auth_code");
@@ -133,7 +129,6 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
     }
   };
 
-  // Validation Helpers
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isEmailValid = emailRegex.test(email.trim());
 
@@ -142,8 +137,6 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
   const hasLowercase = /[a-z]/.test(password);
   const hasNumberOrSpecial = /[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
   const isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasNumberOrSpecial;
-
-  const passwordsMatch = password.length > 0 && password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,23 +201,13 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
           overflow: "hidden",
         }}
       >
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: "radial-gradient(circle, #94a3b8 1.2px, transparent 1.2px)",
-            backgroundSize: "32px 32px",
-            opacity: 0.35,
-            pointerEvents: "none",
-          }}
-        />
-        <CircularProgress size={52} thickness={4} sx={{ color: "#6366f1" }} />
+        <CircularProgress size={56} thickness={4} sx={{ color: "#3b82f6" }} />
         <Box sx={{ textAlign: "center", zIndex: 1 }}>
-          <Typography sx={{ fontSize: 20, fontWeight: 700, color: "#0f172a", mb: 0.5 }}>
-            Authenticating with Google...
+          <Typography sx={{ fontSize: 20, fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+            Authenticating...
           </Typography>
           <Typography sx={{ fontSize: 14, color: "#64748b", fontWeight: 500 }}>
-            Please wait while we log you into your Rank Tracker dashboard
+            Signing you into your Shopify Rank Tracker dashboard
           </Typography>
         </Box>
       </Box>
@@ -233,10 +216,10 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
 
   return (
     <Box
+      className="animated-mesh-bg tech-grid-pattern"
       sx={{
         minHeight: "100vh",
         display: "flex",
-        bgcolor: "#f8fafc",
         alignItems: "center",
         justifyContent: "center",
         p: { xs: 2, md: 4 },
@@ -244,379 +227,296 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
         overflow: "hidden",
       }}
     >
-      {/* Dynamic Animated Background Blobs & Dot Matrix Mesh */}
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: "radial-gradient(circle, #94a3b8 1.2px, transparent 1.2px)",
-          backgroundSize: "32px 32px",
-          opacity: 0.35,
-          animation: "pulseGrid 8s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
-      />
+      {/* Dynamic Animated Floating Orbs */}
+      <Box className="animated-orb-blue" sx={{ top: "-15%", left: "-10%" }} />
+      <Box className="animated-orb-purple" sx={{ bottom: "-15%", right: "-10%" }} />
+      <Box className="animated-orb-emerald" sx={{ top: "20%", right: "15%" }} />
+      <Box className="animated-orb-orange" sx={{ bottom: "10%", left: "10%" }} />
 
-      {/* Morphing Gradient Orbs */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: "-10%",
-          left: "-8%",
-          width: 520,
-          height: 520,
-          background: "radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.08) 60%, transparent 80%)",
-          filter: "blur(50px)",
-          animation: "morphOrb1 16s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: "-15%",
-          right: "-8%",
-          width: 580,
-          height: 580,
-          background: "radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.08) 60%, transparent 80%)",
-          filter: "blur(60px)",
-          animation: "morphOrb2 20s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: "35%",
-          right: "15%",
-          width: 420,
-          height: 420,
-          background: "radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(99, 102, 241, 0.05) 60%, transparent 80%)",
-          filter: "blur(50px)",
-          animation: "morphOrb1 18s ease-in-out infinite reverse",
-          pointerEvents: "none",
-        }}
-      />
-
-
-
-      {/* Global CSS Keyframe Animations */}
-      <style>{`
-        @keyframes morphOrb1 {
-          0% { transform: translate(0px, 0px) rotate(0deg) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-          33% { transform: translate(70px, -50px) rotate(120deg) scale(1.18); border-radius: 60% 40% 30% 70% / 50% 60% 40% 60%; }
-          66% { transform: translate(-30px, 40px) rotate(240deg) scale(0.92); border-radius: 30% 70% 50% 50% / 60% 30% 70% 40%; }
-          100% { transform: translate(0px, 0px) rotate(360deg) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-        }
-        @keyframes morphOrb2 {
-          0% { transform: translate(0px, 0px) rotate(0deg) scale(1); border-radius: 60% 40% 50% 50% / 30% 60% 40% 70%; }
-          50% { transform: translate(-80px, 60px) rotate(180deg) scale(1.22); border-radius: 40% 60% 70% 30% / 60% 40% 50% 50%; }
-          100% { transform: translate(0px, 0px) rotate(360deg) scale(1); border-radius: 60% 40% 50% 50% / 30% 60% 40% 70%; }
-        }
-        @keyframes pulseGrid {
-          0%, 100% { opacity: 0.35; }
-          50% { opacity: 0.65; }
-        }
-        @keyframes floatBadge1 {
-          0%, 100% { transform: translateY(0px) rotate(-2deg); }
-          50% { transform: translateY(-16px) rotate(2deg); }
-        }
-        @keyframes floatBadge2 {
-          0%, 100% { transform: translateY(0px) rotate(3deg); }
-          50% { transform: translateY(-20px) rotate(-1deg); }
-        }
-        @keyframes floatBadge3 {
-          0%, 100% { transform: translateY(0px) rotate(-1deg); }
-          50% { transform: translateY(-14px) rotate(2deg); }
-        }
-      `}</style>
+      {/* Floating Animated Accent Particles */}
+      <Box className="floating-particle" sx={{ width: 10, height: 10, bgcolor: "#3b82f6", top: "15%", left: "20%", animationDelay: "0s" }} />
+      <Box className="floating-particle" sx={{ width: 14, height: 14, bgcolor: "#8b5cf6", top: "70%", left: "15%", animationDelay: "2s" }} />
+      <Box className="floating-particle" sx={{ width: 12, height: 12, bgcolor: "#10b981", top: "25%", right: "25%", animationDelay: "4s" }} />
+      <Box className="floating-particle" sx={{ width: 8, height: 8, bgcolor: "#ec4899", bottom: "20%", right: "18%", animationDelay: "1s" }} />
 
       <Container maxWidth="lg" sx={{ p: "0 !important", position: "relative", zIndex: 2 }}>
-        <Card
-          elevation={0}
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            borderRadius: "20px",
-            overflow: "hidden",
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 20px 50px rgba(15, 23, 42, 0.08)",
-            bgcolor: "#ffffff",
-            minHeight: 620,
-          }}
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Left Visual Branding Panel */}
-          <Box
+          <Card
+            elevation={0}
             sx={{
-              flex: { md: 1.1 },
-              background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)",
-              p: { xs: 4, md: 6 },
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              position: "relative",
-              color: "#fff",
+              flexDirection: { xs: "column", md: "row" },
+              borderRadius: "24px",
               overflow: "hidden",
+              border: "1px solid rgba(226, 232, 240, 0.8)",
+              boxShadow: "0 25px 60px -15px rgba(15, 23, 42, 0.08)",
+              bgcolor: "#ffffff",
+              minHeight: 640,
             }}
           >
-            {/* Ambient Background Glow */}
+            {/* Left Branding Showcase Panel */}
             <Box
               sx={{
-                position: "absolute",
-                top: "-10%",
-                right: "-10%",
-                width: 300,
-                height: 300,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, rgba(0,0,0,0) 70%)",
-                filter: "blur(40px)",
-                pointerEvents: "none",
+                flex: { md: 1.1 },
+                background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+                p: { xs: 4, md: 6 },
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                position: "relative",
+                color: "#fff",
+                overflow: "hidden",
               }}
-            />
-
-            {/* Brand Logo & Header */}
-            <Box sx={{ position: "relative", zIndex: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 4 }}>
-                <AppLogo size={42} />
-                <Typography sx={{ fontWeight: 700, fontSize: 20, letterSpacing: "-0.5px" }}>
-                  Rank Tracker
-                </Typography>
-              </Box>
-
-              <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1.2, mb: 2, fontSize: { xs: 26, md: 32 } }}>
-                Track & Dominate Your Shopify App Rankings
-              </Typography>
-              <Typography sx={{ color: "#94a3b8", fontSize: 14.5, lineHeight: 1.6, maxWidth: 440 }}>
-                Real-time keyword position tracking, competitor head-to-head analysis, and automated listing optimization for Shopify developers.
-              </Typography>
-            </Box>
-
-            {/* Feature Showcase Card */}
-            <Box sx={{ position: "relative", zIndex: 1, my: 4 }}>
-              <Box
-                sx={{
-                  p: 3,
-                  borderRadius: "16px",
-                  bgcolor: "rgba(255, 255, 255, 0.05)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <TrendingUpIcon sx={{ color: "#10b981", fontSize: 20 }} />
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#34d399" }}>
-                      RANK BOOST +48%
-                    </Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: 11, color: "#94a3b8" }}>Updated Live</Typography>
+            >
+              <Box sx={{ position: "relative", zIndex: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 4 }}>
+                  <AppLogo size={40} />
+                  <Typography sx={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.5px" }}>
+                    Rank Tracker
+                  </Typography>
                 </Box>
 
-                {[
-                  "Daily automated Shopify App Store rank scans",
-                  "Side-by-side competitor head-to-head matrix",
-                  "Actionable ASO listing audit scores",
-                ].map((feat) => (
-                  <Box key={feat} sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                    <CheckCircleIcon sx={{ fontSize: 16, color: "#818cf8" }} />
-                    <Typography sx={{ fontSize: 13, color: "#cbd5e1", fontWeight: 500 }}>
-                      {feat}
-                    </Typography>
-                  </Box>
-                ))}
+                <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1.25, mb: 2, fontSize: { xs: 26, md: 34 } }}>
+                  Track & Dominate Your Shopify App Rankings
+                </Typography>
+                <Typography sx={{ color: "#94a3b8", fontSize: 15, lineHeight: 1.6, maxWidth: 440 }}>
+                  Real-time keyword position tracking, competitor head-to-head analysis, and automated ASO listing audit tools built for Shopify app developers.
+                </Typography>
               </Box>
+
+              {/* Feature Showcase Card */}
+              <Box
+                component={motion.div}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                sx={{ position: "relative", zIndex: 1, my: 4 }}
+              >
+                <Box
+                  sx={{
+                    p: 3,
+                    borderRadius: "18px",
+                    bgcolor: "rgba(255, 255, 255, 0.06)",
+                    backdropFilter: "blur(16px)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <TrendingUpIcon sx={{ color: "#10b981", fontSize: 20 }} />
+                      <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#34d399", letterSpacing: "0.03em" }}>
+                        ASO RANK BOOST
+                      </Typography>
+                    </Box>
+                    <Chip label="Live Scans" size="small" sx={{ bgcolor: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", fontSize: 10, fontWeight: 700 }} />
+                  </Box>
+
+                  {[
+                    "Daily automated Shopify App Store rank tracking",
+                    "Side-by-side competitor keyword visibility matrix",
+                    "Instant ASO listing optimization score audits",
+                  ].map((feat) => (
+                    <Box key={feat} sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                      <CheckCircleIcon sx={{ fontSize: 17, color: "#38bdf8" }} />
+                      <Typography sx={{ fontSize: 13.5, color: "#e2e8f0", fontWeight: 500 }}>
+                        {feat}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+
+              <Typography sx={{ fontSize: 12, color: "#64748b", position: "relative", zIndex: 1 }}>
+                © {new Date().getFullYear()} Shopify Rank Tracker. All rights reserved.
+              </Typography>
             </Box>
 
-            {/* Footer Copy */}
-            <Typography sx={{ fontSize: 12, color: "#64748b", position: "relative", zIndex: 1 }}>
-              © {new Date().getFullYear()} Shopify Rank Tracker. All rights reserved.
-            </Typography>
-          </Box>
-
-          {/* Right Authentication Form Panel */}
-          <Box
-            sx={{
-              flex: 1,
-              bgcolor: "#ffffff",
-              p: { xs: 3.5, sm: 5, md: 6 },
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Box sx={{ maxWidth: 400, mx: "auto", width: "100%" }}>
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 24, mb: 1 }}>
-                  {isLogin ? "Welcome back" : "Get started free"}
-                </Typography>
-                <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
-                  {isLogin
-                    ? "Enter your credentials to access Your App ranking dashboard."
-                    : "Create an account to start tracking app store positions today."}
-                </Typography>
-              </Box>
-
-              {success && (
-                <Alert
-                  severity="success"
-                  variant="outlined"
+            {/* Right Authentication Form Panel */}
+            <Box
+              sx={{
+                flex: 1,
+                bgcolor: "#ffffff",
+                p: { xs: 3.5, sm: 5, md: 6 },
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
+              <Box sx={{ maxWidth: 400, mx: "auto", width: "100%" }}>
+                {/* Tab Controls */}
+                <Box
                   sx={{
-                    mb: 3,
-                    borderRadius: "10px",
-                    fontSize: 13,
-                    bgcolor: "#f0fdf4",
-                    color: "#15803d",
-                    borderColor: "#bbf7d0",
+                    display: "flex",
+                    bgcolor: "#f1f5f9",
+                    p: 0.5,
+                    borderRadius: "12px",
+                    mb: 3.5,
                   }}
-                  onClose={() => setSuccess(null)}
                 >
-                  {success}
-                </Alert>
-              )}
-
-              {error && (
-                <Alert
-                  severity="error"
-                  variant="outlined"
-                  sx={{
-                    mb: 3,
-                    borderRadius: "10px",
-                    fontSize: 13,
-                    bgcolor: "#fef2f2",
-                    color: "#b91c1c",
-                    borderColor: "#fca5a5",
-                  }}
-                  onClose={() => setError(null)}
-                >
-                  {error}
-                </Alert>
-              )}
-
-              <form onSubmit={handleSubmit}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                  <TextField
+                  <Button
                     fullWidth
-                    label="Email Address"
-                    type="email"
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <EmailOutlinedIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
-                          </InputAdornment>
-                        ),
-                        sx: {
-                          fontSize: 13.5,
-                          borderRadius: "10px",
-                          bgcolor: "#f8fafc",
-                          "& fieldset": { borderColor: "#e2e8f0" },
-                        },
-                      },
-                      inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 600, color: "#475569" } },
+                    onClick={() => setIsLogin(true)}
+                    sx={{
+                      py: 0.85,
+                      borderRadius: "9px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textTransform: "none",
+                      color: isLogin ? "#0f172a" : "#64748b",
+                      bgcolor: isLogin ? "#ffffff" : "transparent",
+                      boxShadow: isLogin ? "0 2px 8px rgba(15, 23, 42, 0.08)" : "none",
+                      transition: "all 0.2s ease",
                     }}
-                  />
-
-                  <TextField
+                  >
+                    Sign In
+                  </Button>
+                  <Button
                     fullWidth
-                    label="Password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                    slotProps={{
-                      input: {
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LockOutlinedIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              size="small"
-                              onClick={() => setShowPassword(!showPassword)}
-                              edge="end"
-                            >
-                              {showPassword ? (
-                                <VisibilityOffIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
-                              ) : (
-                                <VisibilityIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
-                              )}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                        sx: {
-                          fontSize: 13.5,
-                          borderRadius: "10px",
-                          bgcolor: "#f8fafc",
-                          "& fieldset": { borderColor: "#e2e8f0" },
-                        },
-                      },
-                      inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 600, color: "#475569" } },
+                    onClick={() => setIsLogin(false)}
+                    sx={{
+                      py: 0.85,
+                      borderRadius: "9px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textTransform: "none",
+                      color: !isLogin ? "#0f172a" : "#64748b",
+                      bgcolor: !isLogin ? "#ffffff" : "transparent",
+                      boxShadow: !isLogin ? "0 2px 8px rgba(15, 23, 42, 0.08)" : "none",
+                      transition: "all 0.2s ease",
                     }}
-                  />
+                  >
+                    Create Account
+                  </Button>
+                </Box>
 
-                  {/* Live Password Requirements (Registration Mode) */}
-                  {!isLogin && password.length > 0 && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1,
-                        p: 1.5,
-                        borderRadius: "10px",
-                        bgcolor: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        mt: -0.5,
+                <Box sx={{ mb: 3.5 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", fontSize: 24, mb: 0.5 }}>
+                    {isLogin ? "Welcome Back" : "Get Started Free"}
+                  </Typography>
+                  <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
+                    {isLogin
+                      ? "Enter your account credentials to view your app store rank metrics."
+                      : "Create your free account to track keyword positions today."}
+                  </Typography>
+                </Box>
+
+                {success && (
+                  <Alert
+                    severity="success"
+                    variant="outlined"
+                    sx={{
+                      mb: 3,
+                      borderRadius: "12px",
+                      fontSize: 13,
+                      bgcolor: "#f0fdf4",
+                      color: "#15803d",
+                      borderColor: "#bbf7d0",
+                    }}
+                    onClose={() => setSuccess(null)}
+                  >
+                    {success}
+                  </Alert>
+                )}
+
+                {error && (
+                  <Alert
+                    severity="error"
+                    variant="outlined"
+                    sx={{
+                      mb: 3,
+                      borderRadius: "12px",
+                      fontSize: 13,
+                      bgcolor: "#fef2f2",
+                      color: "#b91c1c",
+                      borderColor: "#fca5a5",
+                    }}
+                    onClose={() => setError(null)}
+                  >
+                    {error}
+                  </Alert>
+                )}
+
+                <form onSubmit={handleSubmit}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                    <TextField
+                      fullWidth
+                      label="Email Address"
+                      type="email"
+                      placeholder="developer@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <EmailOutlinedIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+                            </InputAdornment>
+                          ),
+                          sx: {
+                            fontSize: 13.5,
+                            borderRadius: "12px",
+                            bgcolor: "#f8fafc",
+                            "& fieldset": { borderColor: "#e2e8f0" },
+                            "&:hover fieldset": { borderColor: "#cbd5e1" },
+                            "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
+                          },
+                        },
+                        inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 700, color: "#475569" } },
                       }}
-                    >
-                      <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: "#64748b" }}>
-                        Password Requirements:
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-                        <Chip
-                          size="small"
-                          label="8+ chars"
-                          color={hasMinLength ? "success" : "default"}
-                          variant={hasMinLength ? "filled" : "outlined"}
-                          sx={{ fontSize: 11, height: 22, fontWeight: 600 }}
-                        />
-                        <Chip
-                          size="small"
-                          label="1 Uppercase"
-                          color={hasUppercase ? "success" : "default"}
-                          variant={hasUppercase ? "filled" : "outlined"}
-                          sx={{ fontSize: 11, height: 22, fontWeight: 600 }}
-                        />
-                        <Chip
-                          size="small"
-                          label="1 Lowercase"
-                          color={hasLowercase ? "success" : "default"}
-                          variant={hasLowercase ? "filled" : "outlined"}
-                          sx={{ fontSize: 11, height: 22, fontWeight: 600 }}
-                        />
-                        <Chip
-                          size="small"
-                          label="Number/Symbol"
-                          color={hasNumberOrSpecial ? "success" : "default"}
-                          variant={hasNumberOrSpecial ? "filled" : "outlined"}
-                          sx={{ fontSize: 11, height: 22, fontWeight: 600 }}
-                        />
-                      </Box>
-                    </Box>
-                  )}
+                    />
 
-                  {/* Confirm Password Field (Registration Mode) */}
-                  {!isLogin && (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                    <TextField
+                      fullWidth
+                      label="Password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
+                      slotProps={{
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <LockOutlinedIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                size="small"
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                              >
+                                {showPassword ? (
+                                  <VisibilityOffIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+                                ) : (
+                                  <VisibilityIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+                                )}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                          sx: {
+                            fontSize: 13.5,
+                            borderRadius: "12px",
+                            bgcolor: "#f8fafc",
+                            "& fieldset": { borderColor: "#e2e8f0" },
+                            "&:hover fieldset": { borderColor: "#cbd5e1" },
+                            "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
+                          },
+                        },
+                        inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 700, color: "#475569" } },
+                      }}
+                    />
+
+                    {!isLogin && (
                       <TextField
                         fullWidth
                         label="Confirm Password"
@@ -625,7 +525,6 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         disabled={isLoading}
-                        error={confirmPassword.length > 0 && !passwordsMatch}
                         slotProps={{
                           input: {
                             startAdornment: (
@@ -650,161 +549,83 @@ export default function LoginRegister({ onLoginSuccess }: LoginRegisterProps) {
                             ),
                             sx: {
                               fontSize: 13.5,
-                              borderRadius: "10px",
+                              borderRadius: "12px",
                               bgcolor: "#f8fafc",
                               "& fieldset": { borderColor: "#e2e8f0" },
+                              "&:hover fieldset": { borderColor: "#cbd5e1" },
+                              "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
                             },
                           },
-                          inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 600, color: "#475569" } },
+                          inputLabel: { shrink: true, sx: { fontSize: 13.5, fontWeight: 700, color: "#475569" } },
                         }}
                       />
-                      {confirmPassword.length > 0 && (
-                        <Typography
-                          sx={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: passwordsMatch ? "#16a34a" : "#dc2626",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
-                            pl: 0.5,
-                          }}
-                        >
-                          {passwordsMatch ? "✓ Passwords match" : "✕ Passwords do not match"}
-                        </Typography>
+                    )}
+
+                    <Button
+                      fullWidth
+                      component={motion.button}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      type="submit"
+                      variant="contained"
+                      disabled={isLoading}
+                      sx={{
+                        py: 1.35,
+                        mt: 1,
+                        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                        borderRadius: "12px",
+                        fontSize: 14,
+                        fontWeight: 800,
+                        textTransform: "none",
+                        boxShadow: "0 6px 18px rgba(15, 23, 42, 0.2)",
+                        "&:hover": {
+                          background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.28)",
+                        },
+                      }}
+                    >
+                      {isLoading ? (
+                        <CircularProgress size={22} sx={{ color: "#ffffff" }} />
+                      ) : isLogin ? (
+                        "Sign In"
+                      ) : (
+                        "Create Free Account"
                       )}
-                    </Box>
-                  )}
+                    </Button>
+                  </Box>
+                </form>
 
-                  {isLogin && (
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: -0.5 }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            sx={{ color: "#94a3b8", "&.Mui-checked": { color: "#6366f1" } }}
-                          />
-                        }
-                        label={<Typography sx={{ fontSize: 12.5, color: "#475569", fontWeight: 500 }}>Remember me</Typography>}
-                      />
-                      <Link
-                        component="button"
-                        type="button"
-                        onClick={() => alert("Please contact support to reset your password.")}
-                        sx={{ fontSize: 12.5, fontWeight: 600, color: "#6366f1", textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
-                      >
-                        Forgot password?
-                      </Link>
-                    </Box>
-                  )}
-
+                {/* Google Single Sign-On Button */}
+                <Box sx={{ mt: 3, pt: 3, borderTop: "1px solid #f1f5f9" }}>
                   <Button
                     fullWidth
-                    type="submit"
-                    variant="contained"
-                    disabled={isLoading}
+                    variant="outlined"
+                    onClick={handleGoogleButtonClick}
+                    disabled={isGoogleRedirecting}
+                    startIcon={<GoogleIcon />}
                     sx={{
-                      bgcolor: "#0f172a",
-                      color: "#fff",
-                      py: 1.25,
-                      borderRadius: "10px",
+                      py: 1.2,
+                      borderRadius: "12px",
+                      borderColor: "#e2e8f0",
+                      color: "#334155",
+                      fontSize: 13.5,
                       fontWeight: 700,
                       textTransform: "none",
-                      fontSize: 14,
-                      boxShadow: "0 4px 14px rgba(15, 23, 42, 0.25)",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
                       "&:hover": {
-                        bgcolor: "#1e293b",
-                        boxShadow: "0 6px 20px rgba(15, 23, 42, 0.35)",
-                      },
-                    }}
-                  >
-                    {isLoading ? (
-                      <CircularProgress size={22} color="inherit" />
-                    ) : isLogin ? (
-                      "Sign In to Dashboard"
-                    ) : (
-                      "Create Account"
-                    )}
-                  </Button>
-
-                  {/* Divider */}
-                  <Box sx={{ display: "flex", alignItems: "center", my: 0.5, gap: 1.5 }}>
-                    <Box sx={{ flex: 1, height: "1px", bgcolor: "#e2e8f0" }} />
-                    <Typography sx={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>
-                      OR
-                    </Typography>
-                    <Box sx={{ flex: 1, height: "1px", bgcolor: "#e2e8f0" }} />
-                  </Box>
-
-                  {/* Google Sign-In Button */}
-                  <Button
-                    fullWidth
-                    type="button"
-                    variant="outlined"
-                    disabled={isLoading || isGoogleAuthLoading || isGoogleRedirecting}
-                    onClick={handleGoogleButtonClick}
-                    startIcon={
-                      isGoogleRedirecting || isGoogleAuthLoading ? (
-                        <CircularProgress size={18} color="inherit" />
-                      ) : (
-                        <GoogleIcon />
-                      )
-                    }
-                    sx={{
-                      bgcolor: "#ffffff",
-                      color: "#1e293b",
-                      borderColor: "#cbd5e1",
-                      py: 1.1,
-                      borderRadius: "10px",
-                      fontWeight: 600,
-                      textTransform: "none",
-                      fontSize: 13.5,
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                      "&:hover": {
+                        borderColor: "#cbd5e1",
                         bgcolor: "#f8fafc",
-                        borderColor: "#94a3b8",
                       },
                     }}
                   >
-                    {isGoogleRedirecting
-                      ? "Connecting to Google..."
-                      : isGoogleAuthLoading
-                        ? "Authenticating with Google..."
-                        : isLogin
-                          ? "Sign in with Google"
-                          : "Sign up with Google"}
+                    {isGoogleRedirecting ? "Connecting to Google..." : "Continue with Google"}
                   </Button>
-
-                  <Box sx={{ textAlign: "center", mt: 1.5 }}>
-                    <Typography sx={{ color: "#64748b", fontSize: 13 }}>
-                      {isLogin ? "Don't have an account? " : "Already have an account? "}
-                      <Link
-                        component="button"
-                        type="button"
-                        onClick={() => {
-                          setIsLogin(!isLogin);
-                          setError(null);
-                          setSuccess(null);
-                        }}
-                        sx={{
-                          color: "#6366f1",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          textDecoration: "none",
-                          "&:hover": { textDecoration: "underline" },
-                        }}
-                      >
-                        {isLogin ? "Sign Up" : "Sign In"}
-                      </Link>
-                    </Typography>
-                  </Box>
                 </Box>
-              </form>
+              </Box>
             </Box>
-          </Box>
-        </Card>
+          </Card>
+        </Box>
       </Container>
     </Box>
   );

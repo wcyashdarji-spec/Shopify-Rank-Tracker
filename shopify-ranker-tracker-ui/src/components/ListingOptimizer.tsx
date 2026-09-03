@@ -53,14 +53,78 @@ export default function ListingOptimizer({
 }: ListingOptimizerProps) {
   if (!selectedApp) {
     return (
-      <Box sx={{ p: 4, textAlign: "center", maxWidth: 500, mx: "auto", mt: 6 }}>
-        <Paper elevation={0} sx={{ p: 4, borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 640, mx: "auto", mt: 4 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: "20px",
+            border: "1px solid #e2e8f0",
+            bgcolor: "#ffffff",
+            boxShadow: "0 10px 30px -10px rgba(15, 23, 42, 0.05)",
+            textAlign: "center",
+          }}
+        >
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: "16px",
+              bgcolor: "#eff6ff",
+              color: "#3b82f6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 2,
+            }}
+          >
+            <AssessmentIcon sx={{ fontSize: 30 }} />
+          </Box>
           <Typography variant="h6" sx={{ color: "#0f172a", fontWeight: 800, mb: 1 }}>
-            No Tracked App Selected
+            Select an App to Optimize
           </Typography>
-          <Typography sx={{ color: "#64748b", fontSize: 13.5 }}>
-            Please add or select a Shopify application from the Home Overview page to run ASO listing audits.
+          <Typography sx={{ color: "#64748b", fontSize: 14, mb: 3 }}>
+            Choose one of your tracked Shopify applications below to run an instant ASO listing score audit.
           </Typography>
+
+          {apps.length === 0 ? (
+            <Alert severity="info" sx={{ borderRadius: "12px", textAlign: "left" }}>
+              No Shopify apps tracked yet. Please add your first app from the Home Overview page.
+            </Alert>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+              {apps.map((app) => (
+                <Button
+                  key={app.id}
+                  variant="outlined"
+                  onClick={() => onSelectApp(app)}
+                  startIcon={
+                    <Avatar
+                      src={app.icon_url || undefined}
+                      sx={{ width: 28, height: 28, fontSize: 13, fontWeight: 800, bgcolor: "#3b82f6" }}
+                    >
+                      {app.name[0]?.toUpperCase()}
+                    </Avatar>
+                  }
+                  sx={{
+                    justifyContent: "flex-start",
+                    p: 1.5,
+                    px: 2,
+                    borderRadius: "12px",
+                    borderColor: "#e2e8f0",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    textTransform: "none",
+                    "&:hover": { borderColor: "#3b82f6", bgcolor: "#eff6ff" },
+                  }}
+                >
+                  {app.name}
+                </Button>
+              ))}
+            </Box>
+          )}
         </Paper>
       </Box>
     );

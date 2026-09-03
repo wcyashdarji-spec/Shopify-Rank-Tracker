@@ -28,8 +28,34 @@ const IntegrationsPage = lazy(() => import("./components/IntegrationsPage"));
 const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#111827" },
-    secondary: { main: "#f97316" },
+    primary: { main: "#0f172a", light: "#334155", dark: "#020617" },
+    secondary: { main: "#f97316", light: "#fb923c", dark: "#ea580c" },
+    background: { default: "#f8fafc", paper: "#ffffff" },
+    text: { primary: "#0f172a", secondary: "#64748b" },
+  },
+  typography: {
+    fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif",
+  },
+  shape: {
+    borderRadius: 14,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          textTransform: "none",
+          fontWeight: 700,
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+        },
+      },
+    },
   },
 });
 

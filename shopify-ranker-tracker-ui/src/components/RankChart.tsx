@@ -20,6 +20,9 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -321,19 +324,91 @@ export default function RankChart({
   }, [historyData, selectedKeywords]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [positionFilter, setPositionFilter] = useState<"ALL" | "IMPROVED" | "DROPPED" | "STABLE" | "MOVERS">("ALL");
+  const [rankBracketFilter, setRankBracketFilter] = useState<"ALL" | "TOP10" | "TOP30" | "OUTSIDE30">("ALL");
+  const [appTypeFilter, setAppTypeFilter] = useState<"ALL" | "YOUR_APP" | "COMPETITOR">("ALL");
+  const [sortBy, setSortBy] = useState<"BIGGEST_GAINERS" | "BIGGEST_DROPS" | "BEST_RANK" | "WORST_RANK" | "NAME">("BIGGEST_GAINERS");
+
+  const movementCounts = useMemo(() => {
+    let improved = 0;
+    let dropped = 0;
+    let stable = 0;
+    series.forEach((s) => {
+      if (s.rankChange > 0) improved++;
+      else if (s.rankChange < 0) dropped++;
+      else stable++;
+    });
+    return {
+      total: series.length,
+      improved,
+      dropped,
+      stable,
+      movers: improved + dropped,
+    };
+  }, [series]);
 
   const filteredSeries = useMemo(() => {
-    if (!searchQuery.trim()) return series;
-    const q = searchQuery.toLowerCase().trim();
-    return series.filter((s) => s.label.toLowerCase().includes(q));
-  }, [series, searchQuery]);
+    let result = [...series];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((s) => s.label.toLowerCase().includes(q));
+    }
+
+    if (appTypeFilter === "YOUR_APP") {
+      result = result.filter((s) => !s.isCompetitor);
+    } else if (appTypeFilter === "COMPETITOR") {
+      result = result.filter((s) => s.isCompetitor);
+    }
+
+    if (positionFilter === "IMPROVED") {
+      result = result.filter((s) => s.rankChange > 0);
+    } else if (positionFilter === "DROPPED") {
+      result = result.filter((s) => s.rankChange < 0);
+    } else if (positionFilter === "STABLE") {
+      result = result.filter((s) => s.rankChange === 0);
+    } else if (positionFilter === "MOVERS") {
+      result = result.filter((s) => s.rankChange !== 0);
+    }
+
+    if (rankBracketFilter === "TOP10") {
+      result = result.filter((s) => s.latestRank <= 10);
+    } else if (rankBracketFilter === "TOP30") {
+      result = result.filter((s) => s.latestRank <= 30);
+    } else if (rankBracketFilter === "OUTSIDE30") {
+      result = result.filter((s) => s.latestRank > 30);
+    }
+
+    result.sort((a, b) => {
+      if (sortBy === "BIGGEST_GAINERS") {
+        return b.rankChange - a.rankChange;
+      }
+      if (sortBy === "BIGGEST_DROPS") {
+        return a.rankChange - b.rankChange;
+      }
+      if (sortBy === "BEST_RANK") {
+        return a.latestRank - b.latestRank;
+      }
+      if (sortBy === "WORST_RANK") {
+        return b.latestRank - a.latestRank;
+      }
+      if (sortBy === "NAME") {
+        return a.label.localeCompare(b.label);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [series, searchQuery, appTypeFilter, positionFilter, rankBracketFilter, sortBy]);
+
+  const activeSeries = filteredSeries.length > 0 ? filteredSeries : series;
 
   const { minDate, maxDate, minRank, maxRank, yTicks } = useMemo(() => {
     let minDate = Infinity;
     let maxDate = -Infinity;
     let minRank = Infinity;
     let maxRank = -Infinity;
-    series.forEach((s) =>
+    activeSeries.forEach((s) =>
       s.records.forEach((r) => {
         const t = new Date(r.tracked_date).getTime();
         if (t < minDate) minDate = t;
@@ -355,7 +430,7 @@ export default function RankChart({
     for (let v = rMin; v <= rMax; v += step) yTicksArr.push(v);
     if (!yTicksArr.includes(rMin)) yTicksArr.unshift(rMin);
     return { minDate, maxDate, minRank: rMin, maxRank: rMax, yTicks: yTicksArr };
-  }, [series]);
+  }, [activeSeries]);
 
   useEffect(() => {
     setZoomDomain(null);
@@ -484,16 +559,6 @@ export default function RankChart({
     );
   };
 
-  // Quick Filter Shortcuts
-  const handleSelectAll = () => {
-    setPinnedLabels(series.map((s) => s.label));
-  };
-  const handleSelectTop10 = () => {
-    setPinnedLabels(series.filter((s) => s.latestRank <= 10).map((s) => s.label));
-  };
-  const handleSelectMovers = () => {
-    setPinnedLabels(series.filter((s) => s.rankChange !== 0).map((s) => s.label));
-  };
   const handleClearSelection = () => {
     setPinnedLabels([]);
     setHoveredLabel(null);
@@ -633,10 +698,13 @@ export default function RankChart({
             <CircularProgress size={26} sx={{ color: "#0f172a" }} />
           </Box>
         )}
-        {isEmpty && !isLoadingHistory ? (
-          <Box sx={{ height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography sx={{ color: "#9ca3af", fontSize: 13, fontWeight: 500 }}>
-              No ranking history data available for the selected range.
+        {filteredSeries.length === 0 && !isLoadingHistory ? (
+          <Box sx={{ height: H, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 1 }}>
+            <Typography sx={{ color: "#475569", fontSize: 14, fontWeight: 700 }}>
+              No keywords match the selected filter criteria
+            </Typography>
+            <Typography sx={{ color: "#94a3b8", fontSize: 12 }}>
+              Try selecting "All" or resetting search & position filters below.
             </Typography>
           </Box>
         ) : (
@@ -711,7 +779,7 @@ export default function RankChart({
 
               {/* ── Chart Lines Layer ── */}
               <g clipPath="url(#plotAreaClip)">
-                {series.map((s) => {
+                {filteredSeries.map((s) => {
                   const isHovered = hoveredLabel === s.label;
                   const isPinned = pinnedLabels.includes(s.label);
                   const isHighlighted = isHovered || isPinned;
@@ -774,7 +842,7 @@ export default function RankChart({
 
               {/* ── Selective Dot Markers Layer (Noise-Reduced) ── */}
               <g clipPath="url(#plotAreaClip)">
-                {series.map((s) => {
+                {filteredSeries.map((s) => {
                   const isHovered = hoveredLabel === s.label;
                   const isPinned = pinnedLabels.includes(s.label);
                   const isHighlighted = isHovered || isPinned;
@@ -864,13 +932,14 @@ export default function RankChart({
 
       {/* ── Interactive Legend & Filter Bar ── */}
       {series.length > 0 && (
-        <Box sx={{ borderTop: "1px solid #f1f5f9", bgcolor: "#f8fafc", px: 2.5, py: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexWrap: "wrap", gap: 1.5 }}>
+        <Box sx={{ borderTop: "1px solid #f1f5f9", bgcolor: "#f8fafc", px: 2.5, py: 2 }}>
+          {/* Row 1: Search & Position Shift Chips */}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.75, flexWrap: "wrap", gap: 1.5 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <FilterListIcon sx={{ fontSize: 15, color: "#64748b" }} />
-                <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Filter / Highlight Shortcuts
+                <FilterListIcon sx={{ fontSize: 16, color: "#475569" }} />
+                <Typography sx={{ fontSize: 12, fontWeight: 800, color: "#0f172a", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Filter Position Changes
                 </Typography>
               </Box>
 
@@ -899,78 +968,189 @@ export default function RankChart({
                 sx={{
                   width: { xs: "100%", sm: 200 },
                   "& .MuiOutlinedInput-root": {
-                    height: 28,
-                    fontSize: 11.5,
+                    height: 30,
+                    fontSize: 12,
                     bgcolor: "#ffffff",
-                    borderRadius: "6px",
+                    borderRadius: "8px",
                     px: 1,
                     "& fieldset": { borderColor: "#cbd5e1" },
                     "&:hover fieldset": { borderColor: "#94a3b8" },
-                    "&.Mui-focused fieldset": { borderColor: "#0284c7" },
+                    "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
                   },
                 }}
               />
             </Box>
-            <Box sx={{ display: "flex", gap: 0.75 }}>
+
+            {/* Position Change Filter Pills */}
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
               <Chip
-                label="All"
+                label={`All (${movementCounts.total})`}
                 size="small"
-                onClick={handleSelectAll}
+                onClick={() => setPositionFilter("ALL")}
                 sx={{
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
-                  height: 22,
-                  bgcolor: pinnedLabels.length === series.length ? "#0f172a" : "#ffffff",
-                  color: pinnedLabels.length === series.length ? "#ffffff" : "#475569",
+                  height: 26,
+                  px: 0.5,
+                  bgcolor: positionFilter === "ALL" ? "#0f172a" : "#ffffff",
+                  color: positionFilter === "ALL" ? "#ffffff" : "#475569",
                   border: "1px solid #cbd5e1",
                   cursor: "pointer",
-                  "&:hover": { bgcolor: "#f1f5f9" },
+                  "&:hover": { bgcolor: positionFilter === "ALL" ? "#1e293b" : "#f1f5f9" },
                 }}
               />
               <Chip
-                label="Top 10"
+                label={`🟢 Rank Gainers (${movementCounts.improved})`}
                 size="small"
-                onClick={handleSelectTop10}
+                onClick={() => setPositionFilter("IMPROVED")}
                 sx={{
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
-                  height: 22,
-                  bgcolor: "#ecfdf5",
-                  color: "#047857",
+                  height: 26,
+                  px: 0.5,
+                  bgcolor: positionFilter === "IMPROVED" ? "#059669" : "#ecfdf5",
+                  color: positionFilter === "IMPROVED" ? "#ffffff" : "#047857",
                   border: "1px solid #a7f3d0",
                   cursor: "pointer",
-                  "&:hover": { bgcolor: "#d1fae5" },
+                  "&:hover": { bgcolor: positionFilter === "IMPROVED" ? "#047857" : "#d1fae5" },
                 }}
               />
               <Chip
-                label="Movers"
+                label={`🔴 Rank Drops (${movementCounts.dropped})`}
                 size="small"
-                onClick={handleSelectMovers}
+                onClick={() => setPositionFilter("DROPPED")}
                 sx={{
-                  fontSize: 11,
+                  fontSize: 11.5,
                   fontWeight: 700,
-                  height: 22,
-                  bgcolor: "#eff6ff",
-                  color: "#1d4ed8",
-                  border: "1px solid #bfdbfe",
+                  height: 26,
+                  px: 0.5,
+                  bgcolor: positionFilter === "DROPPED" ? "#dc2626" : "#fef2f2",
+                  color: positionFilter === "DROPPED" ? "#ffffff" : "#b91c1c",
+                  border: "1px solid #fca5a5",
                   cursor: "pointer",
-                  "&:hover": { bgcolor: "#dbeafe" },
+                  "&:hover": { bgcolor: positionFilter === "DROPPED" ? "#b91c1c" : "#fee2e2" },
                 }}
               />
+              <Chip
+                label={`⚪ Stable (${movementCounts.stable})`}
+                size="small"
+                onClick={() => setPositionFilter("STABLE")}
+                sx={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  height: 26,
+                  px: 0.5,
+                  bgcolor: positionFilter === "STABLE" ? "#475569" : "#f1f5f9",
+                  color: positionFilter === "STABLE" ? "#ffffff" : "#475569",
+                  border: "1px solid #cbd5e1",
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: positionFilter === "STABLE" ? "#334155" : "#e2e8f0" },
+                }}
+              />
+              <Chip
+                label={`🔥 All Movers (${movementCounts.movers})`}
+                size="small"
+                onClick={() => setPositionFilter("MOVERS")}
+                sx={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  height: 26,
+                  px: 0.5,
+                  bgcolor: positionFilter === "MOVERS" ? "#2563eb" : "#eff6ff",
+                  color: positionFilter === "MOVERS" ? "#ffffff" : "#1d4ed8",
+                  border: "1px solid #bfdbfe",
+                  cursor: "pointer",
+                  "&:hover": { bgcolor: positionFilter === "MOVERS" ? "#1d4ed8" : "#dbeafe" },
+                }}
+              />
+            </Box>
+          </Box>
+
+          {/* Row 2: App Filter, Rank Bracket, and Sorting Controls */}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, pt: 1, borderTop: "1px solid #e2e8f0" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              {/* App Filter Selector */}
+              <FormControl size="small">
+                <Select
+                  value={appTypeFilter}
+                  onChange={(e) => setAppTypeFilter(e.target.value as any)}
+                  sx={{
+                    height: 28,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    bgcolor: "#ffffff",
+                    borderRadius: "6px",
+                    "& .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                  }}
+                >
+                  <MenuItem value="ALL">All Apps & Competitors</MenuItem>
+                  <MenuItem value="YOUR_APP">Your App Only</MenuItem>
+                  <MenuItem value="COMPETITOR">Competitors Only</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Rank Bracket Selector */}
+              <FormControl size="small">
+                <Select
+                  value={rankBracketFilter}
+                  onChange={(e) => setRankBracketFilter(e.target.value as any)}
+                  sx={{
+                    height: 28,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    bgcolor: "#ffffff",
+                    borderRadius: "6px",
+                    "& .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                  }}
+                >
+                  <MenuItem value="ALL">All Rank Positions</MenuItem>
+                  <MenuItem value="TOP10">Top 10 Ranks (#1–#10)</MenuItem>
+                  <MenuItem value="TOP30">Top 30 Ranks (#1–#30)</MenuItem>
+                  <MenuItem value="OUTSIDE30">Outside Top 30 (#31+)</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Sort Order Selector */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>
+                Sort By:
+              </Typography>
+              <FormControl size="small">
+                <Select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  sx={{
+                    height: 28,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    bgcolor: "#ffffff",
+                    borderRadius: "6px",
+                    "& .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+                  }}
+                >
+                  <MenuItem value="BIGGEST_GAINERS">Biggest Gainers (Rank ↑)</MenuItem>
+                  <MenuItem value="BIGGEST_DROPS">Worst Drops (Rank ↓)</MenuItem>
+                  <MenuItem value="BEST_RANK">Best Rank (#1 First)</MenuItem>
+                  <MenuItem value="WORST_RANK">Worst Rank (#100 First)</MenuItem>
+                  <MenuItem value="NAME">Keyword Name (A–Z)</MenuItem>
+                </Select>
+              </FormControl>
+
               {pinnedLabels.length > 0 && (
                 <Chip
-                  label="Clear Pin"
+                  label="Clear Highlight Pin"
                   size="small"
                   onClick={handleClearSelection}
                   sx={{
                     fontSize: 11,
                     fontWeight: 700,
-                    height: 22,
+                    height: 26,
                     bgcolor: "#fef2f2",
                     color: "#b91c1c",
                     border: "1px solid #fca5a5",
                     cursor: "pointer",
-                    "&:hover": { bgcolor: "#fee2e2" },
+                    ml: 1,
                   }}
                 />
               )}
@@ -983,16 +1163,18 @@ export default function RankChart({
               display: "flex",
               gap: 1,
               flexWrap: "wrap",
-              maxHeight: 90,
+              maxHeight: 110,
               overflowY: "auto",
-              pt: 0.5,
+              pt: 1.25,
+              mt: 1,
+              borderTop: "1px stroke #f1f5f9",
               "&::-webkit-scrollbar": { width: 4, height: 4 },
               "&::-webkit-scrollbar-thumb": { bgcolor: "#cbd5e1", borderRadius: 4 },
             }}
           >
             {filteredSeries.length === 0 ? (
               <Typography sx={{ fontSize: 12, color: "#64748b", py: 0.5, fontStyle: "italic" }}>
-                No keywords matching "{searchQuery}"
+                No keywords matching active filters or search query
               </Typography>
             ) : (
               filteredSeries.map((s) => {
@@ -1014,7 +1196,7 @@ export default function RankChart({
                       px: 1.25,
                       py: 0.4,
                       borderRadius: "6px",
-                      bgcolor: isPinned ? "#ffffff" : isHovered ? "#ffffff" : "#f1f5f9",
+                      bgcolor: isPinned ? "#ffffff" : isHovered ? "#ffffff" : "#ffffff",
                       border: `1px solid ${isHighlighted ? s.color : "#e2e8f0"}`,
                       boxShadow: isHighlighted ? `0 2px 8px ${s.color}33` : "none",
                       opacity: hasActiveSelection && !isHighlighted ? 0.45 : 1,

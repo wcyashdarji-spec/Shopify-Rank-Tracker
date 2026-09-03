@@ -14,12 +14,13 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import BarChartIcon from "@mui/icons-material/BarChart";
-import ExtensionIcon from "@mui/icons-material/Extension";
-import PeopleIcon from "@mui/icons-material/People";
 import SearchIcon from "@mui/icons-material/Search";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import LaunchIcon from "@mui/icons-material/Launch";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import PeopleIcon from "@mui/icons-material/People";
+import ExtensionIcon from "@mui/icons-material/Extension";
+import { motion } from "motion/react";
 
 // API
 import { api } from "../api";
@@ -56,7 +57,6 @@ function getAvatarColor(name: string) {
 export default function Dashboard({
   selectedApp,
   apiUrl,
-  onRefreshApps,
   onUpdateSelectedApp,
   showToast,
   apps = [],
@@ -152,9 +152,8 @@ export default function Dashboard({
     }
     setIsLoadingHistory(true);
     try {
-      const effectiveDays = daysRange === 1 ? 2 : daysRange;
-      const res = await api.getHistory(selectedApp.id, kwIds, effectiveDays);
-      setHistoryData(res.keywords || []);
+      const data = await api.getHistory(selectedApp.id, kwIds, daysRange);
+      setHistoryData(data.keywords || []);
     } catch (err) {
       console.error("Failed to fetch history", err);
     } finally {
@@ -162,36 +161,15 @@ export default function Dashboard({
     }
   };
 
-  const getScreenshotUrl = (relativePath: string) => {
-    if (!relativePath) return "";
-    if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
-      return relativePath;
-    }
-    const cleanPath = relativePath.replace(/^\/+/, "");
-    const cleanApiUrl = apiUrl.replace(/\/+$/, "");
-    return `${cleanApiUrl}/${cleanPath}`;
-  };
-
-  const handleToggleKeyword = (kwId: number) => {
-    setSelectedKeywords((prev) =>
-      prev.includes(kwId) ? prev.filter((id) => id !== kwId) : [...prev, kwId]
-    );
-  };
-
   const handleAddKeywords = async (keywordsList: string[]) => {
-    if (!selectedApp) return;
+    if (!selectedApp || keywordsList.length === 0) return;
     setIsAddingKeywords(true);
     try {
-      await api.addKeywords(selectedApp.id, keywordsList);
+      const res = await api.addKeywords(selectedApp.id, keywordsList);
+      onUpdateSelectedApp(res.app);
       showToast(`Added ${keywordsList.length} keyword(s)`, "success");
-      await onRefreshApps();
-      const updatedApps = await api.getApps();
-      const match = updatedApps.apps.find((a) => a.id === selectedApp.id);
-      if (match) {
-        onUpdateSelectedApp(match);
-        const newKwIds = match.keywords.map((k) => k.id);
-        setSelectedKeywords(newKwIds);
-      }
+      setKeywordsDialogOpen(false);
+      await fetchHistory();
     } catch (err: any) {
       showToast(err?.message || "Failed to add keywords", "error");
     } finally {
@@ -203,210 +181,140 @@ export default function Dashboard({
     if (!selectedApp) return;
     try {
       await api.removeKeyword(selectedApp.id, kwId);
-      showToast("Keyword removed", "success");
-      await onRefreshApps();
-      const updatedApps = await api.getApps();
-      const match = updatedApps.apps.find((a) => a.id === selectedApp.id);
-      if (match) {
-        onUpdateSelectedApp(match);
-        setSelectedKeywords((prev) => prev.filter((id) => id !== kwId));
-      }
+      const updatedKeywords = selectedApp.keywords.filter((k) => k.id !== kwId);
+      onUpdateSelectedApp({ ...selectedApp, keywords: updatedKeywords });
+      setSelectedKeywords((prev) => prev.filter((id) => id !== kwId));
+      showToast("Keyword deleted", "info");
+      await fetchHistory();
     } catch (err: any) {
-      showToast(err?.message || "Failed to remove keyword", "error");
+      showToast(err?.message || "Failed to delete keyword", "error");
     }
   };
 
-  const dashboardStats = useMemo(() => {
-    if (!historyData.length) return { totalKeywords: 0, currentAvgRank: "-", successRate: "0%", topPositions: 0 };
-    let records = 0, rankSum = 0, found = 0, top5 = 0;
-    historyData.forEach((kh) => {
-      if (!selectedKeywords.includes(kh.keyword.id)) return;
-      kh.history.forEach((r) => {
-        records++;
-        if (r.found) {
-          found++;
-          if (r.rank !== null) {
-            rankSum += r.rank;
-            if (r.rank <= 5) top5++;
-          }
-        }
-      });
-    });
-    return {
-      totalKeywords: historyData.filter((k) => selectedKeywords.includes(k.keyword.id)).length,
-      currentAvgRank: found > 0 ? (rankSum / found).toFixed(1) : "-",
-      successRate: records > 0 ? `${Math.round((found / records) * 100)}%` : "0%",
-      topPositions: top5,
-    };
-  }, [historyData, selectedKeywords]);
+  const handleToggleKeywordSelect = (kwId: number) => {
+    setSelectedKeywords((prev) =>
+      prev.includes(kwId) ? prev.filter((id) => id !== kwId) : [...prev, kwId]
+    );
+  };
 
   const tableRows = useMemo(() => {
-    const rows: {
-      id: number;
-      appName: string;
-      isCompetitor: boolean;
-      keyword: string;
-      rank: number | null;
-      page: number | null;
-      found: boolean;
-      screenshot_path: string | null;
-      tracked_date: string;
-    }[] = [];
-
-    historyData.forEach((kh) => {
-      if (!selectedKeywords.includes(kh.keyword.id)) return;
-
-      // Primary app rankings
-      kh.history.forEach((r) =>
-        rows.push({
-          id: r.id,
-          appName: selectedApp?.name || "",
-          isCompetitor: false,
-          keyword: kh.keyword.name,
-          rank: r.rank,
-          page: r.page,
-          found: r.found,
-          screenshot_path: r.screenshot_path,
-          tracked_date: r.tracked_date,
-        })
-      );
-
-      // Competitor app rankings
-      if (kh.competitors) {
-        kh.competitors.forEach((comp) => {
-          comp.history.forEach((r) => {
-            rows.push({
-              id: r.id,
-              appName: comp.name,
-              isCompetitor: true,
-              keyword: kh.keyword.name,
-              rank: r.rank,
-              page: r.page,
-              found: r.found,
-              screenshot_path: null,
-              tracked_date: r.tracked_date,
-            });
+    const rows: any[] = [];
+    historyData.forEach((item) => {
+      if (item.history && item.history.length > 0) {
+        item.history.forEach((h: any) => {
+          rows.push({
+            id: h.id,
+            appName: selectedApp?.name || "Main App",
+            isCompetitor: false,
+            keyword: item.keyword ? item.keyword.name : "",
+            rank: h.rank,
+            page: h.page,
+            found: h.found,
+            screenshot_path: h.screenshot_path,
+            tracked_date: h.tracked_date,
           });
         });
       }
     });
+    return rows;
+  }, [historyData, selectedApp]);
 
-    return rows.sort((a, b) => new Date(b.tracked_date).getTime() - new Date(a.tracked_date).getTime());
-  }, [historyData, selectedKeywords, selectedApp]);
+  const metrics = useMemo(() => {
+    if (!selectedApp || selectedApp.keywords.length === 0) {
+      return {
+        totalKeywords: 0,
+        currentAvgRank: "--",
+        successRate: "--",
+        topPositions: 0,
+      };
+    }
 
-  // Overall Portfolio Stats for Home Page
+    const totalKeywords = selectedApp.keywords.length;
+    let rankSum = 0;
+    let rankedCount = 0;
+    let top5Count = 0;
+
+    historyData.forEach((kw) => {
+      if (kw.history && kw.history.length > 0) {
+        const latest = kw.history[kw.history.length - 1];
+        if (latest.rank && latest.rank > 0) {
+          rankSum += latest.rank;
+          rankedCount++;
+          if (latest.rank <= 5) top5Count++;
+        }
+      }
+    });
+
+    const currentAvgRank = rankedCount > 0 ? `#${(rankSum / rankedCount).toFixed(1)}` : "--";
+    const successRate = totalKeywords > 0 ? `${Math.round((rankedCount / totalKeywords) * 100)}%` : "0%";
+
+    return {
+      totalKeywords,
+      currentAvgRank,
+      successRate,
+      topPositions: top5Count,
+    };
+  }, [selectedApp, historyData]);
+
   const portfolioStats = useMemo(() => {
     const totalApps = apps.length;
-    const totalKeywords = apps.reduce((sum, a) => sum + (a.keywords ? a.keywords.length : 0), 0);
-    return {
-      totalApps,
-      totalKeywords,
-    };
+    let totalKeywords = 0;
+    apps.forEach((a) => {
+      totalKeywords += a.keywords ? a.keywords.length : 0;
+    });
+    return { totalApps, totalKeywords };
   }, [apps]);
 
-  const daysLabel = daysRange === 9999 ? "All time" : `Last ${daysRange} days`;
-
   return (
-    <>
+    <Container maxWidth="xl" sx={{ p: "0 !important" }}>
       {!selectedApp ? (
-        /* HOME OVERVIEW PAGE (When no app is selected) */
-        <Container maxWidth="xl" sx={{ py: 4, px: { xs: 2, sm: 3, md: 4 } }}>
-          {/* Welcome Hero Banner (Light Mode with Animated Backdrop) */}
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {/* Welcome Banner */}
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 3, sm: 4, md: 5 },
-              borderRadius: "20px",
-              background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%)",
+              p: { xs: 3.5, md: 5 },
+              borderRadius: "24px",
+              background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
               border: "1px solid #e2e8f0",
-              color: "#0f172a",
+              boxShadow: "0 10px 30px -10px rgba(15, 23, 42, 0.05)",
               mb: 4,
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.03)",
               position: "relative",
               overflow: "hidden",
             }}
           >
-            {/* Animated Dot-Grid Pattern */}
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: "radial-gradient(circle, #cbd5e1 1.2px, transparent 1.2px)",
-                backgroundSize: "28px 28px",
-                opacity: 0.4,
-                pointerEvents: "none",
-              }}
-            />
-
-            {/* Ambient Floating Gradient Orbs */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: "-20%",
-                right: "-5%",
-                width: 380,
-                height: 380,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.03) 70%)",
-                filter: "blur(50px)",
-                animation: "floatHomeOrb1 12s ease-in-out infinite",
-                pointerEvents: "none",
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: "-25%",
-                right: "25%",
-                width: 320,
-                height: 320,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(52, 211, 153, 0.03) 70%)",
-                filter: "blur(45px)",
-                animation: "floatHomeOrb2 15s ease-in-out infinite",
-                pointerEvents: "none",
-              }}
-            />
-
-            {/* Keyframe Styles */}
-            <style>{`
-              @keyframes floatHomeOrb1 {
-                0%, 100% { transform: translate(0px, 0px) scale(1); }
-                50% { transform: translate(-40px, 30px) scale(1.15); }
-              }
-              @keyframes floatHomeOrb2 {
-                0%, 100% { transform: translate(0px, 0px) scale(1); }
-                50% { transform: translate(50px, -35px) scale(1.2); }
-              }
-            `}</style>
-
             <Box sx={{ position: "relative", zIndex: 1, maxWidth: 680 }}>
-              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, px: 1.5, py: 0.5, borderRadius: "20px", bgcolor: "#ecfdf5", border: "1px solid #a7f3d0", mb: 2 }}>
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1, px: 1.75, py: 0.6, borderRadius: "20px", bgcolor: "#ecfdf5", border: "1px solid #a7f3d0", mb: 2 }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#10b981" }} />
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#047857" }}>
-                  System Active & Monitoring
+                  System Active & Scrapers Ready
                 </Typography>
               </Box>
 
-              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 24, sm: 30, md: 34 }, lineHeight: 1.25, mb: 1.5, color: "#0f172a" }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 26, sm: 32 }, lineHeight: 1.2, mb: 1.5, color: "#0f172a" }}>
                 Shopify Rank Tracker Overview
               </Typography>
-              <Typography sx={{ color: "#475569", fontSize: 14.5, lineHeight: 1.6, mb: 3 }}>
+              <Typography sx={{ color: "#475569", fontSize: 15, lineHeight: 1.6, mb: 3 }}>
                 Monitor live keyword search positions across the Shopify App Store, analyze head-to-head competitor rankings, and optimize listing scores.
               </Typography>
 
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 4, pt: 2, borderTop: "1px solid #e2e8f0" }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 4, pt: 2.5, borderTop: "1px solid #e2e8f0" }}>
                 <Box>
-                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Tracked Apps</Typography>
-                  <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{portfolioStats.totalApps}</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Tracked Apps</Typography>
+                  <Typography sx={{ fontSize: 26, fontWeight: 800, color: "#0f172a" }}>{portfolioStats.totalApps}</Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Active Keywords</Typography>
-                  <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#0284c7" }}>{portfolioStats.totalKeywords}</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active Keywords</Typography>
+                  <Typography sx={{ fontSize: 26, fontWeight: 800, color: "#3b82f6" }}>{portfolioStats.totalKeywords}</Typography>
                 </Box>
                 <Box>
-                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Auto Daily Scans</Typography>
-                  <Typography sx={{ fontSize: 24, fontWeight: 800, color: "#10b981" }}>24/7</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto Daily Scans</Typography>
+                  <Typography sx={{ fontSize: 26, fontWeight: 800, color: "#10b981" }}>24/7 Active</Typography>
                 </Box>
               </Box>
             </Box>
@@ -414,36 +322,29 @@ export default function Dashboard({
 
           {/* Tracked Apps Grid Section */}
           <Box sx={{ mb: 5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
-              <Box>
-                <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
-                  Your Tracked Shopify Apps
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#64748b" }}>
-                  Select an app to view detailed keyword ranking charts and matrix logs.
-                </Typography>
-              </Box>
-            </Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0f172a", mb: 2.5 }}>
+              Your Tracked Shopify Apps
+            </Typography>
 
             {apps.length === 0 ? (
               <Paper
                 elevation={0}
                 sx={{
-                  p: 4,
+                  p: 5,
                   textAlign: "center",
-                  borderRadius: "16px",
-                  border: "1px solid #e2e8f0",
+                  borderRadius: "20px",
+                  border: "1px dashed #cbd5e1",
                   bgcolor: "#ffffff",
                 }}
               >
-                <Box sx={{ width: 56, height: 56, borderRadius: "14px", bgcolor: "#f1f5f9", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#0f172a", mb: 2 }}>
-                  <StorefrontIcon sx={{ fontSize: 28 }} />
+                <Box sx={{ width: 64, height: 64, borderRadius: "16px", bgcolor: "#f1f5f9", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#0f172a", mb: 2 }}>
+                  <StorefrontIcon sx={{ fontSize: 32 }} />
                 </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 17, color: "#0f172a", mb: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 18, color: "#0f172a", mb: 1 }}>
                   No Shopify Apps Tracked Yet
                 </Typography>
-                <Typography sx={{ fontSize: 13.5, color: "#64748b", maxWidth: 420, mx: "auto", mb: 3 }}>
-                  Start tracking your app store positions by adding your first Shopify App URL and keywords.
+                <Typography sx={{ fontSize: 14, color: "#64748b", maxWidth: 440, mx: "auto", mb: 3 }}>
+                  Start tracking your app store positions by adding your first Shopify App URL and keywords in the sidebar.
                 </Typography>
               </Paper>
             ) : (
@@ -451,7 +352,7 @@ export default function Dashboard({
                 sx={{
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                  gap: 2.5,
+                  gap: 3,
                 }}
               >
                 {apps.map((app) => {
@@ -459,44 +360,47 @@ export default function Dashboard({
                   return (
                     <Card
                       key={app.id}
+                      component={motion.div}
+                      whileHover={{ y: -5, scale: 1.015 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 22 }}
                       elevation={0}
                       sx={{
-                        borderRadius: "16px",
+                        borderRadius: "18px",
                         border: "1px solid #e2e8f0",
                         bgcolor: "#ffffff",
-                        transition: "all 0.2s ease-in-out",
-                        position: "relative",
+                        boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
+                        cursor: "pointer",
                         overflow: "hidden",
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "space-between",
                         "&:hover": {
                           borderColor: color,
-                          boxShadow: `0 12px 30px ${color}1a`,
-                          transform: "translateY(-2px)",
+                          boxShadow: `0 12px 28px -4px ${color}25`,
                         },
                       }}
+                      onClick={() => {
+                        if (onSelectApp) onSelectApp(app);
+                      }}
                     >
-                      {/* Top Accent Strip */}
                       <Box sx={{ height: 4, bgcolor: color }} />
-
                       <CardContent sx={{ p: 3 }}>
-                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.75, mb: 2 }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2.5 }}>
                           <Avatar
                             src={app.icon_url || undefined}
                             sx={{
-                              width: 44,
-                              height: 44,
+                              width: 48,
+                              height: 48,
                               fontSize: 18,
                               fontWeight: 800,
                               bgcolor: color,
-                              boxShadow: `0 4px 12px ${color}40`,
+                              boxShadow: `0 4px 12px ${color}35`,
                             }}
                           >
                             {app.name[0]?.toUpperCase()}
                           </Avatar>
                           <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.25 }} noWrap title={app.name}>
+                            <Typography sx={{ fontWeight: 800, fontSize: 16, color: "#0f172a", mb: 0.25 }} noWrap title={app.name}>
                               {app.name}
                             </Typography>
                             <Typography sx={{ fontSize: 12, color: "#64748b" }} noWrap title={app.url}>
@@ -511,27 +415,23 @@ export default function Dashboard({
                             label={`${app.keywords ? app.keywords.length : 0} Keywords`}
                             size="small"
                             sx={{
-                              fontSize: 11.5,
+                              fontSize: 12,
                               fontWeight: 700,
                               bgcolor: "#f8fafc",
                               color: "#475569",
                               border: "1px solid #e2e8f0",
-                              height: 24,
+                              height: 26,
                             }}
                           />
 
                           <Button
                             size="small"
-                            onClick={() => {
-                              if (onSelectApp) onSelectApp(app);
-                            }}
                             endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
                             sx={{
-                              fontSize: 12.5,
+                              fontSize: 13,
                               fontWeight: 700,
                               color: color,
                               textTransform: "none",
-                              "&:hover": { bgcolor: `${color}10` },
                             }}
                           >
                             View Rankings
@@ -545,148 +445,178 @@ export default function Dashboard({
             )}
           </Box>
 
-          {/* Quick Platform Tools Grid */}
-          <Box sx={{ mb: 2 }}>
+          {/* Platform Features & Tools Section */}
+          <Box sx={{ mt: 5, mb: 3 }}>
             <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#0f172a", mb: 2.5 }}>
               Platform Features & Tools
             </Typography>
-
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                gap: 2.5,
+                gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+                gap: 3,
               }}
             >
-              {/* Tool 1: Listing Optimizer */}
+              {/* Tool 1: App Listing Optimizer */}
               <Paper
                 elevation={0}
+                component={motion.div}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 sx={{
                   p: 3,
-                  borderRadius: "16px",
+                  borderRadius: "18px",
                   border: "1px solid #e2e8f0",
                   bgcolor: "#ffffff",
+                  boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                   transition: "all 0.2s ease-in-out",
-                  "&:hover": { boxShadow: "0 10px 25px rgba(0,0,0,0.05)" },
+                  "&:hover": { borderColor: "#3b82f6", boxShadow: "0 10px 25px rgba(59, 130, 246, 0.1)" },
                 }}
               >
-                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
-                  <BarChartIcon sx={{ fontSize: 22 }} />
+                <Box>
+                  <Box sx={{ width: 42, height: 42, borderRadius: "12px", bgcolor: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+                    <BarChartIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: "#0f172a", mb: 0.75 }}>
+                    App Listing Optimizer
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
+                    Analyze app titles, subtitles, and descriptions to improve ASO visibility scores.
+                  </Typography>
                 </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
-                  App Listing Optimizer
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
-                  Analyze app titles, subtitles, and descriptions to improve ASO visibility scores.
-                </Typography>
                 <Button
                   size="small"
                   onClick={() => onNavigate && onNavigate("optimizer")}
-                  sx={{ fontSize: 12.5, fontWeight: 700, color: "#3b82f6", textTransform: "none", p: 0 }}
+                  sx={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", textTransform: "none", p: 0, justifyContent: "flex-start", "&:hover": { textDecoration: "underline" } }}
                 >
                   Open Listing Optimizer →
                 </Button>
               </Paper>
 
-              {/* Tool 2: Competitor Matrix */}
+              {/* Tool 2: Competitor Intelligence */}
               <Paper
                 elevation={0}
+                component={motion.div}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 sx={{
                   p: 3,
-                  borderRadius: "16px",
+                  borderRadius: "18px",
                   border: "1px solid #e2e8f0",
                   bgcolor: "#ffffff",
+                  boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                   transition: "all 0.2s ease-in-out",
-                  "&:hover": { boxShadow: "0 10px 25px rgba(0,0,0,0.05)" },
+                  "&:hover": { borderColor: "#8b5cf6", boxShadow: "0 10px 25px rgba(139, 92, 246, 0.1)" },
                 }}
               >
-                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#faf5ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
-                  <PeopleIcon sx={{ fontSize: 22 }} />
+                <Box>
+                  <Box sx={{ width: 42, height: 42, borderRadius: "12px", bgcolor: "#faf5ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+                    <PeopleIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: "#0f172a", mb: 0.75 }}>
+                    Competitor Intelligence
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
+                    Compare side-by-side keyword rankings against top competitors head-to-head.
+                  </Typography>
                 </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
-                  Competitor Intelligence
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
-                  Compare side-by-side keyword rankings against top competitors head-to-head.
-                </Typography>
                 <Button
                   size="small"
                   onClick={() => onNavigate && onNavigate("competitors")}
-                  sx={{ fontSize: 12.5, fontWeight: 700, color: "#8b5cf6", textTransform: "none", p: 0 }}
+                  sx={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", textTransform: "none", p: 0, justifyContent: "flex-start", "&:hover": { textDecoration: "underline" } }}
                 >
                   Manage Competitors →
                 </Button>
               </Paper>
 
-              {/* Tool 3: Integrations & Notifications */}
+              {/* Tool 3: Slack & Webhook Alerts */}
               <Paper
                 elevation={0}
+                component={motion.div}
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 sx={{
                   p: 3,
-                  borderRadius: "16px",
+                  borderRadius: "18px",
                   border: "1px solid #e2e8f0",
                   bgcolor: "#ffffff",
+                  boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                   transition: "all 0.2s ease-in-out",
-                  "&:hover": { boxShadow: "0 10px 25px rgba(0,0,0,0.05)" },
+                  "&:hover": { borderColor: "#10b981", boxShadow: "0 10px 25px rgba(16, 185, 129, 0.1)" },
                 }}
               >
-                <Box sx={{ width: 40, height: 40, borderRadius: "10px", bgcolor: "#f0fdf4", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
-                  <ExtensionIcon sx={{ fontSize: 22 }} />
+                <Box>
+                  <Box sx={{ width: 42, height: 42, borderRadius: "12px", bgcolor: "#f0fdf4", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+                    <ExtensionIcon sx={{ fontSize: 22 }} />
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: "#0f172a", mb: 0.75 }}>
+                    Slack & Webhook Alerts
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
+                    Connect Slack channels to get instant automated rank changes & keyword alerts.
+                  </Typography>
                 </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 15, color: "#0f172a", mb: 0.75 }}>
-                  Slack & Webhook Alerts
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, mb: 2 }}>
-                  Connect Slack channels to get instant automated rank changes & keyword alerts.
-                </Typography>
                 <Button
                   size="small"
                   onClick={() => onNavigate && onNavigate("integrations")}
-                  sx={{ fontSize: 12.5, fontWeight: 700, color: "#10b981", textTransform: "none", p: 0 }}
+                  sx={{ fontSize: 13, fontWeight: 700, color: "#10b981", textTransform: "none", p: 0, justifyContent: "flex-start", "&:hover": { textDecoration: "underline" } }}
                 >
                   Configure Integrations →
                 </Button>
               </Paper>
             </Box>
           </Box>
-        </Container>
+        </Box>
       ) : (
-        /* APP DETAIL DASHBOARD (When an app is selected) */
-        <Container maxWidth="xl" sx={{ py: 3, px: 3 }}>
-          {/* Single App Control Header Bar */}
+        /* Selected App Detailed Dashboard */
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {/* Selected App Header Card */}
           <Paper
             elevation={0}
             sx={{
-              p: 2,
-              px: 2.5,
-              borderRadius: "14px",
+              p: { xs: 3, md: 4 },
+              borderRadius: "20px",
               border: "1px solid #e2e8f0",
-              bgcolor: "#ffffff",
-              mb: 3,
+              background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+              boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
+              mb: 3.5,
               display: "flex",
-              alignItems: "center",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "flex-start", sm: "center" },
               justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 2,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
+              gap: 2.5,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
               <Avatar
                 src={selectedApp.icon_url || undefined}
                 sx={{
-                  width: 34,
-                  height: 34,
-                  fontSize: 14,
+                  width: 56,
+                  height: 56,
+                  fontSize: 22,
                   fontWeight: 800,
                   bgcolor: getAvatarColor(selectedApp.name),
-                  color: "#ffffff",
+                  boxShadow: `0 4px 14px ${getAvatarColor(selectedApp.name)}40`,
                 }}
               >
                 {selectedApp.name[0]?.toUpperCase()}
               </Avatar>
               <Box>
-                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", fontSize: { xs: 20, sm: 24 } }}>
                   {selectedApp.name}
                 </Typography>
                 <Typography
@@ -695,83 +625,96 @@ export default function Dashboard({
                   target="_blank"
                   rel="noopener noreferrer"
                   sx={{
-                    fontSize: 12,
-                    color: "#0284c7",
-                    fontWeight: 600,
+                    fontSize: 13,
+                    color: "#3b82f6",
                     textDecoration: "none",
+                    fontWeight: 600,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 0.5,
                     "&:hover": { textDecoration: "underline" },
                   }}
                 >
-                  {selectedApp.url} <LaunchIcon sx={{ fontSize: 11 }} />
+                  {selectedApp.url} <LaunchIcon sx={{ fontSize: 13 }} />
                 </Typography>
               </Box>
             </Box>
 
-            <Chip
-              label={daysLabel}
-              size="small"
-              sx={{
-                fontSize: 12,
-                fontWeight: 700,
-                bgcolor: "#f8fafc",
-                color: "#475569",
-                border: "1px solid #e2e8f0",
-                height: 28,
-                px: 1,
-              }}
-            />
+            <Box sx={{ display: "flex", gap: 1.5, width: { xs: "100%", sm: "auto" } }}>
+              <Button
+                variant="outlined"
+                onClick={() => setKeywordsDialogOpen(true)}
+                startIcon={<SearchIcon sx={{ fontSize: 18 }} />}
+                sx={{
+                  borderRadius: "10px",
+                  borderColor: "#e2e8f0",
+                  color: "#0f172a",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textTransform: "none",
+                  py: 1,
+                  px: 2,
+                  "&:hover": { borderColor: "#cbd5e1", bgcolor: "#f8fafc" },
+                }}
+              >
+                Manage Keywords
+              </Button>
+            </Box>
           </Paper>
 
+          {/* Metric Cards Row */}
           <MetricCards
-            totalKeywords={dashboardStats.totalKeywords}
-            currentAvgRank={dashboardStats.currentAvgRank}
-            successRate={dashboardStats.successRate}
-            topPositions={dashboardStats.topPositions}
+            totalKeywords={metrics.totalKeywords}
+            currentAvgRank={metrics.currentAvgRank}
+            successRate={metrics.successRate}
+            topPositions={metrics.topPositions}
             listingScore={listingScore}
           />
 
+          {/* Rank Chart Visualization */}
           <RankChart
             historyData={historyData}
             selectedKeywords={selectedKeywords}
-            onToggleKeyword={handleToggleKeyword}
+            onToggleKeyword={handleToggleKeywordSelect}
             daysRange={daysRange}
-            onRangeChange={(d) => setDaysRange(d)}
+            onRangeChange={setDaysRange}
             keywords={selectedApp.keywords}
             isLoadingHistory={isLoadingHistory}
             onManageKeywords={() => setKeywordsDialogOpen(true)}
           />
 
-          <HistoryLog
-            selectedApp={selectedApp}
-            historyData={historyData}
-            competitors={competitors}
-            onAddCompetitor={handleAddCompetitor}
-            onDeleteCompetitor={handleDeleteCompetitor}
-            onViewScreenshot={(path) => setViewScreenshotPath(getScreenshotUrl(path))}
-            tableRows={tableRows}
-            onRefresh={fetchHistory}
+          {/* HistoryLog Component: Manage Competitors, Summary Cards, and Ranking History Table */}
+          <Box sx={{ mt: 4 }}>
+            <HistoryLog
+              selectedApp={selectedApp}
+              historyData={historyData}
+              competitors={competitors}
+              onAddCompetitor={handleAddCompetitor}
+              onDeleteCompetitor={handleDeleteCompetitor}
+              onViewScreenshot={(path) => setViewScreenshotPath(path)}
+              tableRows={tableRows}
+              onRefresh={fetchHistory}
+            />
+          </Box>
+
+          {/* Dialogs */}
+          <KeywordsDialog
+            open={keywordsDialogOpen}
+            onClose={() => setKeywordsDialogOpen(false)}
+            keywords={selectedApp.keywords}
+            onAddKeywords={handleAddKeywords}
+            onRemoveKeyword={(id) => handleRemoveKeyword(id)}
+            isLoading={isAddingKeywords}
           />
-        </Container>
+
+          <ScreenshotDialog
+            open={!!viewScreenshotPath}
+            onClose={() => setViewScreenshotPath(null)}
+            screenshotUrl={viewScreenshotPath ? `${apiUrl}${viewScreenshotPath}` : null}
+            onShowMessage={showToast}
+          />
+        </Box>
       )}
-
-      <KeywordsDialog
-        open={keywordsDialogOpen}
-        onClose={() => setKeywordsDialogOpen(false)}
-        keywords={selectedApp?.keywords ?? []}
-        onAddKeywords={handleAddKeywords}
-        onRemoveKeyword={handleRemoveKeyword}
-        isLoading={isAddingKeywords}
-      />
-
-      <ScreenshotDialog
-        open={!!viewScreenshotPath}
-        onClose={() => setViewScreenshotPath(null)}
-        screenshotUrl={viewScreenshotPath}
-        onShowMessage={(msg, sev) => showToast(msg, sev)}
-      />
-    </>
+    </Container>
   );
 }

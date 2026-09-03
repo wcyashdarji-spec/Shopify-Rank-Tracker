@@ -443,15 +443,15 @@ export default function HistoryLog({
             startIcon={<AddIcon sx={{ fontSize: 18 }} />}
             sx={{
               borderRadius: "10px",
-              borderColor: "#e5e7eb",
-              color: "#374151",
-              fontWeight: 600,
+              bgcolor: "#0f172a",
+              color: "#ffffff",
+              fontWeight: 700,
               fontSize: 13,
               textTransform: "none",
               px: 2.5,
-              py: 1.25,
-              bgcolor: "#fff",
-              "&:hover": { borderColor: "#d1d5db", bgcolor: "#f9fafb" },
+              py: 1,
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+              "&:hover": { bgcolor: "#1e293b", boxShadow: "0 6px 16px rgba(15, 23, 42, 0.25)" },
             }}
           >
             Add Competitor
@@ -464,8 +464,8 @@ export default function HistoryLog({
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-          gap: 2,
-          mb: 3,
+          gap: 2.5,
+          mb: 3.5,
         }}
       >
         {/* Card 1: Total Keywords */}
@@ -473,32 +473,36 @@ export default function HistoryLog({
           elevation={0}
           sx={{
             p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
-            bgcolor: "#fff",
+            borderRadius: "18px",
+            border: "1px solid #e2e8f0",
+            background: "linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)",
+            boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            transition: "all 0.2s ease",
+            "&:hover": { borderColor: "#8b5cf6", boxShadow: "0 10px 25px -4px rgba(139, 92, 246, 0.2)" },
           }}
         >
           <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#4b5563", mb: 0.5 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }}>
               Total Keywords
             </Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
               {stats.totalKeywords}
             </Typography>
           </Box>
           <Box
             sx={{
-              width: 44,
-              height: 44,
-              borderRadius: "10px",
-              bgcolor: "#f3e8ff",
+              width: 46,
+              height: 46,
+              borderRadius: "12px",
+              bgcolor: "#f5f3ff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#8b5cf6",
+              boxShadow: "0 4px 10px rgba(139, 92, 246, 0.15)",
             }}
           >
             <DescriptionOutlinedIcon sx={{ fontSize: 24 }} />
@@ -510,19 +514,22 @@ export default function HistoryLog({
           elevation={0}
           sx={{
             p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
-            bgcolor: "#fff",
+            borderRadius: "18px",
+            border: "1px solid #e2e8f0",
+            background: "linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%)",
+            boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
+            transition: "all 0.2s ease",
+            "&:hover": { borderColor: "#10b981", boxShadow: "0 10px 25px -4px rgba(16, 185, 129, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#4b5563", mb: 0.5 }} noWrap>
-            Keywords in Top 10 (Any Competitor)
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
+            Keywords in Top 10 (Any)
           </Typography>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
               {stats.top10Any}
             </Typography>
             <Chip
@@ -531,10 +538,11 @@ export default function HistoryLog({
               sx={{
                 bgcolor: "#dcfce7",
                 color: "#15803d",
-                fontWeight: 700,
-                fontSize: 11,
-                height: 20,
-                borderRadius: "4px",
+                fontWeight: 800,
+                fontSize: 11.5,
+                height: 22,
+                borderRadius: "6px",
+                border: "1px solid #a7f3d0",
               }}
             />
           </Box>
@@ -545,19 +553,22 @@ export default function HistoryLog({
           elevation={0}
           sx={{
             p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #e5e7eb",
-            bgcolor: "#fff",
+            borderRadius: "18px",
+            border: "1px solid #e2e8f0",
+            background: "linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)",
+            boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.03)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
+            transition: "all 0.2s ease",
+            "&:hover": { borderColor: "#3b82f6", boxShadow: "0 10px 25px -4px rgba(59, 130, 246, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#4b5563", mb: 0.5 }} noWrap>
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
             Your App in Top 10
           </Typography>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#3b82f6", lineHeight: 1 }}>
               {stats.top10Store}
             </Typography>
             <Chip
@@ -566,10 +577,11 @@ export default function HistoryLog({
               sx={{
                 bgcolor: "#dbeafe",
                 color: "#1d4ed8",
-                fontWeight: 700,
-                fontSize: 11,
-                height: 20,
-                borderRadius: "4px",
+                fontWeight: 800,
+                fontSize: 11.5,
+                height: 22,
+                borderRadius: "6px",
+                border: "1px solid #bfdbfe",
               }}
             />
           </Box>
@@ -580,30 +592,28 @@ export default function HistoryLog({
           elevation={0}
           sx={{
             p: 2.5,
-            borderRadius: "12px",
-            border: "1px solid #fca5a5",
-            bgcolor: "#fff5f5",
+            borderRadius: "18px",
+            border: "1px solid #fecdd3",
+            background: "linear-gradient(135deg, #ffffff 0%, #fff1f2 100%)",
+            boxShadow: "0 4px 20px -2px rgba(225, 29, 72, 0.04)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
+            transition: "all 0.2s ease",
+            "&:hover": { borderColor: "#e11d48", boxShadow: "0 10px 25px -4px rgba(225, 29, 72, 0.2)" },
           }}
         >
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#111827", mb: 0.5 }} noWrap>
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#9f1239", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }} noWrap>
             Not Ranking (Your App)
           </Typography>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#111827", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#e11d48", lineHeight: 1 }}>
               {stats.notRankingStore}
             </Typography>
             <Chip
               label={stats.notRankingStorePct}
               size="small"
               sx={{
-                bgcolor: "#fee2e2",
-                color: "#dc2626",
-                fontWeight: 700,
-                fontSize: 11,
-                height: 20,
                 borderRadius: "4px",
               }}
             />

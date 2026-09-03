@@ -37,6 +37,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleIcon from "@mui/icons-material/People";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ClearIcon from "@mui/icons-material/Clear";
+import { motion } from "motion/react";
 
 import AppLogo from "./AppLogo";
 import { api, type App, type AppLastSync } from "../api";
@@ -54,7 +55,6 @@ interface SidebarProps {
   onLogout?: () => void;
 }
 
-// Color palette for app avatars
 const AVATAR_COLORS = [
   "#f97316", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#ef4444",
 ];
@@ -162,28 +162,19 @@ export default function Sidebar({
     setAppToDelete(null);
   };
 
-  const navItemSx = (active?: boolean) => ({
-    borderRadius: "8px",
-    mb: 0.5,
-    px: 1.5,
-    py: 0.85,
-    gap: 1.25,
-    bgcolor: active ? "#f1f5f9" : "transparent",
-    borderLeft: active ? "3.5px solid #0f172a" : "3.5px solid transparent",
-    color: active ? "#0f172a" : "#475569",
-    fontWeight: active ? 700 : 500,
-    "&:hover": {
-      bgcolor: active ? "#e2e8f0" : "#f8fafc",
-      color: "#0f172a",
-      transform: "translateX(2px)",
-    },
-    transition: "all 0.18s ease-in-out",
-  });
+  const navItems = [
+    { page: "dashboard", label: "Home", icon: <HomeIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "dashboard" && !selectedApp },
+    { page: "optimizer", label: "Listing Optimizer", icon: <BarChartIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "optimizer" },
+    { page: "competitors", label: "Competitors", icon: <PeopleIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "competitors" },
+    { page: "history", label: "History Log", icon: <HistoryIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "history" },
+    { page: "integrations", label: "Integrations", icon: <ExtensionIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "integrations" },
+    { page: "settings", label: "Profile Settings", icon: <SettingsIcon sx={{ fontSize: 18 }} />, activeIf: currentPage === "settings" },
+  ] as const;
 
   return (
     <Box
       sx={{
-        width: 240,
+        width: 250,
         flexShrink: 0,
         height: "100%",
         bgcolor: "#ffffff",
@@ -191,14 +182,15 @@ export default function Sidebar({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        boxShadow: "2px 0 12px rgba(0,0,0,0.02)",
+        boxShadow: "4px 0 20px rgba(15, 23, 42, 0.03)",
+        zIndex: 10,
       }}
     >
       {/* Brand Header */}
       <Box
         sx={{
           px: 2.25,
-          py: 2,
+          py: 2.25,
           display: "flex",
           alignItems: "center",
           gap: 1.5,
@@ -206,21 +198,21 @@ export default function Sidebar({
           bgcolor: "#ffffff",
         }}
       >
-        <AppLogo size={30} />
+        <AppLogo size={32} />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography sx={{ fontWeight: 800, fontSize: 15, color: "#0f172a", letterSpacing: "-0.3px", lineHeight: 1.2 }}>
             Rank Tracker
           </Typography>
-          <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Shopify ASO Suite
           </Typography>
         </Box>
       </Box>
 
       {/* Search Input */}
-      <Box sx={{ px: 1.75, pt: 1.75, pb: 1 }}>
+      <Box sx={{ px: 2, pt: 2, pb: 1 }}>
         <TextField
-          placeholder="Search or ask…"
+          placeholder="Search apps or features…"
           size="small"
           fullWidth
           value={search}
@@ -242,10 +234,10 @@ export default function Sidebar({
               sx: {
                 fontSize: 12.5,
                 bgcolor: "#f8fafc",
-                borderRadius: "8px",
+                borderRadius: "10px",
                 "& fieldset": { borderColor: "#e2e8f0" },
                 "&:hover fieldset": { borderColor: "#cbd5e1" },
-                "&.Mui-focused fieldset": { borderColor: "#6366f1" },
+                "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
                 py: 0.25,
               },
             },
@@ -253,116 +245,69 @@ export default function Sidebar({
         />
       </Box>
 
-      {/* Scrollable Middle Navigation & Apps Container */}
+      {/* Scrollable Navigation */}
       <Box
         sx={{
           flexGrow: 1,
           overflowY: "auto",
-          px: 1.25,
+          px: 1.5,
           py: 0.5,
-          "&::-webkit-scrollbar": {
-            width: "5px",
-          },
-          "&::-webkit-scrollbar-track": {
-            bgcolor: "transparent",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            bgcolor: "#cbd5e1",
-            borderRadius: "10px",
-          },
-          "&::-webkit-scrollbar-thumb:hover": {
-            bgcolor: "#94a3b8",
-          },
         }}
       >
         <List dense disablePadding>
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "dashboard" && !selectedApp)}
-              onClick={() => {
-                onSelectApp(null);
-                onNavigate("dashboard");
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <HomeIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="Home" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "optimizer")}
-              onClick={() => {
-                if (!selectedApp && apps.length > 0) {
-                  onSelectApp(apps[0]);
-                }
-                onNavigate("optimizer");
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <BarChartIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="Listing Optimizer" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "competitors")}
-              onClick={() => {
-                if (!selectedApp && apps.length > 0) {
-                  onSelectApp(apps[0]);
-                }
-                onNavigate("competitors");
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <PeopleIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="Competitors" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "history")}
-              onClick={() => onNavigate("history")}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <HistoryIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="History Log" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "integrations")}
-              onClick={() => onNavigate("integrations")}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <ExtensionIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="Integrations" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={navItemSx(currentPage === "settings")}
-              onClick={() => onNavigate("settings")}
-            >
-              <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
-                <SettingsIcon sx={{ fontSize: 17 }} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13, fontWeight: "inherit" } } }} primary="Profile Settings" />
-            </ListItemButton>
-          </ListItem>
+          {navItems.map((item) => {
+            const isActive = item.activeIf;
+            return (
+              <ListItem disablePadding key={item.page} sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  component={motion.div}
+                  whileHover={{ x: 3 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  onClick={() => {
+                    if ((item.page === "optimizer" || item.page === "competitors") && !selectedApp && apps.length > 0) {
+                      onSelectApp(apps[0]);
+                    }
+                    if (item.page === "dashboard") {
+                      onSelectApp(null);
+                    }
+                    onNavigate(item.page as any);
+                  }}
+                  sx={{
+                    borderRadius: "10px",
+                    px: 1.75,
+                    py: 1,
+                    gap: 1.5,
+                    bgcolor: isActive ? "#0f172a" : "transparent",
+                    color: isActive ? "#ffffff" : "#475569",
+                    boxShadow: isActive ? "0 4px 12px rgba(15, 23, 42, 0.15)" : "none",
+                    position: "relative",
+                    overflow: "hidden",
+                    "&:hover": {
+                      bgcolor: isActive ? "#1e293b" : "#f1f5f9",
+                      color: isActive ? "#ffffff" : "#0f172a",
+                    },
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 22, color: "inherit" }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    slotProps={{
+                      primary: {
+                        sx: { fontSize: 13, fontWeight: isActive ? 700 : 500 },
+                      },
+                    }}
+                    primary={item.label}
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
 
-        <Divider sx={{ mx: 0.5, my: 1, borderColor: "#f1f5f9" }} />
+        <Divider sx={{ mx: 0.5, my: 1.5, borderColor: "#f1f5f9" }} />
 
         {/* Tracked Apps Section Header */}
         <Box
@@ -373,13 +318,22 @@ export default function Sidebar({
             py: 0.75,
             cursor: "pointer",
             userSelect: "none",
-            borderRadius: "6px",
+            borderRadius: "8px",
             "&:hover": { bgcolor: "#f8fafc" },
           }}
           onClick={() => setAppsExpanded((v) => !v)}
         >
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", flexGrow: 1 }}>
-            APPS ({apps.length})
+          <Typography
+            sx={{
+              fontSize: 11,
+              fontWeight: 800,
+              color: "#94a3b8",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              flexGrow: 1,
+            }}
+          >
+            TRACKED APPS ({apps.length})
           </Typography>
           {isLoadingApps ? (
             <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
@@ -391,24 +345,32 @@ export default function Sidebar({
         </Box>
 
         <Collapse in={appsExpanded}>
-          <List dense disablePadding sx={{ mt: 0.25 }}>
+          <List dense disablePadding sx={{ mt: 0.5 }}>
             {filteredApps.length === 0 ? (
               <Typography sx={{ px: 1.25, py: 1, fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>
-                No apps found
+                No apps tracked yet
               </Typography>
             ) : (
               filteredApps.map((app) => {
                 const isSelected = currentPage === "dashboard" && selectedApp?.id === app.id;
                 const color = getAvatarColor(app.name);
                 return (
-                  <ListItem disablePadding key={app.id}>
+                  <ListItem disablePadding key={app.id} sx={{ mb: 0.5 }}>
                     <ListItemButton
+                      component={motion.div}
+                      whileHover={{ x: 3 }}
+                      whileTap={{ scale: 0.98 }}
                       sx={{
-                        ...navItemSx(isSelected),
-                        borderLeft: isSelected ? `3.5px solid ${color}` : "3.5px solid transparent",
-                        bgcolor: isSelected ? `${color}12` : "transparent",
+                        borderRadius: "10px",
+                        px: 1.5,
+                        py: 0.75,
+                        bgcolor: isSelected ? `${color}15` : "transparent",
+                        borderLeft: isSelected ? `4px solid ${color}` : "4px solid transparent",
                         color: isSelected ? color : "#334155",
-                        py: 0.65,
+                        "&:hover": {
+                          bgcolor: isSelected ? `${color}20` : "#f8fafc",
+                          color: color,
+                        },
                       }}
                       onClick={() => {
                         onSelectApp(app);
@@ -418,14 +380,14 @@ export default function Sidebar({
                       <Avatar
                         src={app.icon_url || undefined}
                         sx={{
-                          width: 22,
-                          height: 22,
-                          fontSize: 10.5,
-                          fontWeight: 700,
+                          width: 24,
+                          height: 24,
+                          fontSize: 11,
+                          fontWeight: 800,
                           bgcolor: color,
-                          mr: 0.5,
+                          mr: 1,
                           flexShrink: 0,
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                          boxShadow: `0 2px 6px ${color}35`,
                         }}
                       >
                         {app.name[0]?.toUpperCase()}
@@ -452,9 +414,9 @@ export default function Sidebar({
                             fontWeight: 700,
                             px: 0.25,
                             ml: 0.5,
-                            bgcolor: isSelected ? `${color}20` : "#f1f5f9",
+                            bgcolor: isSelected ? `${color}25` : "#f1f5f9",
                             color: isSelected ? color : "#64748b",
-                            borderRadius: "4px",
+                            borderRadius: "5px",
                           }}
                         />
                       )}
@@ -490,8 +452,8 @@ export default function Sidebar({
       {/* Bottom Action Footer */}
       <Box
         sx={{
-          px: 1.75,
-          py: 1.5,
+          px: 2,
+          py: 1.75,
           borderTop: "1px solid #f1f5f9",
           display: "flex",
           alignItems: "center",
@@ -501,27 +463,29 @@ export default function Sidebar({
       >
         <Button
           fullWidth
+          component={motion.button}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
           variant="contained"
           startIcon={<AddIcon sx={{ fontSize: 17 }} />}
           onClick={() => setTrackDialogOpen(true)}
           sx={{
-            height: 38,
-            bgcolor: "#0f172a",
+            height: 40,
+            background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
             color: "#ffffff",
-            borderRadius: "9px",
+            borderRadius: "10px",
             fontSize: 13,
             fontWeight: 700,
             textTransform: "none",
-            boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
-            transition: "all 0.2s ease-in-out",
+            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.2)",
             "&:hover": {
-              bgcolor: "#1e293b",
-              boxShadow: "0 6px 18px rgba(15, 23, 42, 0.25)",
-              transform: "translateY(-1px)",
+              background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+              boxShadow: "0 6px 18px rgba(15, 23, 42, 0.3)",
             },
           }}
         >
-          Track App
+          Track New App
         </Button>
 
         {showSyncButton && (
@@ -529,23 +493,21 @@ export default function Sidebar({
             <IconButton
               onClick={onRunAllSaved}
               sx={{
-                width: 38,
-                height: 38,
-                borderRadius: "9px",
+                width: 40,
+                height: 40,
+                borderRadius: "10px",
                 border: "1px solid #e2e8f0",
                 color: "#475569",
                 bgcolor: "#ffffff",
                 flexShrink: 0,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "all 0.2s ease-in-out",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                transition: "all 0.2s ease",
                 "&:hover": {
-                  borderColor: "#6366f1",
-                  color: "#6366f1",
-                  bgcolor: "#f8fafc",
+                  borderColor: "#3b82f6",
+                  color: "#3b82f6",
+                  bgcolor: "#f0f6ff",
                   transform: "translateY(-1px)",
-                  "& svg": { transform: "rotate(180deg)" },
                 },
-                "& svg": { transition: "transform 0.4s ease" },
               }}
             >
               <RefreshIcon sx={{ fontSize: 18 }} />
@@ -558,8 +520,8 @@ export default function Sidebar({
       {onLogout && (
         <Box
           sx={{
-            px: 1.75,
-            py: 1.25,
+            px: 2,
+            py: 1.5,
             borderTop: "1px solid #f1f5f9",
             display: "flex",
             alignItems: "center",
@@ -569,23 +531,23 @@ export default function Sidebar({
         >
           <Avatar
             sx={{
-              width: 28,
-              height: 28,
-              fontSize: 12,
-              fontWeight: 700,
-              bgcolor: "#6366f1",
+              width: 32,
+              height: 32,
+              fontSize: 13,
+              fontWeight: 800,
+              bgcolor: "#3b82f6",
               color: "#ffffff",
-              boxShadow: "0 2px 5px rgba(99, 102, 241, 0.25)",
+              boxShadow: "0 2px 8px rgba(59, 130, 246, 0.3)",
             }}
           >
-            Y
+            A
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }} noWrap>
-              User Account
+            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }} noWrap>
+              Active Workspace
             </Typography>
-            <Typography sx={{ fontSize: 11, color: "#64748b" }} noWrap>
-              Connected Profile
+            <Typography sx={{ fontSize: 11, color: "#64748b", fontWeight: 500 }} noWrap>
+
             </Typography>
           </Box>
           <Tooltip title="Log Out" placement="top">
@@ -593,14 +555,14 @@ export default function Sidebar({
               size="small"
               onClick={onLogout}
               sx={{
-                p: 0.5,
+                p: 0.75,
                 color: "#64748b",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 "&:hover": { color: "#ef4444", bgcolor: "#fef2f2" },
                 transition: "all 0.15s",
               }}
             >
-              <LogoutIcon sx={{ fontSize: 17 }} />
+              <LogoutIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -615,16 +577,16 @@ export default function Sidebar({
         slotProps={{
           paper: {
             sx: {
-              borderRadius: "14px",
+              borderRadius: "18px",
               border: "1px solid #e2e8f0",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.12)",
+              boxShadow: "0 25px 60px rgba(15, 23, 42, 0.18)",
               p: 0.5,
             },
           },
         }}
       >
         <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>Track New App</Typography>
+          <Typography sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>Track New App</Typography>
           <IconButton size="small" onClick={() => setTrackDialogOpen(false)}>
             <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
@@ -660,7 +622,7 @@ export default function Sidebar({
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={() => setTrackDialogOpen(false)} size="small" sx={{ color: "#64748b", textTransform: "none", fontWeight: 600 }}>
             Cancel
           </Button>
@@ -671,11 +633,12 @@ export default function Sidebar({
             disabled={!newAppName.trim() || !newAppUrl.trim() || !newKeywordsText.trim()}
             sx={{
               bgcolor: "#0f172a",
-              borderRadius: "8px",
+              borderRadius: "10px",
               textTransform: "none",
               fontWeight: 700,
-              px: 2.5,
-              py: 0.75,
+              px: 3,
+              py: 0.85,
+              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
               "&:hover": { bgcolor: "#1e293b" },
             }}
           >
@@ -693,19 +656,19 @@ export default function Sidebar({
         slotProps={{
           paper: {
             sx: {
-              borderRadius: "14px",
+              borderRadius: "18px",
               border: "1px solid #e2e8f0",
               p: 0.5,
             },
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 17, color: "#0f172a" }}>
           Delete Application
         </DialogTitle>
 
         <DialogContent>
-          <Typography sx={{ fontSize: 13.5, color: "#334155" }}>
+          <Typography sx={{ fontSize: 14, color: "#334155" }}>
             Are you sure you want to delete <strong>{appToDelete?.name}</strong>?
           </Typography>
           <Typography sx={{ mt: 1, fontSize: 12.5, color: "#64748b" }}>
@@ -713,7 +676,7 @@ export default function Sidebar({
           </Typography>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={handleCancelDelete} sx={{ color: "#64748b", textTransform: "none", fontWeight: 600 }}>
             Cancel
           </Button>
@@ -721,7 +684,7 @@ export default function Sidebar({
             color="error"
             variant="contained"
             onClick={handleConfirmDelete}
-            sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 700, px: 2 }}
+            sx={{ borderRadius: "10px", textTransform: "none", fontWeight: 700, px: 2.5 }}
           >
             Delete App
           </Button>
